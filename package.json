@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",
+    "@ai-sdk/react": "^3.0.118",
     "@auth0/nextjs-auth0": "^4.16.0",
     "@octokit/rest": "^22.0.1",
     "@slack/web-api": "^7.14.1",
@@ -18,7 +19,7 @@
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "zod": "^4.3.6"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
