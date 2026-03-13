@@ -15,7 +15,7 @@ Token Vault by Auth0 holds all OAuth tokens. The agent never sees them.
 - GitHub, Gmail, Slack APIs
 
 ## Project Structure
-\`\`\`
+```
 Anzen/
 ├── app/
 │   ├── api/
@@ -29,7 +29,7 @@ Anzen/
 ├── RULES.md
 ├── CHECKLIST.md
 └── .env.example
-\`\`\`
+```
 
 ## Getting Started
 
@@ -42,32 +42,32 @@ Anzen/
 ### Installation
 
 1. Clone the repository:
-\`\`\`bash
+```bash
 git clone https://github.com/YOUR_USERNAME/anzen
 cd anzen
-\`\`\`
+```
 
 2. Install dependencies:
-\`\`\`bash
+```bash
 npm install
-\`\`\`
+```
 
 3. Copy environment variables:
-\`\`\`bash
+```bash
 cp .env.example .env.local
-\`\`\`
+```
 
 4. Fill in your credentials in `.env.local`
 
 5. Run the development server:
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 
 6. Open [http://localhost:3000](http://localhost:3000)
 
 ## Environment Variables
-\`\`\`bash
+```bash
 AUTH0_SECRET=
 AUTH0_DOMAIN=
 AUTH0_CLIENT_ID=
@@ -76,7 +76,7 @@ APP_BASE_URL=http://localhost:3000
 AUTH0_TOKEN_VAULT_URL=
 OPENAI_API_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-\`\`\`
+```
 
 ## Security Model
 Every agent action lives in one of three permission tiers:

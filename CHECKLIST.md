@@ -13,7 +13,7 @@
 - [x] Auth working end to end (login page loads)
 - [x] Login flow completes and redirects back to app
 - [x] Logout working
-- [ ] GitHub repo created and pushed
+- [x] GitHub repo created and pushed
 - [ ] Token Vault enabled in Auth0
 
 ## Phase 2 — Integrations
