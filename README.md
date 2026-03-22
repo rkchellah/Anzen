@@ -43,7 +43,7 @@ Anzen/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/anzen
+git clone https://github.com/rkchellah/anzen
 cd anzen
 ```
 
@@ -72,7 +72,10 @@ AUTH0_SECRET=
 AUTH0_DOMAIN=
 AUTH0_CLIENT_ID=
 AUTH0_CLIENT_SECRET=
+AUTH0_AUDIENCE=https://anzen.api
 APP_BASE_URL=http://localhost:3000
+ANZEN_AGENT_CLIENT_ID=
+ANZEN_AGENT_CLIENT_SECRET=
 AUTH0_TOKEN_VAULT_URL=
 OPENAI_API_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -103,3 +106,13 @@ updated callback URL in Auth0 dashboard.
 **Cause:** Auth0 dashboard had old v3 callback URL `/api/auth/callback`
 **Fix:** Updated Auth0 dashboard Allowed Callback URLs to
 `http://localhost:3000/auth/callback`
+
+### Bug 003 — Auth0 Dashboard Configuration
+**Steps required for Token Vault to work:**
+- Disabled Refresh Token Rotation in Anzen app settings
+- Enabled Token Vault grant type in Advanced Settings
+- Created Custom API with identifier https://anzen.api
+- Created Custom API Client for token exchanges
+- Authorized Anzen app on My Account API with Connected Accounts scopes
+- Enabled Allow Skipping User Consent on My Account API
+- Enabled Multi-Resource Refresh Token for My Account API
