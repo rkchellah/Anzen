@@ -2,6 +2,11 @@
 
 > Confirm with team before checking off any task.
 
+## 🚨 Security
+- [x] Removed .env.local from git tracking
+- [x] Removed duplicate token-vault implementation
+- [ ] All credentials rotated after accidental exposure
+
 ## Phase 1 — Foundation
 - [x] Next.js app initialized with TypeScript
 - [x] Auth0 application created (Anzen)
@@ -31,7 +36,7 @@
 
 ## Phase 3 — Agent Brain
 - [ ] Vercel AI SDK configured with GPT-4o
-- [ ] GitHub tool built and tested
+- [x] GitHub tool built and tested
 - [ ] Gmail tool built and tested
 - [ ] Slack tool built and tested
 - [ ] Morning briefing prompt engineered
