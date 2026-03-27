@@ -116,3 +116,15 @@ updated callback URL in Auth0 dashboard.
 - Authorized Anzen app on My Account API with Connected Accounts scopes
 - Enabled Allow Skipping User Consent on My Account API
 - Enabled Multi-Resource Refresh Token for My Account API
+
+### Bug 004 — AI SDK Tool Typing
+**Error:** `Type '() => Promise<...>' is not assignable to type 'undefined'`
+**Cause:** Vercel AI SDK `tool` function fails to infer types correctly when `parameters` is an empty object `z.object({})`.
+**Fix:** Added a dummy optional parameter `_unused: z.string().optional()` to the Zod schema to force correct type inference.
+
+### Bug 005 — Credentials Accidentally Committed
+**Issue:** .env.local was committed to git history exposing all API credentials.
+**Fix:** Removed .env.local from git tracking with git rm --cached,
+confirmed .gitignore has .env.local entry, rotated all exposed credentials.
+**Prevention:** Always run git status before committing to verify
+sensitive files are not staged.
