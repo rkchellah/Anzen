@@ -10,6 +10,8 @@ export default async function Home() {
       {session ? (
         <div>
           <p>Welcome, {session.user.name}</p>
+          <a href="/connect">Connect Accounts</a>
+          <br />
           <a href="/auth/logout">Logout</a>
         </div>
       ) : (

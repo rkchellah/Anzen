@@ -19,12 +19,21 @@ Token Vault by Auth0 holds all OAuth tokens. The agent never sees them.
 Anzen/
 ├── app/
 │   ├── api/
+│   │   └── agent/
+│   │       └── route.ts          — Main agent API route
+│   ├── connect/
+│   │   └── page.tsx              — Connect accounts page
 │   ├── layout.tsx
 │   ├── page.tsx
 │   └── globals.css
+├── agent/
+│   └── tools/
+│       ├── github.ts             — GitHub tools (list issues, close, comment)
+│       ├── gmail.ts              — Gmail tools (list unread, send)
+│       └── slack.ts              — Slack tools (list channels, post message)
 ├── lib/
 │   └── auth0.ts
-├── middleware.ts
+├── proxy.ts
 ├── public/
 ├── RULES.md
 ├── CHECKLIST.md
