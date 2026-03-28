@@ -7,6 +7,9 @@
 - [x] Removed duplicate token-vault implementation
 - [ ] All credentials rotated after accidental exposure
 
+## 🐛 Bug Fixes
+- [x] Bug 008 — Renamed proxy.ts → middleware.ts (state parameter missing on login)
+
 ## Phase 1 — Foundation
 - [x] Next.js app initialized with TypeScript
 - [x] Auth0 application created (Anzen)
