@@ -35,6 +35,10 @@
 - [x] My Account API configured
 - [x] Multi-Resource Refresh Token enabled
 - [x] Token Vault fetch function written
+- [x] Agent API route built (app/api/agent/route.ts)
+- [x] Gmail tool built (agent/tools/gmail.ts)
+- [x] Slack tool built (agent/tools/slack.ts)
+- [x] Connect accounts page built (app/connect/page.tsx)
 - [ ] GitHub OAuth connected via Token Vault
 - [ ] Gmail OAuth connected via Token Vault
 - [ ] Slack OAuth connected via Token Vault
@@ -44,8 +48,8 @@
 ## Phase 3 — Agent Brain
 - [ ] Vercel AI SDK configured with GPT-4o
 - [x] GitHub tool built and tested
-- [ ] Gmail tool built and tested
-- [ ] Slack tool built and tested
+- [x] Gmail tool built and tested
+- [x] Slack tool built and tested
 - [ ] Morning briefing prompt engineered
 - [ ] Step-up authentication implemented
 
