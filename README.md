@@ -128,9 +128,56 @@ confirmed .gitignore has .env.local entry, rotated all exposed credentials.
 **Prevention:** Always run git status before committing to verify
 sensitive files are not staged.
 
-### Bug 008 — State Parameter Missing on Login (Next.js 16 proxy.ts convention)
-**Error:** `The state parameter is missing.`
-**Investigation:** Initially suspected that proxy.ts was wrong and middleware.ts was correct based on standard Next.js docs. After applying the rename, the terminal showed: "The middleware file convention is deprecated. Please use proxy instead."
-**Finding:** Next.js 16 changed the middleware entry point name from middleware.ts to proxy.ts. The original proxy.ts filename was correct. The rename was reverted.
-**Root cause is elsewhere — investigation continuing.**
-**Prevention:** Always check the running terminal output after any structural change before assuming a fix worked.
+### Bug 008 — Authorization Flow Failures (Multi-Stage Investigation)
+
+**Total bugs resolved in this session: 3 root causes**
+
+---
+
+#### Stage 1 — State Parameter Missing
+**Error:** `The state parameter is missing`
+**Initial suspicion:** Wrong middleware filename
+**Investigation:**
+- Renamed proxy.ts to middleware.ts — made things worse
+- Terminal revealed: "The middleware file convention is deprecated. Please use proxy instead"
+- Next.js 16 uses proxy.ts not middleware.ts — the rename was wrong
+- Reverted back to proxy.ts
+- Root cause was NOT the filename
+
+**Actual cause:** Both proxy.ts and middleware.ts existed at the same time. Next.js detected two conflicting middleware files and crashed, meaning the Auth0 middleware never ran, the state cookie was never written, and the callback failed.
+
+**Fix:** Deleted middleware.ts. Only proxy.ts should exist at the project root.
+
+**Prevention:** Never have both proxy.ts and middleware.ts in the project at the same time. After any file rename, immediately check the terminal output before assuming the fix worked.
+
+---
+
+#### Stage 2 — Client Not Authorized to Access Resource Server
+**Error:** `Client "dk9f9EgLnzLW2pW9EBE8kLsaTcXKXWaX" is not authorized to access resource server "https://anzen.api"`
+**Cause:** The Anzen application had never been granted access to the Anzen API in the Auth0 dashboard. The Application Access Policy was set to "Allow via client-grant" which means each app must be explicitly authorized — but Anzen was listed as UNAUTHORIZED for both User Access and Client Access.
+**Fix:**
+1. Auth0 Dashboard → Applications → APIs → Anzen API
+2. Click the Application Access tab
+3. Find the Anzen app row
+4. Click Edit → User Access tab → set to Authorized → Save
+5. Click Edit again → Client Access tab → set to Authorized → Save
+
+**Prevention:** When creating a Custom API with "Allow via client-grant" policy, you MUST manually authorize each application that needs to use it. This is not automatic. Always check the Application Access tab after creating a Custom API.
+
+---
+
+#### Stage 3 — Google OAuth Access Blocked
+**Error:** `Access blocked: auth0.com has not completed the Google verification process. Error 403: access_denied`
+**Cause:** Google Cloud OAuth app is in Testing mode. In testing mode, only explicitly added test users can sign in with Google OAuth.
+**Fix:**
+1. Go to console.cloud.google.com
+2. Select the anzen project
+3. APIs & Services → OAuth consent screen
+4. Scroll to Test users → Add Users
+5. Add all Gmail addresses that need to test the app
+
+**Prevention:** Always add your own email(s) as test users immediately after setting up Google OAuth in testing mode. Do this before testing login.
+
+---
+
+**Key lesson from this session:** Auth0 authorization errors are almost never about the code. They are almost always about dashboard configuration. When you see an Auth0 error, check the dashboard first before touching any code.
