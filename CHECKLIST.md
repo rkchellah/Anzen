@@ -8,7 +8,7 @@
 - [ ] All credentials rotated after accidental exposure
 
 ## 🐛 Bug Fixes
-- [x] Bug 008 — Renamed proxy.ts → middleware.ts (state parameter missing on login)
+- [ ] Bug 008 — State parameter missing on login (root cause still under investigation)
 
 ## Phase 1 — Foundation
 - [x] Next.js app initialized with TypeScript
