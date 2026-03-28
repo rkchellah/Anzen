@@ -6,7 +6,7 @@ export default async function Home() {
   return (
     <main>
       <h1>Anzen</h1>
-      <p>Your AI Chief of Staff</p>
+      <p>Where safety matters</p>
       {session ? (
         <div>
           <p>Welcome, {session.user.name}</p>
