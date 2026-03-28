@@ -20,3 +20,7 @@ When Auth0 login breaks, diagnose in this order:
 5. **"discovery request failed / ENOTFOUND"** — `AUTH0_DOMAIN` is wrong or the dev server cannot reach Auth0. Check:
    - `AUTH0_DOMAIN` in `.env.local` is set to the domain only (e.g. `dev-xxxx.us.auth0.com`) with no `https://` prefix and no trailing slash
    - Internet connection is up
+
+6. **Auth0 consent screen on every login** — This is expected on first login for each account. Users click Accept once and it won't appear again for the same account. Not a bug.
+
+7. **After clearing all Auth0 errors, if you get a ChunkLoadError** — This is not an Auth0 issue. Run `rm -rf .next && npm run dev` to clear the Turbopack cache. Caused by stale build artifacts after dev server restarts and file renames during debugging.

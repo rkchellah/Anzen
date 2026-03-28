@@ -9,8 +9,9 @@
 
 ## 🐛 Bug Fixes
 - [x] Bug 008 — State parameter missing (proxy.ts + middleware.ts conflict)
-- [x] Bug 009 — Client not authorized to access Anzen API (Application Access not configured)
-- [x] Bug 010 — Google OAuth blocked (test users not added to OAuth consent screen)
+- [x] Bug 009 — Anzen app not authorized on Anzen API (Application Access tab)
+- [x] Bug 010 — Google OAuth blocked (no test users added in Google Auth Platform)
+- [x] Bug 011 — ChunkLoadError (stale Turbopack cache, fixed with rm -rf .next)
 
 ## Phase 1 — Foundation
 - [x] Next.js app initialized with TypeScript
@@ -22,7 +23,7 @@
 - [x] Auth0 UserProvider added to layout
 - [x] Auth working end to end (login page loads)
 - [x] Login flow completes and redirects back to app
-- [x] Login flow working end to end (Auth0 authorization flow confirmed working)
+- [x] Login flow working end to end — confirmed "Welcome, Chella Kamina" after Google OAuth
 - [x] Logout working
 - [x] GitHub repo created and pushed
 - [x] Token Vault enabled in Auth0

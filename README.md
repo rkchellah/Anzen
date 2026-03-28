@@ -181,3 +181,25 @@ sensitive files are not staged.
 ---
 
 **Key lesson from this session:** Auth0 authorization errors are almost never about the code. They are almost always about dashboard configuration. When you see an Auth0 error, check the dashboard first before touching any code.
+
+### Bug 009 — Anzen App Not Authorized on Custom API
+**Error:** `Client "dk9f9EgLnzLW2pW9EBE8kLsaTcXKXWaX" is not authorized to access resource server "https://anzen.api"`
+**Cause:** When a Custom API uses "Allow via client-grant" access policy, every application must be manually authorized. The Anzen app had never been granted access.
+**Fix:** Auth0 Dashboard → APIs → Anzen API → Application Access tab → Edit Anzen row → set User Access and Client Access both to Authorized → Save.
+**Prevention:** After creating any Custom API, immediately go to the Application Access tab and authorize all apps that need to use it. This step is not automatic.
+
+### Bug 010 — Google OAuth Blocked in Testing Mode
+**Error:** `Access blocked: auth0.com has not completed the Google verification process. Error 403: access_denied`
+**Cause:** Google Cloud OAuth app was in Testing mode with zero test users configured. Any Google account not on the test users list is blocked.
+**Fix:** Google Auth Platform → Audience → Test users → Add users → add rkchellah@gmail.com.
+**Direct URL:** https://console.cloud.google.com/auth/audience?project=anzen-490720
+**Prevention:** Immediately after setting up Google OAuth, add your own Gmail to the test users list before testing login. Never leave test users empty.
+
+### Bug 011 — ChunkLoadError After Successful Auth
+**Error:** `Runtime ChunkLoadError: Failed to load chunk /_next/static/chunks/app_layout_tsx_1cf6b850_.js`
+**Cause:** Stale Turbopack build cache after multiple dev server restarts and file renames during debugging.
+**Fix:** Stop dev server → run `rm -rf .next` → run `npm run dev`. Clean rebuild resolves chunk loading issues.
+**Prevention:** When experiencing unexpected client-side errors after structural changes, always try clearing the .next cache before deeper investigation.
+
+### Bug 012 — Auth0 Consent Screen Showing on Every Login
+**Note:** Auth0 showing "Authorize App — Anzen is requesting access to your account" is expected behaviour on first login. Users click Accept once and it does not appear again for the same account.
