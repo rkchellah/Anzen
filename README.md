@@ -24,7 +24,7 @@ Anzen/
 │   └── globals.css
 ├── lib/
 │   └── auth0.ts
-├── proxy.ts
+├── middleware.ts
 ├── public/
 ├── RULES.md
 ├── CHECKLIST.md
@@ -94,12 +94,11 @@ Every agent action lives in one of three permission tiers:
 **Cause:** Auth0 nextjs-auth0 v4 completely changed its API from v3.
 - `handleAuth` no longer exists
 - `UserProvider` replaced with `Auth0Provider`
-- `middleware.ts` replaced with `proxy.ts` in Next.js 16
 - Env variable `AUTH0_ISSUER_BASE_URL` renamed to `AUTH0_DOMAIN`
 - Callback URL changed from `/api/auth/callback` to `/auth/callback`
 **Fix:** Updated `lib/auth0.ts` with explicit Auth0Client config,
-renamed `middleware.ts` to `proxy.ts`, updated all env variable names,
-updated callback URL in Auth0 dashboard.
+updated all env variable names, updated callback URL in Auth0 dashboard.
+Note: middleware file was initially renamed to `proxy.ts` (incorrect — see Bug 008).
 
 ### Bug 002 — Callback URL Mismatch
 **Error:** `Callback URL mismatch` on Auth0 login page
@@ -128,3 +127,9 @@ updated callback URL in Auth0 dashboard.
 confirmed .gitignore has .env.local entry, rotated all exposed credentials.
 **Prevention:** Always run git status before committing to verify
 sensitive files are not staged.
+
+### Bug 008 — State Parameter Missing on Login
+**Error:** `The state parameter is missing.`
+**Cause:** Auth0 middleware was in a file named `proxy.ts`. Next.js only recognizes `middleware.ts` (or `middleware.js`) at the project root as the middleware entry point. Because Next.js never loaded `proxy.ts` as middleware, the Auth0 state cookie was never written to the browser before the Auth0 redirect. When Auth0 called back to `/auth/callback`, there was no state cookie to verify, causing the authorization flow to fail.
+**Fix:** Renamed `proxy.ts` to `middleware.ts` at the project root.
+**Prevention:** In Next.js, middleware must always be in a file named `middleware.ts` at the root of the project (not inside `/app` or `/src`). Never name it anything else regardless of what Auth0 or other SDK docs suggest as an example name.
