@@ -3,14 +3,14 @@ import { z } from "zod";
 import { Octokit } from "@octokit/rest";
 import { getTokenForProvider } from "@/lib/auth0";
 
-// Returns GitHub tools scoped to the authenticated user
-export function getGithubTools(userId: string) {
+// Returns GitHub tools — user identity is resolved from the session inside getTokenForProvider
+export function getGithubTools() {
   return {
     listAssignedIssues: tool({
       description: "List all open GitHub issues assigned to the user",
       parameters: z.object({ _unused: z.string().optional().describe("An unused parameter to satisfy typing") }),
       execute: async ({ _unused }: { _unused?: string }) => {
-        const token = await getTokenForProvider(userId, "github");
+        const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 
         const { data } = await octokit.rest.issues.list({
@@ -37,7 +37,7 @@ export function getGithubTools(userId: string) {
         issueNumber: z.number().describe("Issue number to close"),
       }),
       execute: async ({ owner, repo, issueNumber }: { owner: string; repo: string; issueNumber: number }) => {
-        const token = await getTokenForProvider(userId, "github");
+        const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 
         await octokit.rest.issues.update({
@@ -60,7 +60,7 @@ export function getGithubTools(userId: string) {
         comment: z.string().describe("Comment text to add"),
       }),
       execute: async ({ owner, repo, issueNumber, comment }: { owner: string; repo: string; issueNumber: number; comment: string }) => {
-        const token = await getTokenForProvider(userId, "github");
+        const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 
         const { data } = await octokit.rest.issues.createComment({
