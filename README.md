@@ -128,8 +128,9 @@ confirmed .gitignore has .env.local entry, rotated all exposed credentials.
 **Prevention:** Always run git status before committing to verify
 sensitive files are not staged.
 
-### Bug 008 — State Parameter Missing on Login
+### Bug 008 — State Parameter Missing on Login (Next.js 16 proxy.ts convention)
 **Error:** `The state parameter is missing.`
-**Cause:** Auth0 middleware was in a file named `proxy.ts`. Next.js only recognizes `middleware.ts` (or `middleware.js`) at the project root as the middleware entry point. Because Next.js never loaded `proxy.ts` as middleware, the Auth0 state cookie was never written to the browser before the Auth0 redirect. When Auth0 called back to `/auth/callback`, there was no state cookie to verify, causing the authorization flow to fail.
-**Fix:** Renamed `proxy.ts` to `middleware.ts` at the project root.
-**Prevention:** In Next.js, middleware must always be in a file named `middleware.ts` at the root of the project (not inside `/app` or `/src`). Never name it anything else regardless of what Auth0 or other SDK docs suggest as an example name.
+**Investigation:** Initially suspected that proxy.ts was wrong and middleware.ts was correct based on standard Next.js docs. After applying the rename, the terminal showed: "The middleware file convention is deprecated. Please use proxy instead."
+**Finding:** Next.js 16 changed the middleware entry point name from middleware.ts to proxy.ts. The original proxy.ts filename was correct. The rename was reverted.
+**Root cause is elsewhere — investigation continuing.**
+**Prevention:** Always check the running terminal output after any structural change before assuming a fix worked.
