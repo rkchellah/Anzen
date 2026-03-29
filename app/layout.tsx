@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Space_Mono } from "next/font/google";
+import { DM_Sans, Space_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import "./globals.css";
 
@@ -16,6 +16,13 @@ const spaceMono = Space_Mono({
   display: "swap",
 });
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Anzen | Your AI Chief of Staff",
   description: "Secure AI agent that acts on your behalf",
@@ -27,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${spaceMono.variable}`}>
-      <body suppressHydrationWarning className="font-sans bg-[#0a0f1e] text-white antialiased">
+    <html lang="en" className={`${dmSans.variable} ${spaceMono.variable} ${plusJakartaSans.variable}`}>
+      <body suppressHydrationWarning className="font-sans bg-[#f9f9f9] text-[#1a1c1c] antialiased">
         <Auth0Provider>{children}</Auth0Provider>
       </body>
     </html>
