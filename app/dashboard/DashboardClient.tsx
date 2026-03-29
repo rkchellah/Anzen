@@ -113,7 +113,7 @@ export default function DashboardClient({ userName, userEmail }: Props) {
         <div>
           <h2 className="text-2xl font-semibold text-white">
             {getGreeting()},{" "}
-            <span className="text-[#00ff88]">{userName.split(" ")[0]}</span>
+            <span className="text-[#00ff88]">{(userName || "User").split(" ")[0]}</span>
           </h2>
           <p className="text-slate-500 text-sm mt-1">{userEmail}</p>
         </div>
