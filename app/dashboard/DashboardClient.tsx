@@ -95,7 +95,7 @@ export default function DashboardClient({ userName, userEmail }: Props) {
           <span className="text-white/20 font-mono text-sm">安全</span>
           <span className="hidden sm:inline-block text-white/20 text-xs font-mono">|</span>
           <span className="hidden sm:inline-block text-white/30 text-xs font-mono">
-            Your AI Chief of Staff
+            Monitor. Decide. Act. All in one place.
           </span>
         </div>
         <a
@@ -106,7 +106,7 @@ export default function DashboardClient({ userName, userEmail }: Props) {
         </a>
       </header>
 
-      <main className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-8 py-10 gap-10">
+      <main className="flex-1 flex flex-col max-w-5xl w-full mx-auto px-6 py-10 gap-10">
 
         {/* Greeting */}
         <div className="flex items-end justify-between border-b border-white/[0.06] pb-6">
