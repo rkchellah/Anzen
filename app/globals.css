@@ -18,6 +18,18 @@ body {
 @theme {
   --font-sans: var(--font-dm-sans);
   --font-mono: var(--font-space-mono);
+  --font-headline: var(--font-jakarta);
+}
+
+.font-headline {
+  font-family: var(--font-jakarta), "Plus Jakarta Sans", sans-serif;
+}
+
+.hero-gradient-text {
+  background: linear-gradient(to right, #00e1ab, #0099ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .glass-panel {
