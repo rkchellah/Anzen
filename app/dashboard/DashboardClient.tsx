@@ -115,8 +115,8 @@ export default function DashboardClient({ userName, userEmail }: Props) {
   const firstName = (userName || "User").split(" ")[0];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <div className="max-w-3xl mx-auto px-6 py-8 flex flex-col gap-8">
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex justify-center">
+      <div className="w-full max-w-3xl px-6 py-8 flex flex-col gap-8">
 
         {/* Header */}
         <header className="flex items-center justify-between pb-6 border-b border-white/10">
