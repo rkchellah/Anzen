@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useChat } from "@ai-sdk/react";
+import { useChat } from "ai/react";
 
 type ConnectionStatus = {
   github: boolean;
@@ -62,7 +62,7 @@ export default function DashboardClient({ userName, userEmail }: Props) {
   const [statusLoading, setStatusLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, input, handleInputChange, handleSubmit, status: chatStatus } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/agent",
   });
 
@@ -80,7 +80,7 @@ export default function DashboardClient({ userName, userEmail }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const isThinking = chatStatus === "submitted" || chatStatus === "streaming";
+  const isThinking = isLoading;
   const firstName = (userName || "User").split(" ")[0];
 
   return (
@@ -218,7 +218,7 @@ export default function DashboardClient({ userName, userEmail }: Props) {
             />
             <button
               type="submit"
-              disabled={isThinking || !input.trim()}
+              disabled={isThinking || !(input ?? "").trim()}
               className="bg-[#00ff88] text-black text-xs font-mono font-bold px-4 py-2 rounded hover:bg-[#00e67a] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
             >
               run
