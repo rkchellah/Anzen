@@ -1,9 +1,21 @@
+@import "tailwindcss";
+
 * {
-    box-sizing: border-box;
-    padding: 0;
-    margin: 0;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+:root {
+  --font-dm-sans: "DM Sans", sans-serif;
+  --font-space-mono: "Space Mono", monospace;
 }
 
 body {
-    font-family: sans-serif;
+  font-family: var(--font-dm-sans);
+}
+
+@theme {
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-space-mono);
 }
