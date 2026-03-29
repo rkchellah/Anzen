@@ -52,7 +52,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
       />
 
       {/* 2. TOP NAV */}
-      <nav className="relative z-50 w-full max-w-5xl px-6 pt-6 pb-4 flex justify-between items-center">
+      <nav className="relative z-50 w-full max-w-5xl mx-auto px-6 pt-6 pb-4 flex justify-between items-center">
         <span className="font-mono font-bold text-sm tracking-tighter opacity-80">ANZEN 安全</span>
         <div className="flex items-center gap-4 text-[10px] font-mono tracking-widest text-white/40">
           <span>{userEmail?.toUpperCase()}</span>
@@ -68,7 +68,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
       </nav>
 
       {/* 3. MAIN CONTENT AREA */}
-      <main className="relative flex-1 w-full max-w-3xl px-6 flex flex-col">
+      <main className="relative flex-1 w-full max-w-3xl mx-auto px-6 flex flex-col">
         <AnimatePresence mode="wait">
           {!isChatting ? (
             /* --- LANDING STATE --- */
