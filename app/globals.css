@@ -19,3 +19,15 @@ body {
   --font-sans: var(--font-dm-sans);
   --font-mono: var(--font-space-mono);
 }
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.icon-glow {
+  box-shadow: 0 0 20px 2px rgba(16, 185, 129, 0.3);
+}

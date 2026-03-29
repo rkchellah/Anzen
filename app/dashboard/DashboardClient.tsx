@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ArrowUp } from "lucide-react";
 
 type ConnectionStatus = { github: boolean; gmail: boolean; slack: boolean };
 
@@ -74,8 +75,8 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
     <div className="relative min-h-screen bg-[#050505] text-white overflow-hidden flex justify-center">
       {/* Ambient glow */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] pointer-events-none"
-        style={{ background: "radial-gradient(circle at 50% 0%, rgba(0,255,136,0.06) 0%, transparent 60%)" }}
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] pointer-events-none"
+        style={{ background: "radial-gradient(circle at 50% 0%, rgba(16,185,129,0.12) 0%, transparent 65%)" }}
       />
 
       <div className="relative w-full max-w-3xl px-6 py-8 flex flex-col gap-8">
@@ -128,7 +129,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
         {/* Chat Area */}
         <div className="flex flex-col flex-1 min-h-[400px]">
           <p className="text-xs font-mono text-white/30 tracking-widest mb-3">AGENT</p>
-          <div className="flex-1 flex flex-col bg-white/[0.02] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+          <div className="flex-1 flex flex-col">
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 min-h-[300px]">
@@ -165,12 +166,13 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                     {messages.map((m, i) => (
                       <motion.div
                         key={i}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ type: "spring", stiffness: 260, damping: 25 }}
                         className={`flex w-full ${m.role === "user" ? "justify-end" : "justify-start"}`}
                       >
                         {m.role === "assistant" && (
-                          <div className="w-7 h-7 rounded-full bg-[#00ff88]/20 border border-[#00ff88]/30 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
+                          <div className="icon-glow w-7 h-7 rounded-full bg-[#00ff88]/20 border border-[#00ff88]/30 flex items-center justify-center mr-3 flex-shrink-0 mt-1">
                             <span className="text-[#00ff88] text-xs">✦</span>
                           </div>
                         )}
@@ -180,7 +182,14 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                         >
                           {typeof m.content === "string" ? m.content : ""}
                           {m.role === "assistant" && (
-                            <p className="text-[10px] text-white/20 mt-2">Anzen AI Agent · Powered by GPT-4o</p>
+                            <motion.span
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.4 }}
+                              className="text-[10px] text-zinc-600 mt-2 ml-1 uppercase tracking-widest font-bold block"
+                            >
+                              Anzen AI Agent • Composed by AI
+                            </motion.span>
                           )}
                         </div>
                       </motion.div>
@@ -191,41 +200,36 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
 
               {/* Typing indicator */}
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="w-7 h-7 rounded-full bg-[#00ff88]/20 border border-[#00ff88]/30 flex items-center justify-center mr-3 flex-shrink-0">
-                    <span className="text-[#00ff88] text-xs">✦</span>
-                  </div>
-                  <div className="bg-white/5 rounded-2xl px-4 py-3 flex gap-1 items-center">
-                    {[0, 1, 2].map(i => (
-                      <div
-                        key={i}
-                        className="w-1.5 h-1.5 rounded-full bg-white/40 animate-bounce"
-                        style={{ animationDelay: `${i * 0.15}s` }}
-                      />
-                    ))}
-                  </div>
+                <div className="flex gap-1.5 px-4 py-3 bg-white/5 rounded-2xl w-fit ml-11 border border-white/5">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ y: [0, -5, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15, ease: "easeInOut" }}
+                      className="w-1.5 h-1.5 bg-emerald-400 rounded-full opacity-60"
+                    />
+                  ))}
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input Bar */}
-            <div className="border-t border-white/10 p-4">
-              <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 focus-within:border-white/25 transition-colors">
+            <div className="pt-4">
+              <div className="glass-panel rounded-[22px] flex items-center p-2 focus-within:ring-1 focus-within:ring-emerald-500/50 transition-all">
                 <input
-                  type="text"
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask Anzen anything..."
-                  className="flex-1 bg-transparent outline-none text-sm text-white placeholder-white/30"
+                  className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-white placeholder-zinc-500 px-4 py-2 text-sm"
                 />
                 <button
                   onClick={handleSend}
                   disabled={!inputValue.trim() || isLoading}
-                  className="w-8 h-8 rounded-full bg-[#00ff88] flex items-center justify-center disabled:opacity-30 hover:bg-[#00e67a] transition-colors flex-shrink-0"
+                  className="bg-white hover:bg-zinc-200 text-black p-2.5 rounded-full transition-transform active:scale-90 disabled:opacity-30 flex-shrink-0"
                 >
-                  <span className="text-black font-bold text-sm">↑</span>
+                  <ArrowUp size={18} strokeWidth={3} />
                 </button>
               </div>
             </div>
