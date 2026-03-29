@@ -8,7 +8,7 @@ export const auth0 = new Auth0Client({
   appBaseUrl: process.env.APP_BASE_URL!,
   authorizationParameters: {
     audience: process.env.AUTH0_AUDIENCE!,
-    scope: "openid profile email offline_access",
+    scope: "openid profile email offline_access read:me:connected_accounts create:me:connected_accounts delete:me:connected_accounts",
   },
 });
 
