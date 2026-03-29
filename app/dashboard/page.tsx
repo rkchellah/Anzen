@@ -11,7 +11,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardClient
-      userName={session.user.name ?? ""}
+      userName={session.user.name ?? "User"}
       userEmail={session.user.email ?? ""}
     />
   );
