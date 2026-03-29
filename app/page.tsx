@@ -14,7 +14,7 @@ export default async function Home() {
         <h1 className="font-mono text-4xl font-bold text-white mb-2">
           Anzen <span className="text-slate-500">安全</span>
         </h1>
-        <p className="text-slate-500 font-mono text-sm mb-8">Your AI Chief of Staff</p>
+        <p className="text-slate-500 font-mono text-sm mb-8">Monitor. Decide. Act. All in one place.</p>
         <a
           href="/auth/login"
           className="inline-block bg-[#00ff88] text-black font-mono font-bold px-6 py-3 rounded-lg hover:bg-[#00e67a] transition-colors"
