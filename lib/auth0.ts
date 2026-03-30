@@ -14,50 +14,23 @@ export const auth0 = new Auth0Client({
 
 type Provider = "github" | "google-oauth2" | "slack-oauth2";
 
-// Fetches a token from Token Vault for a given provider on behalf of the user.
+// Fetches a third-party token from Auth0 Token Vault for a given provider.
+// Uses auth0.getAccessToken() with a connection parameter (nextjs-auth0 v4 SDK method).
 // The agent calls this — it never stores the token, just uses it immediately.
-export async function getTokenForProvider(
-  provider: Provider
-): Promise<string> {
-  const session = await auth0.getSession();
-
-  if (!session) {
-    throw new Error("No active session. User must be logged in.");
-  }
-
-  const myAccountApiUrl = process.env.AUTH0_TOKEN_VAULT_URL;
-
-  if (!myAccountApiUrl) {
-    throw new Error("AUTH0_TOKEN_VAULT_URL is not set");
-  }
-
-  const response = await fetch(
-    `${myAccountApiUrl}/connected-accounts`,
-    {
-      headers: {
-        Authorization: `Bearer ${session.tokenSet.accessToken}`,
+export async function getTokenForProvider(provider: Provider): Promise<string> {
+  try {
+    const { token } = await auth0.getAccessToken({
+      authorizationParams: {
+        connection: provider,
       },
+    });
+
+    if (!token) {
+      throw new Error(`No token returned for ${provider}`);
     }
-  );
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(
-      `Token Vault request failed for ${provider}: ${response.status} ${response.statusText} — ${body}`
-    );
+    return token;
+  } catch (error) {
+    throw new Error(`Failed to get token for ${provider}: ${String(error)}`);
   }
-
-  const accounts = await response.json();
-
-  const account = accounts.find(
-    (a: { connection: string }) => a.connection === provider
-  );
-
-  if (!account?.access_token) {
-    throw new Error(
-      `No connected account found for ${provider}. User needs to connect their ${provider} account.`
-    );
-  }
-
-  return account.access_token;
 }
