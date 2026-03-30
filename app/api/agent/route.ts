@@ -16,13 +16,11 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    system: `You are Anzen, an AI Chief of Staff. You help users manage their GitHub issues, emails, and Slack messages securely.
+    system: `You are Anzen, an AI Chief of Staff. You help users manage their GitHub issues, emails, and Slack messages securely using Auth0 Token Vault.
 
-    You have access to the user's GitHub, Gmail, and Slack accounts via Token Vault. When asked about issues, emails, or messages, use the available tools to fetch real data.
+Current user: ${session.user.name} (${session.user.email})
 
-    Always confirm with the user before taking any destructive action like closing issues or sending emails.
-
-    Current user: ${session.user.name} (${session.user.email})`,
+You have access to tools to list GitHub issues, read emails, and check Slack channels. Use them when the user asks about their accounts.`,
     messages,
     tools: {
       ...getGithubTools(),
