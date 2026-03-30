@@ -42,7 +42,8 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
   const [inputValue, setInputValue] = useState("");
   const [activePage, setActivePage] = useState("dashboard");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, append, isLoading } = useChat({ api: "/api/agent" });
+  const { messages, sendMessage, status } = useChat({ api: "/api/agent" });
+  const isLoading = status === "streaming" || status === "submitted";
   const isChatting = messages.length > 0;
   const firstName = (userName || "User").split(" ")[0];
 
@@ -56,7 +57,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
 
   const handleSend = () => {
     if (!inputValue.trim() || isLoading) return;
-    append({ role: "user", content: inputValue });
+    sendMessage({ text: inputValue });
     setInputValue("");
   };
 
@@ -290,7 +291,9 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                               : "text-[#acabaa]"
                           }`}
                         >
-                          {m.content}
+                          {m.parts.filter(p => p.type === "text").map((p, j) => (
+                            <span key={j}>{(p as { type: "text"; text: string }).text}</span>
+                          ))}
                         </div>
                       </div>
                     ))}
