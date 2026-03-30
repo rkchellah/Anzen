@@ -42,7 +42,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
   const [inputValue, setInputValue] = useState("");
   const [activePage, setActivePage] = useState("dashboard");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, sendMessage, status: chatStatus } = useChat({ api: "/api/agent" });
+  const { messages, sendMessage, status: chatStatus } = useChat();
   const isLoading = chatStatus === "streaming" || chatStatus === "submitted";
   const isChatting = messages.length > 0;
   const firstName = (userName || "User").split(" ")[0];
