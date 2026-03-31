@@ -8,14 +8,14 @@ export function getGithubTools() {
   return {
     listAssignedIssues: tool({
       description: "List all open GitHub issues assigned to the user",
-      parameters: z.object({ _unused: z.string().optional().describe("An unused parameter to satisfy typing") }),
-      execute: async ({ _unused }: { _unused?: string }) => {
+      parameters: z.object({ state: z.enum(["open", "closed", "all"]).optional().default("open").describe("Issue state filter") }),
+      execute: async ({ state = "open" }) => {
         const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 
         const { data } = await octokit.rest.issues.list({
           filter: "assigned",
-          state: "open",
+          state: state as "open" | "closed" | "all",
         });
 
         return data.map((issue) => ({

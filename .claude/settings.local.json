@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(powershell -Command \"Remove-Item -Recurse -Force node_modules\")",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const {useChat} = require\\(''''./node_modules/@ai-sdk/react/dist/index.js''''\\); const r = useChat.toString\\(\\).substring\\(0,200\\); console.log\\(r\\)\")",
+      "Bash(node -e \"console.log\\(require\\(''./node_modules/ai/package.json''\\).version\\)\")"
+    ]
+  }
+}
