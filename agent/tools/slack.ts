@@ -7,16 +7,14 @@ export function getSlackTools() {
   return {
     listChannels: tool({
       description: "List the user's Slack channels",
-      parameters: z.object({
-        _unused: z.string().optional(),
-      }),
-      execute: async () => {
+      parameters: z.object({ limit: z.number().optional().default(20).describe("Maximum number of channels to return") }),
+      execute: async ({ limit = 20 }) => {
         const token = await getTokenForProvider("slack-oauth2");
         const slack = new WebClient(token);
 
         const result = await slack.conversations.list({
           types: "public_channel,private_channel",
-          limit: 20,
+          limit,
         });
 
         return {

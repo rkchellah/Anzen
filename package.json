@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.64",
+    "@ai-sdk/groq": "^3.0.31",
     "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/react": "^3.0.118",
     "@auth0/nextjs-auth0": "^4.16.0",
