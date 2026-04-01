@@ -8,15 +8,15 @@ export function getGithubTools() {
     listAssignedIssues: tool({
       description: "List GitHub issues assigned to the current user. Always call with state='open' unless user specifies otherwise.",
       parameters: z.object({
-        state: z.enum(["open", "closed", "all"]).describe("Issue state filter — must be 'open', 'closed', or 'all'"),
+        state: z.enum(["open", "closed", "all"]).optional().default("open").describe("Issue state filter — must be 'open', 'closed', or 'all'"),
       }),
-      execute: async ({ state }) => {
+      execute: async ({ state }): Promise<Array<{ id: number; number: number; title: string; repo: string; url: string; createdAt: string }>> => {
         const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 
         const { data } = await octokit.rest.issues.list({
           filter: "assigned",
-          state: state as "open" | "closed" | "all",
+          state: (state ?? "open") as "open" | "closed" | "all",
         });
 
         return data.map((issue) => ({
@@ -37,7 +37,7 @@ export function getGithubTools() {
         repo: z.string().describe("Repository name"),
         issueNumber: z.number().describe("Issue number to close"),
       }),
-      execute: async ({ owner, repo, issueNumber }: { owner: string; repo: string; issueNumber: number }) => {
+      execute: async ({ owner, repo, issueNumber }): Promise<{ success: boolean; message: string }> => {
         const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 
@@ -60,7 +60,7 @@ export function getGithubTools() {
         issueNumber: z.number().describe("Issue number"),
         comment: z.string().describe("Comment text to add"),
       }),
-      execute: async ({ owner, repo, issueNumber, comment }: { owner: string; repo: string; issueNumber: number; comment: string }) => {
+      execute: async ({ owner, repo, issueNumber, comment }): Promise<{ success: boolean; commentUrl: string }> => {
         const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 
