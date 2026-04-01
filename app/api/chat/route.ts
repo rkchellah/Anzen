@@ -13,14 +13,17 @@ export async function POST(req: Request) {
 
   const { messages } = await req.json();
 
+  // convertToModelMessages is async — must be awaited
+  const modelMessages = await convertToModelMessages(messages);
+
   const result = streamText({
     model: groq("llama-3.3-70b-versatile"),
     system: `You are Anzen, an AI Chief of Staff. You help users manage their GitHub issues, emails, and Slack messages securely using Auth0 Token Vault.
 
 Current user: ${session.user.name} (${session.user.email})
 
-You have access to tools to list GitHub issues, read emails, and check Slack channels. Use them when the user asks about their accounts.`,
-    messages: await convertToModelMessages(messages),
+You have access to tools to list GitHub issues, read emails, and check Slack channels. Use them when the user asks about their accounts. Always be concise and helpful.`,
+    messages: modelMessages,
     tools: {
       ...getGithubTools(),
       ...getGmailTools(),

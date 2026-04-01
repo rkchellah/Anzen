@@ -3,13 +3,14 @@ import { z } from "zod";
 import { Octokit } from "@octokit/rest";
 import { getTokenForProvider } from "@/lib/auth0";
 
-// Returns GitHub tools — user identity is resolved from the session inside getTokenForProvider
 export function getGithubTools() {
   return {
     listAssignedIssues: tool({
-      description: "List all open GitHub issues assigned to the user",
-      parameters: z.object({ state: z.enum(["open", "closed", "all"]).optional().default("open").describe("Issue state filter") }),
-      execute: async ({ state = "open" }) => {
+      description: "List GitHub issues assigned to the current user. Always call with state='open' unless user specifies otherwise.",
+      parameters: z.object({
+        state: z.enum(["open", "closed", "all"]).describe("Issue state filter — must be 'open', 'closed', or 'all'"),
+      }),
+      execute: async ({ state }) => {
         const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
 

@@ -6,11 +6,11 @@ import { getTokenForProvider } from "@/lib/auth0";
 export function getGmailTools() {
   return {
     listUnreadEmails: tool({
-      description: "List the user's unread emails from Gmail",
+      description: "List the user's unread emails from Gmail. Always call with maxResults=10 unless user specifies otherwise.",
       parameters: z.object({
-        maxResults: z.number().optional().describe("Maximum number of emails to return. Default 10."),
+        maxResults: z.number().describe("Number of emails to return — use 10 as default"),
       }),
-      execute: async ({ maxResults = 10 }) => {
+      execute: async ({ maxResults }) => {
         const token = await getTokenForProvider("google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });
