@@ -2,34 +2,21 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
-import { motion } from "framer-motion";
-import {
-  ArrowUp, Shield, ShieldCheck, Zap, Plus, Bell, Settings, LogOut, HelpCircle,
-  Bot, Plug2, FileText, User, Database, Lock, ArrowRight,
-} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Mail, LogOut, Moon, Sun, RotateCw, Send, Shield, CheckCircle2, Zap } from "lucide-react";
 
 type ConnectionStatus = { github: boolean; gmail: boolean; slack: boolean };
 
-const SUGGESTIONS = [
-  "Scan GitHub for secrets",
-  "Analyze recent Slack login",
-  "Audit Gmail permissions",
-];
-
-const GitHubIcon = ({ size = 22 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" className="text-[#e7e5e4]">
+// Custom GitHub icon (not in lucide)
+const GitHubIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
   </svg>
 );
 
-const GmailIcon = ({ size = 22 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size}>
-    <path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
-  </svg>
-);
-
-const SlackIcon = ({ size = 22 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size}>
+// Custom Slack icon (not in lucide)
+const SlackIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24">
     <path fill="#E01E5A" d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313z" />
     <path fill="#36C5F0" d="M8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312z" />
     <path fill="#2EB67D" d="M18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.271 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.162 0a2.528 2.528 0 012.523 2.522v6.312z" />
@@ -37,19 +24,152 @@ const SlackIcon = ({ size = 22 }: { size?: number }) => (
   </svg>
 );
 
+// Gmail icon (lucide Mail is fine but Gmail branded is better)
+const GmailIcon = ({ size = 24 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size}>
+    <path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
+  </svg>
+);
+
+const TeamsIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#5059C9" d="M10.765 6.875h3.616c.342 0 .619.276.619.617v3.288a2.272 2.272 0 01-2.274 2.27h-.01a2.272 2.272 0 01-2.274-2.27V7.199c0-.179.145-.323.323-.323zM13.21 6.225c.808 0 1.464-.655 1.464-1.462 0-.808-.656-1.463-1.465-1.463s-1.465.655-1.465 1.463c0 .807.656 1.462 1.465 1.462z" />
+    <path fill="#7B83EB" d="M8.651 6.225a2.114 2.114 0 002.117-2.112A2.114 2.114 0 008.65 2a2.114 2.114 0 00-2.116 2.112c0 1.167.947 2.113 2.116 2.113zM11.473 6.875h-5.97a.611.611 0 00-.596.625v3.75A3.669 3.669 0 008.488 15a3.669 3.669 0 003.582-3.75V7.5a.611.611 0 00-.597-.625z" />
+    <path fill="#000000" d="M8.814 6.875v5.255a.598.598 0 01-.596.595H5.193a3.951 3.951 0 01-.287-1.476V7.5a.61.61 0 01.597-.624h3.31z" opacity="0.1" />
+    <path fill="#ffffff" d="M6.152 7.193H4.959v3.243h-.76V7.193H3.01v-.63h3.141v.63z" />
+  </svg>
+);
+
+const LinkedInIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#0A66C2" d="M12.225 12.225h-1.778V9.44c0-.664-.012-1.519-.925-1.519-.926 0-1.068.724-1.068 1.47v2.834H6.676V6.498h1.707v.783h.024c.348-.594.996-.95 1.684-.925 1.802 0 2.135 1.185 2.135 2.728l-.001 3.14zM4.67 5.715a1.037 1.037 0 01-1.032-1.031c0-.566.466-1.032 1.032-1.032.566 0 1.031.466 1.032 1.032 0 .566-.466 1.032-1.032 1.032zm.889 6.51h-1.78V6.498h1.78v5.727zM13.11 2H2.885A.88.88 0 002 2.866v10.268a.88.88 0 00.885.866h10.226a.882.882 0 00.889-.866V2.865a.88.88 0 00-.889-.864z" />
+  </svg>
+);
+
+const GitLabIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#FC6D26" d="M14.975 8.904L14.19 6.55l-1.552-4.67a.268.268 0 00-.255-.18.268.268 0 00-.254.18l-1.552 4.667H5.422L3.87 1.879a.267.267 0 00-.254-.179.267.267 0 00-.254.18l-1.55 4.667-.784 2.357a.515.515 0 00.193.583l6.78 4.812 6.778-4.812a.516.516 0 00.196-.583z" />
+    <path fill="#E24329" d="M8 14.296l2.578-7.75H5.423L8 14.296z" />
+    <path fill="#FC6D26" d="M8 14.296l-2.579-7.75H1.813L8 14.296z" />
+    <path fill="#FCA326" d="M1.81 6.549l-.784 2.354a.515.515 0 00.193.583L8 14.3 1.81 6.55z" />
+    <path fill="#E24329" d="M1.812 6.549h3.612L3.87 1.882a.268.268 0 00-.254-.18.268.268 0 00-.255.18L1.812 6.549z" />
+    <path fill="#FC6D26" d="M8 14.296l2.578-7.75h3.614L8 14.296z" />
+    <path fill="#FCA326" d="M14.19 6.549l.783 2.354a.514.514 0 01-.193.583L8 14.296l6.188-7.747h.001z" />
+    <path fill="#E24329" d="M14.19 6.549H10.58l1.551-4.667a.267.267 0 01.255-.18c.115 0 .217.073.254.18l1.552 4.667z" />
+  </svg>
+);
+
+const OutlookIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="#0072C6">
+    <path d="M19.484,7.937v5.477L21.4,14.619a.489.489,0,0,0,.21,0l8.238-5.554a1.174,1.174,0,0,0-.959-1.128Z" />
+    <path d="M19.484,15.457l1.747,1.2a.522.522,0,0,0,.543,0c-.3.181,8.073-5.378,8.073-5.378V21.345a1.408,1.408,0,0,1-1.49,1.555H19.483V15.457Z" />
+    <path d="M10.44,12.932a1.609,1.609,0,0,0-1.42.838,4.131,4.131,0,0,0-.526,2.218A4.05,4.05,0,0,0,9.02,18.2a1.6,1.6,0,0,0,2.771.022,4.014,4.014,0,0,0,.515-2.2,4.369,4.369,0,0,0-.5-2.281A1.536,1.536,0,0,0,10.44,12.932Z" />
+    <path d="M2.153,5.155V26.582L18.453,30V2ZM13.061,19.491a3.231,3.231,0,0,1-2.7,1.361,3.19,3.19,0,0,1-2.64-1.318A5.459,5.459,0,0,1,6.706,16.1a5.868,5.868,0,0,1,1.036-3.616A3.267,3.267,0,0,1,10.486,11.1a3.116,3.116,0,0,1,2.61,1.321,5.639,5.639,0,0,1,1,3.484A5.763,5.763,0,0,1,13.061,19.491Z" />
+  </svg>
+);
+
+const ClickupIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="#7B68EE">
+    <path d="M8 12L12 8L16 12H14V16H10V12H8Z" />
+    <path d="M8 16L12 20L16 16H14V12H10V16H8Z" />
+  </svg>
+);
+
+const NotionIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="currentColor">
+    <path d="M5.948 5.609c0.99 0.807 1.365 0.75 3.234 0.625l17.62-1.057c0.375 0 0.063-0.375-0.063-0.438l-2.927-2.115c-0.557-0.438-1.307-0.932-2.74-0.813l-17.057 1.25c-0.625 0.057-0.75 0.37-0.5 0.62zM7.005 9.719v18.536c0 0.995 0.495 1.37 1.615 1.307l19.365-1.12c1.12-0.063 1.25-0.745 1.25-1.557v-18.411c0-0.813-0.313-1.245-1-1.182l-20.234 1.182c-0.75 0.063-0.995 0.432-0.995 1.24zM26.12 10.708c0.125 0.563 0 1.12-0.563 1.188l-0.932 0.188v13.682c-0.813 0.438-1.557 0.688-2.177 0.688-1 0-1.25-0.313-1.995-1.245l-6.104-9.583v9.271l1.932 0.438c0 0 0 1.12-1.557 1.12l-4.297 0.25c-0.125-0.25 0-0.875 0.438-0.995l1.12-0.313v-12.255l-1.557-0.125c-0.125-0.563 0.188-1.37 1.057-1.432l4.609-0.313 6.354 9.708v-8.589l-1.62-0.188c-0.125-0.682 0.37-1.182 0.995-1.24zM2.583 1.38l17.745-1.307c2.177-0.188 2.74-0.063 4.109 0.932l5.667 3.984c0.932 0.682 1.245 0.87 1.245 1.615v21.839c0 1.37-0.5 2.177-2.24 2.302l-20.615 1.245c-1.302 0.063-1.927-0.125-2.615-0.995l-4.172-5.417c-0.745-0.995-1.057-1.74-1.057-2.609v-19.411c0-1.12 0.5-2.052 1.932-2.177z" />
+  </svg>
+);
+
+const LinearIcon = ({ size = 24 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="#5E6AD2">
+    <line x1="2" y1="22" x2="22" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="7" cy="17" r="2" fill="currentColor" />
+    <circle cx="17" cy="7" r="2" fill="currentColor" />
+  </svg>
+);
+
+const SUGGESTIONS = [
+  "What GitHub issues are assigned to me?",
+  "Summarize my unread emails",
+  "List my Slack channels",
+];
+
+const AnzenLogo = () => (
+  <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="10" height="10" rx="2" fill="#A3FF12" />
+    <rect x="14" y="2" width="10" height="10" rx="2" fill="#A3FF12" opacity="0.6" />
+    <rect x="2" y="14" width="10" height="10" rx="2" fill="#A3FF12" opacity="0.6" />
+    <rect x="14" y="14" width="10" height="10" rx="2" fill="#A3FF12" opacity="0.3" />
+    <path d="M8 8L10 10M10 8L8 10" stroke="#000" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+function getMessageText(message: { role: string; content: unknown; parts?: unknown[] }): string {
+  if (typeof message.content === "string") return message.content;
+  if (Array.isArray(message.parts)) {
+    return (message.parts as Array<{ type: string; text?: string }>)
+      .filter((p) => p.type === "text").map((p) => p.text ?? "").join("");
+  }
+  if (Array.isArray(message.content)) {
+    return (message.content as Array<{ type: string; text?: string }>)
+      .filter((p) => p.type === "text").map((p) => p.text ?? "").join("");
+  }
+  return "";
+}
+
 export default function DashboardClient({ userName, userEmail }: { userName: string; userEmail: string }) {
-  const [status, setStatus] = useState<ConnectionStatus>({ github: false, gmail: false, slack: false });
+  const [connStatus, setConnStatus] = useState<ConnectionStatus>({ github: false, gmail: false, slack: false });
+  const [statusLoading, setStatusLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
   const [activePage, setActivePage] = useState("dashboard");
+  const [dark, setDark] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, sendMessage, status: chatStatus } = useChat();
+
+  const { messages, sendMessage, status: chatStatus, setMessages } = useChat({ api: "/api/chat" });
   const isLoading = chatStatus === "streaming" || chatStatus === "submitted";
   const isChatting = messages.length > 0;
-  const firstName = (userName || "User").split(" ")[0];
+
+  const fetchConnectionStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const response = await fetch("/api/status");
+      if (!response.ok) throw new Error("Failed to fetch status");
+      const data = await response.json();
+      if (data.results) {
+        setConnStatus({
+          github: data.results["github"]?.success === true,
+          gmail: data.results["google-oauth2"]?.success === true,
+          slack: data.results["slack-oauth2"]?.success === true,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching connection status:", error);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetch("/api/status").then(r => r.json()).then(setStatus).catch(() => {});
+    fetchConnectionStatus();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchConnectionStatus();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Load dark mode preference from localStorage
+    const savedDark = localStorage.getItem("anzen-dark-mode");
+    if (savedDark !== null) {
+      setDark(JSON.parse(savedDark));
+    }
+
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
+
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("anzen-dark-mode", JSON.stringify(dark));
+  }, [dark]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,487 +177,375 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
 
   const handleSend = () => {
     if (!inputValue.trim() || isLoading) return;
-    sendMessage({ text: inputValue });
+    const text = inputValue.trim();
     setInputValue("");
+    sendMessage({ text });
   };
 
-  const connectedCount = Object.values(status).filter(Boolean).length;
+  const handleDisconnect = async (providerKey: string) => {
+    const providerMap: Record<string, string> = {
+      github: "github",
+      gmail: "google-oauth2",
+      slack: "slack-oauth2",
+    };
+    try {
+      const res = await fetch("/api/auth/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: providerMap[providerKey] }),
+      });
+      const data = await res.json();
+      if (data.action === "logout") {
+        window.location.href = "/auth/logout?returnTo=" + encodeURIComponent("/auth/login?returnTo=/dashboard");
+      } else {
+        await fetchConnectionStatus();
+      }
+    } catch (error) {
+      console.error("Error disconnecting:", error);
+    }
+  };
 
-  const sideNavItems = [
-    { id: "dashboard", label: "AI Assistant", icon: <Bot size={18} /> },
-    { id: "connections", label: "Integrations", icon: <Plug2 size={18} /> },
-    { id: "history", label: "Audit Logs", icon: <FileText size={18} /> },
-    { id: "security", label: "Account", icon: <User size={18} /> },
+  const connectedCount = Object.values(connStatus).filter(Boolean).length;
+  const d = dark;
+
+  const bg       = d ? "#0a0d12"                : "#f7f6f3";
+  const surface  = d ? "#111620"                : "#ffffff";
+  const surface2 = d ? "#181e2c"                : "#ededea";
+  const border   = d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
+  const tx       = d ? "#f0f0ee"                : "#000000";
+  const muted    = d ? "rgba(240,240,238,0.40)" : "rgba(0,0,0,0.55)";
+  const subtle   = d ? "rgba(240,240,238,0.16)" : "rgba(0,0,0,0.12)";
+  const accent   = "#A3FF12";
+  const accentBg = d ? "rgba(163,255,18,0.10)"  : "rgba(100,180,0,0.10)";
+  const accentTx = d ? accent                   : "#3d6600";
+
+  const card: React.CSSProperties = {
+    backgroundColor: surface,
+    border: `1px solid ${border}`,
+    borderRadius: 14,
+  };
+
+  // ── correct Auth0 v4 paths: /auth/login not /api/auth/login
+  const activeProviders = [
+    { key: "github", label: "GitHub", desc: "Issues, PRs & repos",  connectHref: "/auth/login?connection=github&connection_scope=repo,read:user&returnTo=/dashboard", icon: <GitHubIcon size={40} /> },
+    { key: "gmail",  label: "Gmail",  desc: "Emails & drafts",       connectHref: "/auth/login?connection=google-oauth2&returnTo=/dashboard",                         icon: <GmailIcon size={40} /> },
+    { key: "slack",  label: "Slack",  desc: "Channels & messages",   connectHref: "/auth/login?connection=slack-oauth2&returnTo=/dashboard",                          icon: <SlackIcon size={40} /> },
   ];
 
-  const topNavItems = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "connections", label: "Connections" },
-    { id: "history", label: "History" },
-    { id: "security", label: "Security" },
+  const comingSoon = [
+    { label: "Teams",   icon: <TeamsIcon size={32} /> },
+    { label: "LinkedIn", icon: <LinkedInIcon size={32} /> },
+    { label: "GitLab", icon: <GitLabIcon size={32} /> },
+    { label: "Notion",  icon: <NotionIcon size={32} /> },
+    { label: "Linear",  icon: <LinearIcon size={32} /> },
   ];
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e] text-[#e7e5e4] flex selection:bg-[#00e1ab]/30 font-body">
-      {/* ── SIDEBAR ── */}
-      <aside className="hidden md:flex sticky top-0 h-screen w-64 flex-shrink-0 flex-col bg-[#0e0e0e] border-r border-[#484848]/15 p-6 z-50">
+    <div style={{ backgroundColor: bg, color: tx, minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif", display: "flex", flexDirection: "column" }}>
 
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-9 h-9 rounded-lg bg-[#00FFC2]/10 flex items-center justify-center border border-[#00FFC2]/20 shadow-[0_0_15px_rgba(0,255,194,0.1)]">
-            <Shield size={18} className="text-[#00FFC2]" />
-          </div>
-          <div>
-            <h1 className="text-xl font-extrabold text-[#00FFC2] tracking-tight leading-none [font-family:var(--font-manrope)]">
-              Anzen AI
-            </h1>
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#00FFC2]/60 mt-1.5">Intelligence</p>
-          </div>
-        </div>
+      {/* ── NAVBAR ── */}
+      <header style={{ backgroundColor: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 0, zIndex: 50, height: 56 }}>
+        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 28px", height: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
-        {/* New Session */}
-        <button
-          onClick={() => setActivePage("dashboard")}
-          className="w-full py-3 px-4 mb-8 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-[#00e1ab] to-[#00513c] text-[#004a36] font-bold text-sm active:scale-95 duration-200"
-        >
-          <Plus size={15} />
-          New Session
-        </button>
-
-        {/* Nav items */}
-        <nav className="flex-1 space-y-1">
-          {sideNavItems.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setActivePage(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all hover:translate-x-1 duration-300 ${
-                activePage === item.id
-                  ? "bg-[#1f2020] text-[#00FFC2]"
-                  : "text-[#acabaa] hover:text-[#e7e5e4] hover:bg-[#131313]"
-              }`}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* Bottom */}
-        <div className="mt-auto pt-6 border-t border-[#484848]/15 space-y-1">
-          <button className="w-full flex items-center gap-3 px-4 py-2.5 text-[#acabaa] hover:text-[#e7e5e4] text-sm font-medium transition-all rounded-lg hover:bg-[#131313]">
-            <HelpCircle size={16} />
-            Support
+          <button onClick={() => { setActivePage("dashboard"); setMessages([]); setInputValue(""); }}
+            style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
+            <AnzenLogo />
+            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: tx }}>Anzen</span>
+            <span style={{ fontSize: 11, color: muted, letterSpacing: "0.02em", fontWeight: 400 }}>安全</span>
           </button>
-          <a
-            href="/auth/logout"
-            className="flex items-center gap-3 px-4 py-2.5 text-red-400/80 hover:text-red-400 text-sm font-medium transition-all rounded-lg hover:bg-[#131313]"
-          >
-            <LogOut size={16} />
-            Sign Out
-          </a>
-        </div>
-      </aside>
 
-      {/* ── MAIN ── */}
-      <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
-
-        {/* TOP HEADER */}
-        <header className="sticky top-0 bg-[#0e0e0e] z-40 border-b border-[#484848]/10">
-          <div className="flex justify-between items-center w-full px-8 py-4">
-            {/* Top nav links */}
-            <nav className="hidden md:flex items-center gap-8">
-              {topNavItems.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => setActivePage(item.id)}
-                  className={`text-sm font-medium tracking-tight transition-colors ${
-                    activePage === item.id
-                      ? "text-[#00FFC2] border-b-2 border-[#00FFC2] pb-1"
-                      : "text-[#acabaa] hover:text-[#e7e5e4]"
-                  } [font-family:var(--font-manrope)]`}
-                >
-                  {item.label}
+          <nav style={{ display: "flex", gap: 2 }}>
+            {[
+              { id: "dashboard",   label: "Dashboard" },
+              { id: "connections", label: "Connections" },
+              { id: "history",     label: "History" },
+            ].map(({ id, label }) => {
+              const active = activePage === id;
+              return (
+                <button key={id} onClick={() => setActivePage(id)}
+                  style={{
+                    padding: "5px 15px", borderRadius: 7, fontSize: 13.5, fontWeight: active ? 600 : 400,
+                    color: active ? tx : muted,
+                    background: active ? (d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)") : "transparent",
+                    border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                  }}>
+                  {label}
                 </button>
-              ))}
-            </nav>
+              );
+            })}
+          </nav>
 
-            {/* Right actions */}
-            <div className="flex items-center gap-3 ml-auto">
-              <button className="p-2 text-[#acabaa] hover:bg-[#1f2020] rounded-lg transition-all active:scale-95">
-                <Bell size={18} />
-              </button>
-              <button className="p-2 text-[#acabaa] hover:bg-[#1f2020] rounded-lg transition-all active:scale-95">
-                <Settings size={18} />
-              </button>
-              <div className="w-8 h-8 rounded-full bg-[#1f2020] border border-[#484848]/20 flex items-center justify-center text-xs font-bold text-[#00e1ab] ml-2">
-                {firstName[0]}
-              </div>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            {!statusLoading && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: muted }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: connectedCount > 0 ? accent : subtle, display: "inline-block", boxShadow: connectedCount > 0 ? `0 0 5px ${accent}` : "none" }} />
+                  {connectedCount}/3
+                </div>
+                <button onClick={fetchConnectionStatus}
+                  style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}
+                  title="Refresh connection status">
+                  <RotateCw size={14} />
+                </button>
+              </>
+            )}
+            <button onClick={() => setDark(!d)}
+              style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}>
+              {d ? <Sun size={14} /> : <Moon size={14} />}
+            </button>
+            {/* correct logout path for Auth0 v4 */}
+            <a href="/auth/logout"
+              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: muted, textDecoration: "none", transition: "color 0.15s" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = muted)}>
+              <LogOut size={14} />
+              Sign out
+            </a>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* ── PAGE CONTENT ── */}
-        <div className="flex-1 overflow-y-auto">
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
 
-          {/* ════ DASHBOARD PAGE ════ */}
-          {activePage === "dashboard" && (
-            <section className="max-w-[1200px] mx-auto w-full px-8 pt-12 pb-24 flex flex-col gap-16">
+        {/* ── DASHBOARD ── */}
+        {activePage === "dashboard" && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)" }}>
 
-              {/* Welcome */}
-              <div>
-                <h2 className="text-5xl md:text-6xl font-extrabold tracking-tight text-[#e7e5e4] mb-2 [font-family:var(--font-manrope)]">
-                  Hello, {firstName}.
-                </h2>
-                <p className="text-[#acabaa] text-lg font-light">
-                  {connectedCount === 0
-                    ? "Connect your accounts to activate your security perimeter."
-                    : `Your security perimeter is active. ${connectedCount} connection${connectedCount > 1 ? "s" : ""} secured.`}
-                </p>
-              </div>
-
-              {/* Bento Grid */}
-              <div className="grid grid-cols-12 gap-6">
-
-                {/* Active Connections Card */}
-                <div className="col-span-12 lg:col-span-4 bg-[#131313] p-8 rounded-2xl flex flex-col justify-between group hover:bg-[#191a1a] transition-colors duration-500">
-                  <div>
-                    <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-[#acabaa]">Active Connections</h3>
-                      <span className={`w-2 h-2 rounded-full ${connectedCount > 0 ? "bg-[#00e1ab] animate-pulse shadow-[0_0_8px_#00e1ab]" : "bg-[#484848]"}`} />
-                    </div>
-                    <div className="flex gap-3">
-                      {[
-                        { key: "github", href: "/auth/login?connection=github&returnTo=/dashboard", icon: <GitHubIcon /> },
-                        { key: "gmail", href: "/auth/login?connection=google-oauth2&returnTo=/dashboard", icon: <GmailIcon /> },
-                        { key: "slack", href: "/auth/login?connection=slack-oauth2&returnTo=/dashboard", icon: <SlackIcon /> },
-                      ].map(p => (
-                        <a
-                          key={p.key}
-                          href={status[p.key as keyof ConnectionStatus] ? "#" : p.href}
-                          className={`relative w-12 h-12 rounded-lg bg-[#1f2020] flex items-center justify-center border transition-all group-hover:border-[#00e1ab]/20 ${
-                            status[p.key as keyof ConnectionStatus]
-                              ? "border-[#00e1ab]/30"
-                              : "border-[#484848]/10"
-                          }`}
-                        >
-                          {p.icon}
-                          {status[p.key as keyof ConnectionStatus] && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#00e1ab] border-2 border-[#131313]" />
+            {isChatting && (
+              <div style={{ flex: 1, overflowY: "auto", padding: "32px 28px 0" }}>
+                <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+                  <AnimatePresence initial={false}>
+                    {messages.map((m, i) => {
+                      const text = getMessageText(m);
+                      if (!text.trim() && m.role !== "user") return null;
+                      const isUser = m.role === "user";
+                      return (
+                        <motion.div key={m.id ?? i}
+                          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
+                          style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", gap: 9 }}>
+                          {!isUser && (
+                            <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+                              <AnzenLogo />
+                            </div>
                           )}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-12">
-                    <p className="text-2xl font-bold text-[#e7e5e4] mb-1 [font-family:var(--font-manrope)]">
-                      99.9% Uptime
-                    </p>
-                    <p className="text-xs text-[#acabaa]">Real-time encryption monitoring enabled</p>
-                  </div>
-                </div>
+                          <div style={{
+                            maxWidth: "76%", fontSize: 14, lineHeight: 1.72, color: tx,
+                            ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}),
+                          }}>
+                            {text.split("\n").map((line, j, arr) => (
+                              <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
+                            ))}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
 
-                {/* Threat Intelligence Card */}
-                <div className="col-span-12 md:col-span-6 lg:col-span-4 bg-[#131313] p-8 rounded-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <ShieldCheck size={64} className="text-[#00e1ab]" />
-                  </div>
-                  <div className="relative z-10">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#acabaa] mb-8">Threat Intelligence</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between py-2 border-b border-[#484848]/10">
-                        <span className="text-xs font-medium text-[#e7e5e4]">Anomaly Detection</span>
-                        <span className="text-xs text-[#00e1ab] font-bold">Stable</span>
+                  {isLoading && (
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <AnzenLogo />
                       </div>
-                      <div className="flex items-center justify-between py-2 border-b border-[#484848]/10">
-                        <span className="text-xs font-medium text-[#e7e5e4]">Network Latency</span>
-                        <span className="text-xs text-[#acabaa]">24ms</span>
-                      </div>
-                      <div className="flex items-center justify-between py-2">
-                        <span className="text-xs font-medium text-[#e7e5e4]">Active Scans</span>
-                        <span className="text-xs text-[#acabaa]">0</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vault Status Card */}
-                <div className="col-span-12 md:col-span-6 lg:col-span-4 bg-[#131313] rounded-2xl relative overflow-hidden min-h-[240px]">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(0,225,171,0.18)_0%,rgba(0,81,60,0.12)_40%,transparent_70%)]" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#131313] via-[#131313]/40 to-transparent" />
-                  <div className="absolute top-6 right-6 w-14 h-14 rounded-xl bg-[#00e1ab]/10 border border-[#00e1ab]/20 flex items-center justify-center">
-                    <ShieldCheck size={24} className="text-[#00e1ab]" />
-                  </div>
-                  <div className="absolute bottom-0 left-0 p-8">
-                    <h3 className="text-xl font-bold text-[#e7e5e4] [font-family:var(--font-manrope)]">
-                      Vault Status
-                    </h3>
-                    <p className="text-xs text-[#00e1ab] font-bold uppercase tracking-widest mt-1">Locked &amp; Synchronized</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Interaction Area */}
-              <div className="flex flex-col items-center max-w-4xl mx-auto w-full gap-6">
-
-                {/* Chat messages */}
-                {isChatting && (
-                  <div className="w-full flex flex-col gap-6 max-h-80 overflow-y-auto">
-                    {messages.map((m, i) => (
-                      <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div
-                          className={`max-w-[75%] text-sm leading-relaxed ${
-                            m.role === "user"
-                              ? "bg-[#1f2020] rounded-2xl rounded-tr-sm px-4 py-3 border border-[#484848]/20"
-                              : "text-[#acabaa]"
-                          }`}
-                        >
-                          {m.parts.filter(p => p.type === "text").map((p, j) => (
-                            <span key={j}>{(p as { type: "text"; text: string }).text}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    {isLoading && (
-                      <div className="flex gap-1.5 px-4 py-3 bg-[#1f2020] rounded-2xl w-fit border border-[#484848]/20">
-                        {[0, 1, 2].map(i => (
-                          <motion.div
-                            key={i}
-                            animate={{ y: [0, -4, 0] }}
-                            transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
-                            className="w-1.5 h-1.5 bg-[#00e1ab]/60 rounded-full"
-                          />
+                      <div style={{ display: "flex", gap: 4, padding: "9px 14px", background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 14px 3px", alignItems: "center" }}>
+                        {[0, 1, 2].map((i) => (
+                          <motion.span key={i} animate={{ y: [0, -4, 0] }} transition={{ duration: 0.55, repeat: Infinity, delay: i * 0.1 }}
+                            style={{ width: 5, height: 5, borderRadius: "50%", background: accent, opacity: 0.8, display: "block" }} />
                         ))}
                       </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                )}
-
-                {/* Suggestion Pills */}
-                {!isChatting && (
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {SUGGESTIONS.map(s => (
-                      <button
-                        key={s}
-                        onClick={() => setInputValue(s)}
-                        className="px-5 py-2.5 rounded-full border border-[#484848]/20 hover:border-[#00e1ab]/40 hover:bg-[#1f2020] transition-all text-sm font-medium text-[#acabaa] hover:text-[#e7e5e4]"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Command Bar */}
-                <div className="w-full rounded-full p-2 border border-[#484848]/15 shadow-2xl bg-[#1f2020]/70 backdrop-blur-xl focus-within:border-[#00e1ab]/30 transition-all">
-                  <div className="flex items-center px-4 py-2">
-                    <Zap size={18} className="text-[#00e1ab] mr-4 flex-shrink-0" />
-                    <input
-                      value={inputValue}
-                      onChange={e => setInputValue(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleSend()}
-                      placeholder="Ask Anzen to analyze your security perimeter..."
-                      className="flex-1 bg-transparent border-none outline-none text-[#e7e5e4] placeholder-[#acabaa]/50 text-base font-light"
-                    />
-                    <div className="flex items-center gap-2">
-                      <span className="hidden md:inline text-[10px] px-2 py-1 bg-[#252626] rounded border border-[#484848]/30 text-[#acabaa] font-bold tracking-widest uppercase">
-                        ⌘K
-                      </span>
-                      <button
-                        onClick={handleSend}
-                        disabled={!inputValue.trim() || isLoading}
-                        className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-[#00e1ab] to-[#00513c] text-[#004a36] hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
-                      >
-                        <ArrowUp size={18} strokeWidth={3} />
-                      </button>
                     </div>
-                  </div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
               </div>
-            </section>
-          )}
+            )}
 
-          {/* ════ CONNECTIONS PAGE ════ */}
-          {activePage === "connections" && (
-            <div className="max-w-[1200px] mx-auto w-full px-8 lg:px-20 py-12">
-              <header className="mb-16">
-                <h1 className="text-5xl font-extrabold tracking-tight text-[#e7e5e4] mb-4 [font-family:var(--font-manrope)]">
-                  Connections
-                </h1>
-                <p className="text-[#acabaa] text-lg max-w-2xl leading-relaxed">
-                  Manage your enterprise data pipeline and security nodes. Authenticate new services to expand Anzen&apos;s protection layer across your stack.
-                </p>
-              </header>
-
-              {/* Active Connections */}
-              <section className="mb-20">
-                <div className="flex justify-between items-end mb-8">
-                  <h2 className="text-2xl font-bold text-[#e7e5e4] [font-family:var(--font-manrope)]">
-                    Active Connections
-                  </h2>
-                  <span className="text-[#00e1ab] font-mono text-xs font-bold tracking-widest uppercase">
-                    {connectedCount} Nodes Secure
-                  </span>
+            {!isChatting && (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 28px 172px", gap: 36 }}>
+                <div style={{ textAlign: "center", maxWidth: 520 }}>
+                  <h1 style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.08, margin: "0 0 12px", color: tx }}>
+                    What can I<br />help with?
+                  </h1>
+                  <p style={{ fontSize: 15, color: muted, margin: 0, lineHeight: 1.65 }}>
+                    Your AI Chief of Staff — secured by Auth0 Token Vault.
+                  </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {[
-                    { key: "github", label: "GitHub", desc: "Monitoring repository access and secret leaks.", href: "/auth/login?connection=github&returnTo=/dashboard", icon: <GitHubIcon size={28} /> },
-                    { key: "gmail", label: "Gmail", desc: "Securing communications and attachment vectors.", href: "/auth/login?connection=google-oauth2&returnTo=/dashboard", icon: <GmailIcon size={28} /> },
-                    { key: "slack", label: "Slack", desc: "Auditing internal threads for DLP compliance.", href: "/auth/login?connection=slack-oauth2&returnTo=/dashboard", icon: <SlackIcon size={28} /> },
-                  ].map(p => (
-                    <div
-                      key={p.key}
-                      className="group bg-[#131313] p-8 rounded-2xl border border-transparent hover:border-[#00e1ab]/20 transition-all duration-500 flex flex-col justify-between gap-12"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="w-14 h-14 bg-[#252626] flex items-center justify-center rounded-2xl group-hover:scale-110 transition-transform duration-500">
-                          {p.icon}
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, width: "100%", maxWidth: 500 }}>
+                  {activeProviders.map((p) => {
+                    const connected = connStatus[p.key as keyof ConnectionStatus];
+                    return (
+                      <a key={p.key} href={connected ? "#" : p.connectHref}
+                        onClick={(e) => connected && e.preventDefault()}
+                        style={{ ...card, padding: "20px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textDecoration: "none", cursor: connected ? "default" : "pointer", transition: "all 0.18s", ...(connected ? { borderColor: `${accent}30` } : { opacity: 0.52 }) }}
+                        onMouseEnter={(e) => { if (!connected) { e.currentTarget.style.opacity = "0.78"; e.currentTarget.style.transform = "translateY(-2px)"; } }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = connected ? "1" : "0.52"; e.currentTarget.style.transform = "none"; }}>
+                        <div style={{ width: 52, height: 52, background: surface2, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${border}` }}>{p.icon}</div>
+                        <div style={{ textAlign: "center" }}>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: tx, margin: "0 0 2px" }}>{p.label}</p>
+                          <p style={{ fontSize: 11, color: muted, margin: 0 }}>{p.desc}</p>
                         </div>
-                        {status[p.key as keyof ConnectionStatus] && (
-                          <div className="flex items-center gap-2 bg-[#00e1ab]/10 px-3 py-1 rounded-full">
-                            <div className="w-2 h-2 rounded-full bg-[#00e1ab]" />
-                            <span className="text-[10px] font-bold text-[#00e1ab] uppercase tracking-tighter">Connected</span>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold mb-1 text-[#e7e5e4] [font-family:var(--font-manrope)]">
-                          {p.label}
-                        </h3>
-                        <p className="text-[#acabaa] text-sm mb-6">{p.desc}</p>
-                        <a
-                          href={status[p.key as keyof ConnectionStatus] ? "#" : p.href}
-                          className="block w-full bg-[#1f2020] hover:bg-[#252626] text-[#e7e5e4] py-3 rounded-xl font-bold text-sm text-center transition-all border border-[#484848]/20"
-                        >
-                          {status[p.key as keyof ConnectionStatus] ? "Manage" : "Connect"}
-                        </a>
-                      </div>
-                    </div>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: connected ? accent : subtle, display: "block", boxShadow: connected ? `0 0 6px ${accent}` : "none" }} />
+                      </a>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 7, maxWidth: 500 }}>
+                  {SUGGESTIONS.map((s) => (
+                    <button key={s} onClick={() => setInputValue(s)}
+                      style={{ padding: "7px 14px", borderRadius: 999, border: `1px solid ${border}`, background: "transparent", fontSize: 12.5, color: muted, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = tx; e.currentTarget.style.borderColor = `${accent}55`; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border; e.currentTarget.style.transform = "none"; }}>
+                      {s}
+                    </button>
                   ))}
                 </div>
-              </section>
+              </div>
+            )}
 
-              {/* Available Integrations */}
-              <section>
-                <div className="flex justify-between items-end mb-8">
-                  <h2 className="text-2xl font-bold text-[#e7e5e4] [font-family:var(--font-manrope)]">
-                    Available Integrations
-                  </h2>
-                  <button className="text-[#00d19f] hover:text-[#00e1ab] transition-colors text-sm font-bold flex items-center gap-2">
-                    View Marketplace <ArrowRight size={16} />
+            <div style={{ position: "sticky", bottom: 0, background: bg, padding: "13px 28px 22px", borderTop: isChatting ? `1px solid ${border}` : "none" }}>
+              <div style={{ maxWidth: 680, margin: "0 auto" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, background: surface, border: `1px solid ${border}`, borderRadius: 13, padding: "11px 14px" }}>
+                  <Zap size={16} style={{ color: accentTx, flexShrink: 0 }} />
+                  <input value={inputValue} onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                    placeholder="Ask Anzen anything…"
+                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14, color: tx, fontFamily: "inherit" }} />
+                  <button onClick={handleSend} disabled={!inputValue.trim() || isLoading}
+                    style={{
+                      width: 30, height: 30, borderRadius: 8, border: "none", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
+                      cursor: inputValue.trim() && !isLoading ? "pointer" : "not-allowed",
+                      background: inputValue.trim() && !isLoading ? accent : (d ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"),
+                      color: inputValue.trim() && !isLoading ? "#000" : muted,
+                      opacity: inputValue.trim() || isLoading ? 1 : 0.35,
+                    }}>
+                    <Send size={14} />
                   </button>
                 </div>
-                <div className="space-y-4">
-                  {[
-                    { icon: <Database size={20} className="text-[#acabaa]" />, label: "Amazon S3", desc: "Cloud storage integrity monitoring" },
-                    { icon: <Lock size={20} className="text-[#acabaa]" />, label: "Okta", desc: "Identity management and IAM audits" },
-                    { icon: <FileText size={20} className="text-[#acabaa]" />, label: "Notion", desc: "Knowledge base protection" },
-                  ].map(item => (
-                    <div
-                      key={item.label}
-                      className="group flex items-center justify-between p-6 rounded-2xl bg-black border border-[#484848]/10 hover:bg-[#131313] transition-all"
-                    >
-                      <div className="flex items-center gap-6">
-                        <div className="w-12 h-12 bg-[#1f2020] rounded-xl flex items-center justify-center">
-                          {item.icon}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-[#e7e5e4]">{item.label}</h4>
-                          <p className="text-xs text-[#acabaa]">{item.desc}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-8">
-                        <span className="hidden md:block text-[10px] font-bold text-[#5c5b5b] uppercase tracking-widest">Disconnected</span>
-                        <button
-                          className="px-6 py-2 rounded-lg font-bold text-sm bg-gradient-to-br from-[#00e1ab] to-[#00513c] text-[#004a36] transition-all active:scale-95"
-                        >
-                          Connect
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-          )}
-
-          {/* ════ AUDIT LOGS PAGE ════ */}
-          {activePage === "history" && (
-            <div className="max-w-[1200px] mx-auto w-full px-8 py-12">
-              <h1 className="text-5xl font-extrabold tracking-tight text-[#e7e5e4] mb-2 [font-family:var(--font-manrope)]">
-                Audit Logs
-              </h1>
-              <p className="text-[#acabaa] text-lg mb-12">Complete record of all agent actions and security events.</p>
-              <div className="bg-[#131313] rounded-2xl p-6 flex flex-col items-center justify-center h-48 gap-4">
-                <Shield size={28} className="text-[#484848]" />
-                <p className="text-[#484848] text-sm font-mono">No audit logs yet. Start a session to generate logs.</p>
+                <p style={{ textAlign: "center", fontSize: 10.5, color: subtle, margin: "6px 0 0", letterSpacing: "0.02em" }}>
+                  Anzen AI · Secured by Auth0 Token Vault
+                </p>
               </div>
-            </div>
-          )}
-
-          {/* ════ ACCOUNT PAGE ════ */}
-          {activePage === "security" && (
-            <div className="max-w-[1200px] mx-auto w-full px-8 py-12">
-              <h1 className="text-5xl font-extrabold tracking-tight text-[#e7e5e4] mb-2 [font-family:var(--font-manrope)]">
-                Account
-              </h1>
-              <p className="text-[#acabaa] text-lg mb-12">{userEmail}</p>
-              <div className="space-y-4">
-                <div className="bg-[#131313] rounded-2xl p-6 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-[#e7e5e4]">Authentication</p>
-                    <p className="text-sm text-[#acabaa] mt-1">Signed in via Auth0. Session secured.</p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-[#00e1ab]/10 px-4 py-1.5 rounded-full">
-                    <div className="w-2 h-2 rounded-full bg-[#00e1ab]" />
-                    <span className="text-xs font-mono font-bold text-[#00e1ab] uppercase tracking-widest">Active</span>
-                  </div>
-                </div>
-                <div className="bg-[#131313] rounded-2xl p-6 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-[#e7e5e4]">Token Vault</p>
-                    <p className="text-sm text-[#acabaa] mt-1">Auth0 Token Vault securing all OAuth credentials.</p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-[#00e1ab]/10 px-4 py-1.5 rounded-full">
-                    <Shield size={12} className="text-[#00e1ab]" />
-                    <span className="text-xs font-mono font-bold text-[#00e1ab] uppercase tracking-widest">Locked</span>
-                  </div>
-                </div>
-                <div className="bg-[#131313] rounded-2xl p-6 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-[#e7e5e4]">Sign Out</p>
-                    <p className="text-sm text-[#acabaa] mt-1">End your current session securely.</p>
-                  </div>
-                  <a
-                    href="/auth/logout"
-                    className="flex items-center gap-2 bg-[#1f2020] border border-[#484848]/20 px-5 py-2.5 rounded-full text-sm font-bold text-[#acabaa] hover:text-red-400 hover:border-red-400/20 transition-all"
-                  >
-                    <LogOut size={13} />
-                    Sign Out
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </main>
-
-      {/* ── FLOATING BADGE ── */}
-      <div className="fixed bottom-8 right-8 z-50 hidden md:block">
-        <div className="flex items-center gap-3 bg-[#1f2020] px-4 py-2 rounded-full border border-[#484848]/20">
-          <div className="flex -space-x-1.5">
-            <div className="w-5 h-5 rounded-full bg-[#252626] border border-[#0e0e0e] flex items-center justify-center">
-              <Shield size={10} className="text-[#acabaa]" />
-            </div>
-            <div className="w-5 h-5 rounded-full bg-[#252626] border border-[#0e0e0e] flex items-center justify-center">
-              <Zap size={10} className="text-[#acabaa]" />
             </div>
           </div>
-          <span className="text-[10px] font-bold tracking-widest uppercase text-[#acabaa]">System Optimal</span>
-        </div>
-      </div>
+        )}
 
+        {/* ── CONNECTIONS ── */}
+        {activePage === "connections" && (
+          <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
+            <div style={{ marginBottom: 36 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Connections</h1>
+              <p style={{ fontSize: 14, color: muted, margin: 0 }}>Credentials stored in Auth0 Token Vault — Anzen never sees them.</p>
+            </div>
+
+            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: muted, margin: "0 0 12px" }}>
+              Active · {statusLoading ? "…" : `${connectedCount} of 3 connected`}
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 36 }}>
+              {activeProviders.map((p) => {
+                const connected = connStatus[p.key as keyof ConnectionStatus];
+                return (
+                  <div key={p.key} style={{ ...card, padding: "28px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, ...(connected ? { borderColor: `${accent}25` } : {}) }}>
+                    <div style={{ width: 80, height: 80, background: surface2, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${border}` }}>
+                      {p.icon}
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <p style={{ fontSize: 15, fontWeight: 600, color: tx, margin: "0 0 3px" }}>{p.label}</p>
+                      <p style={{ fontSize: 12, color: muted, margin: 0 }}>{p.desc}</p>
+                    </div>
+                    {connected ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: accentTx, display: "flex", alignItems: "center", gap: 5 }}>
+                          <CheckCircle2 size={14} style={{ color: accent }} />
+                          Connected
+                        </span>
+                        <button onClick={() => handleDisconnect(p.key)}
+                          style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: muted, border: `1px solid ${border}`, cursor: "pointer", transition: "all 0.2s", fontFamily: "inherit" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(248,113,113,0.08)"; e.currentTarget.style.color = "#f87171"; e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border; }}>
+                          Disconnect
+                        </button>
+                      </div>
+                    ) : (
+                      <a href={p.connectHref}
+                        style={{ display: "inline-block", padding: "8px 20px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", textDecoration: "none", transition: "opacity 0.2s" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}>
+                        Connect
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: muted, margin: "0 0 12px" }}>Coming soon</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+              {comingSoon.map((app) => (
+                <div key={app.label} style={{ ...card, padding: "20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, opacity: 0.38 }}>
+                  <div style={{ width: 56, height: 56, background: surface2, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{app.icon}</div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: tx, margin: 0 }}>{app.label}</p>
+                  <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: muted, background: surface2, padding: "2px 7px", borderRadius: 4 }}>Soon</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── HISTORY ── */}
+        {activePage === "history" && (
+          <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
+            <div style={{ marginBottom: 28 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Audit Logs</h1>
+              <p style={{ fontSize: 14, color: muted, margin: 0 }}>Every action Anzen takes on your behalf is recorded here.</p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
+              {[
+                { label: "Total",       value: messages.length,                                       color: accentTx },
+                { label: "Responses",   value: messages.filter((m) => m.role === "assistant").length, color: accentTx },
+                { label: "Your msgs",   value: messages.filter((m) => m.role === "user").length,      color: "#60A5FA" },
+                { label: "Connections", value: connectedCount,                                        color: "#60A5FA" },
+              ].map((s) => (
+                <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
+                  <p style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: muted, margin: "0 0 8px" }}>{s.label}</p>
+                  <p style={{ fontSize: 26, fontWeight: 700, color: s.color, margin: 0, letterSpacing: "-0.02em" }}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {messages.length === 0 ? (
+              <div style={{ ...card, padding: "52px 20px", textAlign: "center" }}>
+                <p style={{ color: muted, fontSize: 14, margin: 0 }}>No activity yet. Start a conversation to see logs here.</p>
+              </div>
+            ) : (
+              <div style={{ ...card, overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "70px 1fr 100px 80px", gap: 16, padding: "10px 18px", borderBottom: `1px solid ${border}`, background: surface2 }}>
+                  {["Role", "Message", "Time", "Status"].map((h) => (
+                    <span key={h} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: muted }}>{h}</span>
+                  ))}
+                </div>
+                {[...messages].reverse().map((m, i) => {
+                  const text = getMessageText(m);
+                  const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
+                  const isUser = m.role === "user";
+                  return (
+                    <div key={m.id ?? i}
+                      style={{ display: "grid", gridTemplateColumns: "70px 1fr 100px 80px", gap: 16, padding: "13px 18px", borderBottom: i < messages.length - 1 ? `1px solid ${border}` : "none", transition: "background 0.12s" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = d ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}>
+                      <code style={{ fontSize: 11, color: isUser ? "#60A5FA" : accentTx, background: isUser ? "rgba(96,165,250,0.1)" : accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>{m.role}</code>
+                      <span style={{ fontSize: 13, color: tx, alignSelf: "center" }}>{preview || "(tool call)"}</span>
+                      <span style={{ fontSize: 12, color: muted, alignSelf: "center" }}>{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>Success</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

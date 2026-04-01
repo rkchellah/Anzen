@@ -9,26 +9,32 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const status = {
-    github: false,
-    gmail: false,
-    slack: false,
+  const results: Record<string, { success: boolean; error?: string }> = {
+    github: { success: false },
+    "google-oauth2": { success: false },
+    "slack-oauth2": { success: false },
   };
 
   try {
     await getTokenForProvider("github");
-    status.github = true;
-  } catch {}
+    results.github.success = true;
+  } catch (error) {
+    results.github.error = String(error);
+  }
 
   try {
     await getTokenForProvider("google-oauth2");
-    status.gmail = true;
-  } catch {}
+    results["google-oauth2"].success = true;
+  } catch (error) {
+    results["google-oauth2"].error = String(error);
+  }
 
   try {
     await getTokenForProvider("slack-oauth2");
-    status.slack = true;
-  } catch {}
+    results["slack-oauth2"].success = true;
+  } catch (error) {
+    results["slack-oauth2"].error = String(error);
+  }
 
-  return NextResponse.json(status);
+  return NextResponse.json({ results });
 }
