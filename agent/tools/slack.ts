@@ -8,7 +8,7 @@ export function getSlackTools() {
     listChannels: tool({
       description: "List the user's Slack channels",
       parameters: z.object({ limit: z.number().optional().default(20).describe("Maximum number of channels to return") }),
-      execute: async ({ limit = 20 }) => {
+      execute: async ({ limit = 20 }): Promise<{ channels: Array<{ id?: string; name?: string; isPrivate?: boolean; memberCount?: number }> }> => {
         const token = await getTokenForProvider("slack-oauth2");
         const slack = new WebClient(token);
 

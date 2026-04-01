@@ -8,9 +8,9 @@ export function getGmailTools() {
     listUnreadEmails: tool({
       description: "List the user's unread emails from Gmail. Always call with maxResults=10 unless user specifies otherwise.",
       parameters: z.object({
-        maxResults: z.number().describe("Number of emails to return — use 10 as default"),
+        maxResults: z.number().default(10).describe("Number of emails to return — use 10 as default"),
       }),
-      execute: async ({ maxResults }) => {
+      execute: async ({ maxResults }): Promise<{ emails: Array<{ id?: string; from: string; subject: string; date: string; snippet: string }>; count: number }> => {
         const token = await getTokenForProvider("google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });
@@ -61,7 +61,7 @@ export function getGmailTools() {
         subject: z.string().describe("Email subject"),
         body: z.string().describe("Email body in plain text"),
       }),
-      execute: async ({ to, subject, body }) => {
+      execute: async ({ to, subject, body }): Promise<{ success: boolean; message: string }> => {
         const token = await getTokenForProvider("google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });
