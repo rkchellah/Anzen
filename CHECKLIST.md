@@ -8,10 +8,12 @@
 - [ ] All credentials rotated after accidental exposure
 
 ## 🐛 Bug Fixes
+- [x] Bug 006 — sendMessage API (AI SDK v6 breaking change)
+- [x] Bug 007 — Message rendering (parts array format)
 - [x] Bug 008 — State parameter missing (proxy.ts + middleware.ts conflict)
-- [x] Bug 009 — Anzen app not authorized on Anzen API (Application Access tab)
-- [x] Bug 010 — Google OAuth blocked (no test users added in Google Auth Platform)
-- [x] Bug 011 — ChunkLoadError (stale Turbopack cache, fixed with rm -rf .next)
+- [x] Bug 009 — Tool execute null params crash (safe destructuring)
+- [x] Bug 010 — ChunkLoadError (stale Turbopack cache)
+- [x] Bug 011 — Auth0 Management API not authorized for disconnect
 
 ## Phase 1 — Foundation
 - [x] Next.js app initialized with TypeScript
@@ -26,42 +28,50 @@
 - [x] Login flow working end to end — confirmed "Welcome, Chella Kamina" after Google OAuth
 - [x] Logout working
 - [x] GitHub repo created and pushed
-- [x] Token Vault enabled in Auth0
+- [x] Token Vault grant type enabled in Auth0
 
 ## Phase 2 — Integrations
-- [x] Token Vault enabled in Auth0
+- [x] Token Vault grant type enabled in Auth0
 - [x] Custom API created (Anzen API)
 - [x] Custom API Client created (Anzen API Client)
 - [x] My Account API configured
 - [x] Multi-Resource Refresh Token enabled
-- [x] Token Vault fetch function written
-- [x] Agent API route built (app/api/agent/route.ts)
+- [x] Token Vault fetch function written (lib/auth0.ts)
+- [x] Agent chat API route built (app/api/chat/route.ts)
+- [x] Status API route built (app/api/status/route.ts)
+- [x] GitHub tool built (agent/tools/github.ts)
 - [x] Gmail tool built (agent/tools/gmail.ts)
 - [x] Slack tool built (agent/tools/slack.ts)
-- [x] Connect accounts page built (app/connect/page.tsx)
-- [ ] GitHub OAuth connected via Token Vault
-- [ ] Gmail OAuth connected via Token Vault
-- [ ] Slack OAuth connected via Token Vault
-- [ ] Permission tiers implemented (🟢🟡🔴)
-- [ ] Token Vault retrieving tokens correctly
+- [x] GitHub OAuth connected via Auth0 Social Connection
+- [x] Gmail OAuth connected via Auth0 Social Connection
+- [x] Slack OAuth connected via Auth0 Social Connection
+- [x] Connected Accounts for Token Vault enabled on all providers
+- [ ] Token Vault returning correct third-party tokens (pending Auth0 support — ticket open)
 
 ## Phase 3 — Agent Brain
-- [ ] Vercel AI SDK configured with GPT-4o
-- [x] GitHub tool built and tested
-- [x] Gmail tool built and tested
-- [x] Slack tool built and tested
-- [ ] Morning briefing prompt engineered
+- [x] Groq AI configured (llama-3.3-70b-versatile via @ai-sdk/groq)
+- [x] GitHub tool built and integrated
+- [x] Gmail tool built and integrated
+- [x] Slack tool built and integrated
+- [x] Agent responding to natural language queries
+- [ ] Token Vault token exchange working end-to-end
 - [ ] Step-up authentication implemented
 
 ## Phase 4 — Dashboard
-- [ ] Login/logout flow working in UI
-- [ ] Morning briefing page built
-- [ ] Action cards built (approve/deny)
+- [x] Login/logout flow working in UI
+- [x] Chat interface built with streaming responses
+- [x] Connection cards built (connect/disconnect per provider)
+- [x] Connection status indicators (green dot when connected)
+- [x] Audit log page built (real message history)
+- [x] Dark/light theme with persistence
+- [x] Navbar with logo, navigation, theme toggle, sign out
 - [ ] Permission badges (🟢🟡🔴) visible
-- [ ] Audit log page built
+- [ ] Action cards (approve/deny) built
 
 ## Phase 5 — Polish & Submit
+- [x] Code pushed to GitHub
 - [ ] Deployed to Vercel
+- [ ] Auth0 callbacks updated for production URL
 - [ ] README complete and judge-ready
 - [ ] Demo video recorded (3 min)
 - [ ] Bonus blog post written (250+ words)
