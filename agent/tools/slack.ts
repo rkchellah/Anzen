@@ -10,22 +10,14 @@ export function getSlackTools() {
       parameters: z.object({
         limit: z.number().default(20).describe("Maximum number of channels to return"),
       }),
-      execute: async (params) => {
+      execute: async (params: { limit?: number }) => {
         const limit = params?.limit ?? 20;
         const token = await getTokenForProvider("slack-oauth2");
         const slack = new WebClient(token);
-
-        const result = await slack.conversations.list({
-          types: "public_channel,private_channel",
-          limit,
-        });
-
+        const result = await slack.conversations.list({ types: "public_channel,private_channel", limit });
         return {
           channels: (result.channels ?? []).map((c) => ({
-            id: c.id,
-            name: c.name,
-            isPrivate: c.is_private,
-            memberCount: c.num_members,
+            id: c.id, name: c.name, isPrivate: c.is_private, memberCount: c.num_members,
           })),
         };
       },
@@ -37,22 +29,13 @@ export function getSlackTools() {
         channel: z.string().describe("Channel ID or name"),
         message: z.string().describe("Message text to post"),
       }),
-      execute: async (params) => {
+      execute: async (params: { channel?: string; message?: string }) => {
         const channel = params?.channel ?? "";
         const message = params?.message ?? "";
         const token = await getTokenForProvider("slack-oauth2");
         const slack = new WebClient(token);
-
-        const result = await slack.chat.postMessage({
-          channel,
-          text: message,
-        });
-
-        return {
-          success: result.ok,
-          timestamp: result.ts,
-          channel: result.channel,
-        };
+        const result = await slack.chat.postMessage({ channel, text: message });
+        return { success: result.ok, timestamp: result.ts, channel: result.channel };
       },
     }),
   };
