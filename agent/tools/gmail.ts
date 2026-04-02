@@ -10,7 +10,8 @@ export function getGmailTools() {
       parameters: z.object({
         maxResults: z.number().default(10).describe("Number of emails to return — use 10 as default"),
       }),
-      execute: async ({ maxResults }): Promise<{ emails: Array<{ id?: string; from: string; subject: string; date: string; snippet: string }>; count: number }> => {
+      execute: async (params) => {
+        const maxResults = params?.maxResults ?? 10;
         const token = await getTokenForProvider("google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });
@@ -61,7 +62,10 @@ export function getGmailTools() {
         subject: z.string().describe("Email subject"),
         body: z.string().describe("Email body in plain text"),
       }),
-      execute: async ({ to, subject, body }): Promise<{ success: boolean; message: string }> => {
+      execute: async (params) => {
+        const to = params?.to ?? "";
+        const subject = params?.subject ?? "";
+        const body = params?.body ?? "";
         const token = await getTokenForProvider("google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });

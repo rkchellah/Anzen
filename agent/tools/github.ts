@@ -8,17 +8,17 @@ export function getGithubTools() {
     listAssignedIssues: tool({
       description: "List GitHub issues assigned to the current user. Always call with state='open' unless user specifies otherwise.",
       parameters: z.object({
-        state: z.enum(["open", "closed", "all"]).optional().default("open").describe("Issue state filter — must be 'open', 'closed', or 'all'"),
+        state: z.enum(["open", "closed", "all"]).default("open").describe("Issue state filter"),
       }),
-      execute: async ({ state }): Promise<Array<{ id: number; number: number; title: string; repo: string; url: string; createdAt: string }>> => {
+      execute: async (params) => {
+        const state = (params?.state ?? "open") as "open" | "closed" | "all";
         const token = await getTokenForProvider("github");
+        console.log("GITHUB TOKEN PREVIEW:", token.slice(0, 15), "length:", token.length);
         const octokit = new Octokit({ auth: token });
-
         const { data } = await octokit.rest.issues.list({
           filter: "assigned",
-          state: (state ?? "open") as "open" | "closed" | "all",
+          state,
         });
-
         return data.map((issue) => ({
           id: issue.id,
           number: issue.number,
@@ -37,17 +37,13 @@ export function getGithubTools() {
         repo: z.string().describe("Repository name"),
         issueNumber: z.number().describe("Issue number to close"),
       }),
-      execute: async ({ owner, repo, issueNumber }): Promise<{ success: boolean; message: string }> => {
+      execute: async (params) => {
+        const owner = params?.owner ?? "";
+        const repo = params?.repo ?? "";
+        const issueNumber = params?.issueNumber ?? 0;
         const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
-
-        await octokit.rest.issues.update({
-          owner,
-          repo,
-          issue_number: issueNumber,
-          state: "closed",
-        });
-
+        await octokit.rest.issues.update({ owner, repo, issue_number: issueNumber, state: "closed" });
         return { success: true, message: `Issue #${issueNumber} closed` };
       },
     }),
@@ -60,17 +56,16 @@ export function getGithubTools() {
         issueNumber: z.number().describe("Issue number"),
         comment: z.string().describe("Comment text to add"),
       }),
-      execute: async ({ owner, repo, issueNumber, comment }): Promise<{ success: boolean; commentUrl: string }> => {
+      execute: async (params) => {
+        const owner = params?.owner ?? "";
+        const repo = params?.repo ?? "";
+        const issueNumber = params?.issueNumber ?? 0;
+        const comment = params?.comment ?? "";
         const token = await getTokenForProvider("github");
         const octokit = new Octokit({ auth: token });
-
         const { data } = await octokit.rest.issues.createComment({
-          owner,
-          repo,
-          issue_number: issueNumber,
-          body: comment,
+          owner, repo, issue_number: issueNumber, body: comment,
         });
-
         return { success: true, commentUrl: data.html_url };
       },
     }),
