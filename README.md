@@ -1,30 +1,34 @@
 # Anzen 安全
 
-> Your AI Chief of Staff — secure, scoped, and always in your control.
+> The AI agent that acts on your behalf — without ever touching your credentials.
 
-Anzen is an AI agent that monitors your GitHub, Gmail, and Slack,
-surfaces what needs your attention, and takes action on your behalf —
-without ever holding a single credential.
+Anzen connects to your GitHub, Gmail, and Slack and takes action on your behalf.
+Every OAuth token is sealed inside Auth0 Token Vault. Anzen never sees them,
+never stores them, and never will. You stay in control. Always.
 
-Token Vault by Auth0 holds all OAuth tokens. The agent never sees them.
+## Live Demo
+🔗 [anzen.vercel.app](https://anzen.vercel.app) <!-- update with real URL -->
 
 ## Tech Stack
 - Next.js 16 + TypeScript
-- Vercel AI SDK + GPT-4o
-- Auth0 v4 + Token Vault
-- GitHub, Gmail, Slack APIs
+- Vercel AI SDK + Groq (llama-3.3-70b-versatile)
+- Auth0 v4 (nextjs-auth0) + Token Vault
+- GitHub API (Octokit), Gmail API (googleapis), Slack API (@slack/web-api)
+- Deployed on Vercel
 
 ## Project Structure
 ```
 Anzen/
 ├── app/
 │   ├── api/
-│   │   └── agent/
-│   │       └── route.ts          — Main agent API route
-│   ├── connect/
-│   │   └── page.tsx              — Connect accounts page
+│   │   ├── chat/route.ts         — AI agent chat endpoint (Groq + tools)
+│   │   ├── status/route.ts       — Connection status checker
+│   │   └── auth/disconnect/      — Provider disconnect endpoint
+│   ├── dashboard/
+│   │   ├── page.tsx              — Dashboard server component
+│   │   └── DashboardClient.tsx   — Full dashboard UI (chat, connections, audit log)
 │   ├── layout.tsx
-│   ├── page.tsx
+│   ├── page.tsx                  — Landing / login page
 │   └── globals.css
 ├── agent/
 │   └── tools/
@@ -32,8 +36,8 @@ Anzen/
 │       ├── gmail.ts              — Gmail tools (list unread, send)
 │       └── slack.ts              — Slack tools (list channels, post message)
 ├── lib/
-│   └── auth0.ts
-├── proxy.ts
+│   └── auth0.ts                  — Auth0 client + Token Vault token fetcher
+├── proxy.ts                      — Auth0 middleware (Next.js 16)
 ├── public/
 ├── RULES.md
 ├── CHECKLIST.md
@@ -44,16 +48,16 @@ Anzen/
 
 ### Prerequisites
 - Node.js 18+
-- Auth0 account
-- OpenAI API key
-- GitHub, Google, Slack OAuth apps configured
+- Auth0 account with Token Vault enabled
+- Groq API key (free at console.groq.com)
+- GitHub, Google, Slack OAuth apps configured in Auth0
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/rkchellah/anzen
-cd anzen
+git clone https://github.com/rkchellah/Anzen
+cd Anzen
 ```
 
 2. Install dependencies:
@@ -83,12 +87,16 @@ AUTH0_CLIENT_ID=
 AUTH0_CLIENT_SECRET=
 AUTH0_AUDIENCE=https://anzen.api
 APP_BASE_URL=http://localhost:3000
-ANZEN_AGENT_CLIENT_ID=
-ANZEN_AGENT_CLIENT_SECRET=
-AUTH0_TOKEN_VAULT_URL=
-OPENAI_API_KEY=
+GROQ_API_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
+
+## How Token Vault Works
+1. User logs in with Google via Auth0
+2. User connects GitHub, Gmail, and Slack via OAuth — tokens stored in Auth0 Token Vault
+3. When the agent needs to call an API, it calls `getTokenForProvider(provider)` which exchanges the Auth0 refresh token for a live third-party access token
+4. The token is used immediately and never stored in the app
+5. Anzen never sees or stores any credentials
 
 ## Security Model
 Every agent action lives in one of three permission tiers:
@@ -107,13 +115,11 @@ Every agent action lives in one of three permission tiers:
 - Callback URL changed from `/api/auth/callback` to `/auth/callback`
 **Fix:** Updated `lib/auth0.ts` with explicit Auth0Client config,
 updated all env variable names, updated callback URL in Auth0 dashboard.
-Note: middleware file was initially renamed to `proxy.ts` (incorrect — see Bug 008).
 
 ### Bug 002 — Callback URL Mismatch
 **Error:** `Callback URL mismatch` on Auth0 login page
 **Cause:** Auth0 dashboard had old v3 callback URL `/api/auth/callback`
-**Fix:** Updated Auth0 dashboard Allowed Callback URLs to
-`http://localhost:3000/auth/callback`
+**Fix:** Updated Auth0 dashboard Allowed Callback URLs to `http://localhost:3000/auth/callback`
 
 ### Bug 003 — Auth0 Dashboard Configuration
 **Steps required for Token Vault to work:**
@@ -127,88 +133,49 @@ Note: middleware file was initially renamed to `proxy.ts` (incorrect — see Bug
 
 ### Bug 004 — AI SDK Tool Typing
 **Error:** `Type '() => Promise<...>' is not assignable to type 'undefined'`
-**Cause:** Vercel AI SDK `tool` function fails to infer types correctly when `parameters` is an empty object `z.object({})`.
-**Fix:** Added a dummy optional parameter `_unused: z.string().optional()` to the Zod schema to force correct type inference.
+**Cause:** Vercel AI SDK `tool` function fails to infer types when explicit return type annotations are added to `execute`.
+**Fix:** Removed explicit return type annotations and `.optional()` before `.default()` on Zod schemas. Let TypeScript infer.
 
 ### Bug 005 — Credentials Accidentally Committed
 **Issue:** .env.local was committed to git history exposing all API credentials.
-**Fix:** Removed .env.local from git tracking with git rm --cached,
-confirmed .gitignore has .env.local entry, rotated all exposed credentials.
-**Prevention:** Always run git status before committing to verify
-sensitive files are not staged.
+**Fix:** Removed .env.local from git tracking, confirmed .gitignore entry, rotated all exposed credentials.
 
-### Bug 008 — Authorization Flow Failures (Multi-Stage Investigation)
+### Bug 006 — AI SDK v6 sendMessage API
+**Error:** `append is not a function`
+**Cause:** AI SDK v6 (@ai-sdk/react v3) uses `sendMessage({ text })` not `append({ role, content })`.
+**Fix:** Updated `useChat` destructure and `handleSend` to use `sendMessage({ text })`.
 
-**Total bugs resolved in this session: 3 root causes**
+### Bug 007 — Message Rendering (AI SDK v6 message format)
+**Issue:** Messages not rendering on screen after send.
+**Cause:** AI SDK v6 stores message content in `message.parts` array, not `message.content` string.
+**Fix:** Updated `getMessageText()` to read from `parts` array, handle tool call states, and fall back gracefully.
 
----
+### Bug 008 — Authorization Flow Failures (Multi-Stage)
 
 #### Stage 1 — State Parameter Missing
 **Error:** `The state parameter is missing`
-**Initial suspicion:** Wrong middleware filename
-**Investigation:**
-- Renamed proxy.ts to middleware.ts — made things worse
-- Terminal revealed: "The middleware file convention is deprecated. Please use proxy instead"
-- Next.js 16 uses proxy.ts not middleware.ts — the rename was wrong
-- Reverted back to proxy.ts
-- Root cause was NOT the filename
-
-**Actual cause:** Both proxy.ts and middleware.ts existed at the same time. Next.js detected two conflicting middleware files and crashed, meaning the Auth0 middleware never ran, the state cookie was never written, and the callback failed.
-
-**Fix:** Deleted middleware.ts. Only proxy.ts should exist at the project root.
-
-**Prevention:** Never have both proxy.ts and middleware.ts in the project at the same time. After any file rename, immediately check the terminal output before assuming the fix worked.
-
----
+**Cause:** Both proxy.ts and middleware.ts existed simultaneously — conflicting middleware files.
+**Fix:** Deleted middleware.ts. Only proxy.ts should exist at project root.
 
 #### Stage 2 — Client Not Authorized to Access Resource Server
-**Error:** `Client "dk9f9EgLnzLW2pW9EBE8kLsaTcXKXWaX" is not authorized to access resource server "https://anzen.api"`
-**Cause:** The Anzen application had never been granted access to the Anzen API in the Auth0 dashboard. The Application Access Policy was set to "Allow via client-grant" which means each app must be explicitly authorized — but Anzen was listed as UNAUTHORIZED for both User Access and Client Access.
-**Fix:**
-1. Auth0 Dashboard → Applications → APIs → Anzen API
-2. Click the Application Access tab
-3. Find the Anzen app row
-4. Click Edit → User Access tab → set to Authorized → Save
-5. Click Edit again → Client Access tab → set to Authorized → Save
-
-**Prevention:** When creating a Custom API with "Allow via client-grant" policy, you MUST manually authorize each application that needs to use it. This is not automatic. Always check the Application Access tab after creating a Custom API.
-
----
+**Error:** `Client is not authorized to access resource server "https://anzen.api"`
+**Fix:** Auth0 Dashboard → APIs → Anzen API → Application Access → Authorize Anzen app for both User and Client access.
 
 #### Stage 3 — Google OAuth Access Blocked
-**Error:** `Access blocked: auth0.com has not completed the Google verification process. Error 403: access_denied`
-**Cause:** Google Cloud OAuth app is in Testing mode. In testing mode, only explicitly added test users can sign in with Google OAuth.
-**Fix:**
-1. Go to console.cloud.google.com
-2. Select the anzen project
-3. APIs & Services → OAuth consent screen
-4. Scroll to Test users → Add Users
-5. Add all Gmail addresses that need to test the app
+**Error:** `Error 403: access_denied`
+**Cause:** Google OAuth app in Testing mode with no test users.
+**Fix:** Google Cloud Console → OAuth consent screen → Test users → add email.
 
-**Prevention:** Always add your own email(s) as test users immediately after setting up Google OAuth in testing mode. Do this before testing login.
+### Bug 009 — Tool Execute Parameter Destructuring
+**Error:** `Cannot destructure property of null`
+**Cause:** AI SDK v6 passes `null` as params object when no parameters are provided. Destructuring `{ state }` from null crashes.
+**Fix:** Changed all `execute: async ({ param })` to `execute: async (params)` with `const param = params?.param ?? default`.
 
----
+### Bug 010 — ChunkLoadError
+**Error:** `ChunkLoadError: Failed to load chunk`
+**Cause:** Stale Turbopack cache.
+**Fix:** `Remove-Item -Recurse -Force .next && npm run dev`
 
-**Key lesson from this session:** Auth0 authorization errors are almost never about the code. They are almost always about dashboard configuration. When you see an Auth0 error, check the dashboard first before touching any code.
-
-### Bug 009 — Anzen App Not Authorized on Custom API
-**Error:** `Client "dk9f9EgLnzLW2pW9EBE8kLsaTcXKXWaX" is not authorized to access resource server "https://anzen.api"`
-**Cause:** When a Custom API uses "Allow via client-grant" access policy, every application must be manually authorized. The Anzen app had never been granted access.
-**Fix:** Auth0 Dashboard → APIs → Anzen API → Application Access tab → Edit Anzen row → set User Access and Client Access both to Authorized → Save.
-**Prevention:** After creating any Custom API, immediately go to the Application Access tab and authorize all apps that need to use it. This step is not automatic.
-
-### Bug 010 — Google OAuth Blocked in Testing Mode
-**Error:** `Access blocked: auth0.com has not completed the Google verification process. Error 403: access_denied`
-**Cause:** Google Cloud OAuth app was in Testing mode with zero test users configured. Any Google account not on the test users list is blocked.
-**Fix:** Google Auth Platform → Audience → Test users → Add users → add rkchellah@gmail.com.
-**Direct URL:** https://console.cloud.google.com/auth/audience?project=anzen-490720
-**Prevention:** Immediately after setting up Google OAuth, add your own Gmail to the test users list before testing login. Never leave test users empty.
-
-### Bug 011 — ChunkLoadError After Successful Auth
-**Error:** `Runtime ChunkLoadError: Failed to load chunk /_next/static/chunks/app_layout_tsx_1cf6b850_.js`
-**Cause:** Stale Turbopack build cache after multiple dev server restarts and file renames during debugging.
-**Fix:** Stop dev server → run `rm -rf .next` → run `npm run dev`. Clean rebuild resolves chunk loading issues.
-**Prevention:** When experiencing unexpected client-side errors after structural changes, always try clearing the .next cache before deeper investigation.
-
-### Bug 012 — Auth0 Consent Screen Showing on Every Login
-**Note:** Auth0 showing "Authorize App — Anzen is requesting access to your account" is expected behaviour on first login. Users click Accept once and it does not appear again for the same account.
+### Bug 011 — Auth0 Management API Forbidden
+**Error:** `Could not get management token` on disconnect
+**Fix:** Auth0 Dashboard → Management API → Application Access → Authorize Anzen with `update:users` scope.
