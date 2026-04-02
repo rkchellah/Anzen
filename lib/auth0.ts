@@ -15,22 +15,27 @@ export const auth0 = new Auth0Client({
 type Provider = "github" | "google-oauth2" | "slack-oauth2";
 
 // Fetches a third-party token from Auth0 Token Vault for a given provider.
-// Uses auth0.getAccessToken() with a connection parameter (nextjs-auth0 v4 SDK method).
 // The agent calls this — it never stores the token, just uses it immediately.
 export async function getTokenForProvider(provider: Provider): Promise<string> {
   try {
-    const { token } = await auth0.getAccessToken({
+    const result = await auth0.getAccessToken({
       authorizationParams: {
         connection: provider,
       },
     });
 
+    const token = result?.token;
+
     if (!token) {
-      throw new Error(`No token returned for ${provider}`);
+      throw new Error(
+        `I don't have access to your ${provider} account yet. Please go to Connections and click Connect for ${provider} first.`
+      );
     }
 
     return token;
   } catch (error) {
-    throw new Error(`Failed to get token for ${provider}: ${String(error)}`);
+    throw new Error(
+      `I don't have access to your ${provider} account yet. Please go to Connections and click Connect first. (${String(error)})`
+    );
   }
 }

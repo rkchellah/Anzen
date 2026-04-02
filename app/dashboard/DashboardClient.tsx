@@ -7,14 +7,12 @@ import { Mail, LogOut, Moon, Sun, RotateCw, Send, Shield, CheckCircle2, Zap } fr
 
 type ConnectionStatus = { github: boolean; gmail: boolean; slack: boolean };
 
-// Custom GitHub icon (not in lucide)
 const GitHubIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
   </svg>
 );
 
-// Custom Slack icon (not in lucide)
 const SlackIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24">
     <path fill="#E01E5A" d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313z" />
@@ -24,7 +22,6 @@ const SlackIcon = ({ size = 24 }: { size?: number }) => (
   </svg>
 );
 
-// Gmail icon (lucide Mail is fine but Gmail branded is better)
 const GmailIcon = ({ size = 24 }: { size?: number }) => (
   <svg viewBox="0 0 24 24" width={size} height={size}>
     <path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
@@ -32,7 +29,7 @@ const GmailIcon = ({ size = 24 }: { size?: number }) => (
 );
 
 const TeamsIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
     <path fill="#5059C9" d="M10.765 6.875h3.616c.342 0 .619.276.619.617v3.288a2.272 2.272 0 01-2.274 2.27h-.01a2.272 2.272 0 01-2.274-2.27V7.199c0-.179.145-.323.323-.323zM13.21 6.225c.808 0 1.464-.655 1.464-1.462 0-.808-.656-1.463-1.465-1.463s-1.465.655-1.465 1.463c0 .807.656 1.462 1.465 1.462z" />
     <path fill="#7B83EB" d="M8.651 6.225a2.114 2.114 0 002.117-2.112A2.114 2.114 0 008.65 2a2.114 2.114 0 00-2.116 2.112c0 1.167.947 2.113 2.116 2.113zM11.473 6.875h-5.97a.611.611 0 00-.596.625v3.75A3.669 3.669 0 008.488 15a3.669 3.669 0 003.582-3.75V7.5a.611.611 0 00-.597-.625z" />
     <path fill="#000000" d="M8.814 6.875v5.255a.598.598 0 01-.596.595H5.193a3.951 3.951 0 01-.287-1.476V7.5a.61.61 0 01.597-.624h3.31z" opacity="0.1" />
@@ -41,13 +38,13 @@ const TeamsIcon = ({ size = 24 }: { size?: number }) => (
 );
 
 const LinkedInIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
     <path fill="#0A66C2" d="M12.225 12.225h-1.778V9.44c0-.664-.012-1.519-.925-1.519-.926 0-1.068.724-1.068 1.47v2.834H6.676V6.498h1.707v.783h.024c.348-.594.996-.95 1.684-.925 1.802 0 2.135 1.185 2.135 2.728l-.001 3.14zM4.67 5.715a1.037 1.037 0 01-1.032-1.031c0-.566.466-1.032 1.032-1.032.566 0 1.031.466 1.032 1.032 0 .566-.466 1.032-1.032 1.032zm.889 6.51h-1.78V6.498h1.78v5.727zM13.11 2H2.885A.88.88 0 002 2.866v10.268a.88.88 0 00.885.866h10.226a.882.882 0 00.889-.866V2.865a.88.88 0 00-.889-.864z" />
   </svg>
 );
 
 const GitLabIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
     <path fill="#FC6D26" d="M14.975 8.904L14.19 6.55l-1.552-4.67a.268.268 0 00-.255-.18.268.268 0 00-.254.18l-1.552 4.667H5.422L3.87 1.879a.267.267 0 00-.254-.179.267.267 0 00-.254.18l-1.55 4.667-.784 2.357a.515.515 0 00.193.583l6.78 4.812 6.778-4.812a.516.516 0 00.196-.583z" />
     <path fill="#E24329" d="M8 14.296l2.578-7.75H5.423L8 14.296z" />
     <path fill="#FC6D26" d="M8 14.296l-2.579-7.75H1.813L8 14.296z" />
@@ -56,22 +53,6 @@ const GitLabIcon = ({ size = 24 }: { size?: number }) => (
     <path fill="#FC6D26" d="M8 14.296l2.578-7.75h3.614L8 14.296z" />
     <path fill="#FCA326" d="M14.19 6.549l.783 2.354a.514.514 0 01-.193.583L8 14.296l6.188-7.747h.001z" />
     <path fill="#E24329" d="M14.19 6.549H10.58l1.551-4.667a.267.267 0 01.255-.18c.115 0 .217.073.254.18l1.552 4.667z" />
-  </svg>
-);
-
-const OutlookIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="#0072C6">
-    <path d="M19.484,7.937v5.477L21.4,14.619a.489.489,0,0,0,.21,0l8.238-5.554a1.174,1.174,0,0,0-.959-1.128Z" />
-    <path d="M19.484,15.457l1.747,1.2a.522.522,0,0,0,.543,0c-.3.181,8.073-5.378,8.073-5.378V21.345a1.408,1.408,0,0,1-1.49,1.555H19.483V15.457Z" />
-    <path d="M10.44,12.932a1.609,1.609,0,0,0-1.42.838,4.131,4.131,0,0,0-.526,2.218A4.05,4.05,0,0,0,9.02,18.2a1.6,1.6,0,0,0,2.771.022,4.014,4.014,0,0,0,.515-2.2,4.369,4.369,0,0,0-.5-2.281A1.536,1.536,0,0,0,10.44,12.932Z" />
-    <path d="M2.153,5.155V26.582L18.453,30V2ZM13.061,19.491a3.231,3.231,0,0,1-2.7,1.361,3.19,3.19,0,0,1-2.64-1.318A5.459,5.459,0,0,1,6.706,16.1a5.868,5.868,0,0,1,1.036-3.616A3.267,3.267,0,0,1,10.486,11.1a3.116,3.116,0,0,1,2.61,1.321,5.639,5.639,0,0,1,1,3.484A5.763,5.763,0,0,1,13.061,19.491Z" />
-  </svg>
-);
-
-const ClickupIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="#7B68EE">
-    <path d="M8 12L12 8L16 12H14V16H10V12H8Z" />
-    <path d="M8 16L12 20L16 16H14V12H10V16H8Z" />
   </svg>
 );
 
@@ -95,17 +76,34 @@ const SUGGESTIONS = [
   "List my Slack channels",
 ];
 
-const AnzenLogo = () => (
-  <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="2" width="10" height="10" rx="2" fill="#A3FF12" />
-    <rect x="14" y="2" width="10" height="10" rx="2" fill="#A3FF12" opacity="0.6" />
-    <rect x="2" y="14" width="10" height="10" rx="2" fill="#A3FF12" opacity="0.6" />
-    <rect x="14" y="14" width="10" height="10" rx="2" fill="#A3FF12" opacity="0.3" />
-    <path d="M8 8L10 10M10 8L8 10" stroke="#000" strokeWidth="2" strokeLinecap="round" />
+const AnzenLogo = ({ isDark }: { isDark?: boolean }) => (
+  <svg width="35" height="35" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <path id="petalFlat" d="M -30, -100 C -70,-220 -30,-310 0,-320 C 30,-310 70,-220 30,-100 Z" />
+    </defs>
+    <g transform="translate(512, 512)">
+      <g fill="#D8F601">
+        <use href="#petalFlat" transform="rotate(0)" />
+        <use href="#petalFlat" transform="rotate(30)" />
+        <use href="#petalFlat" transform="rotate(60)" />
+        <use href="#petalFlat" transform="rotate(90)" />
+        <use href="#petalFlat" transform="rotate(120)" />
+        <use href="#petalFlat" transform="rotate(150)" />
+        <use href="#petalFlat" transform="rotate(180)" />
+        <use href="#petalFlat" transform="rotate(210)" />
+        <use href="#petalFlat" transform="rotate(240)" />
+        <use href="#petalFlat" transform="rotate(270)" />
+        <use href="#petalFlat" transform="rotate(300)" />
+        <use href="#petalFlat" transform="rotate(330)" />
+      </g>
+      <circle cx="0" cy="0" r="85" fill="#A8D102" />
+      <circle cx="0" cy="0" r="10" fill="#88A901" />
+    </g>
   </svg>
 );
 
 function getMessageText(message: { role: string; content: unknown; parts?: unknown[] }): string {
+  console.log("MSG:", JSON.stringify(message).slice(0, 200));
   if (typeof message.content === "string") return message.content;
   if (Array.isArray(message.parts)) {
     return (message.parts as Array<{ type: string; text?: string }>)
@@ -126,7 +124,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
   const [dark, setDark] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, status: chatStatus, setMessages } = useChat({ api: "/api/chat" });
+  const { messages, sendMessage, status: chatStatus, setMessages } = useChat();
   const isLoading = chatStatus === "streaming" || chatStatus === "submitted";
   const isChatting = messages.length > 0;
 
@@ -156,17 +154,11 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
       if (document.visibilityState === "visible") fetchConnectionStatus();
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Load dark mode preference from localStorage
     const savedDark = localStorage.getItem("anzen-dark-mode");
-    if (savedDark !== null) {
-      setDark(JSON.parse(savedDark));
-    }
-
+    if (savedDark !== null) setDark(JSON.parse(savedDark));
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
-  // Save dark mode preference to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("anzen-dark-mode", JSON.stringify(dark));
   }, [dark]);
@@ -195,11 +187,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
         body: JSON.stringify({ provider: providerMap[providerKey] }),
       });
       const data = await res.json();
-      if (data.action === "logout") {
-        window.location.href = "/auth/logout?returnTo=" + encodeURIComponent("/auth/login?returnTo=/dashboard");
-      } else {
-        await fetchConnectionStatus();
-      }
+      if (data.success) await fetchConnectionStatus();
     } catch (error) {
       console.error("Error disconnecting:", error);
     }
@@ -210,14 +198,15 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
 
   const bg       = d ? "#0a0d12"                : "#f7f6f3";
   const surface  = d ? "#111620"                : "#ffffff";
-  const surface2 = d ? "#181e2c"                : "#ededea";
+  const surface2 = d ? "#181e2c"                : "#f0f0ed";
   const border   = d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
   const tx       = d ? "#f0f0ee"                : "#000000";
-  const muted    = d ? "rgba(240,240,238,0.40)" : "rgba(0,0,0,0.55)";
-  const subtle   = d ? "rgba(240,240,238,0.16)" : "rgba(0,0,0,0.12)";
+  const txLight  = d ? "rgba(240,240,238,0.85)" : "#000000";
+  const muted    = d ? "rgba(240,240,238,0.40)" : "#1a1a1a";
+  const subtle   = d ? "rgba(240,240,238,0.16)" : "#666666";
   const accent   = "#A3FF12";
-  const accentBg = d ? "rgba(163,255,18,0.10)"  : "rgba(100,180,0,0.10)";
-  const accentTx = d ? accent                   : "#3d6600";
+  const accentBg = d ? "rgba(163,255,18,0.10)"  : "rgba(100,180,0,0.12)";
+  const accentTx = d ? accent                   : "#2d5200";
 
   const card: React.CSSProperties = {
     backgroundColor: surface,
@@ -225,7 +214,6 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
     borderRadius: 14,
   };
 
-  // ── correct Auth0 v4 paths: /auth/login not /api/auth/login
   const activeProviders = [
     { key: "github", label: "GitHub", desc: "Issues, PRs & repos",  connectHref: "/auth/login?connection=github&connection_scope=repo,read:user&returnTo=/dashboard", icon: <GitHubIcon size={40} /> },
     { key: "gmail",  label: "Gmail",  desc: "Emails & drafts",       connectHref: "/auth/login?connection=google-oauth2&returnTo=/dashboard",                         icon: <GmailIcon size={40} /> },
@@ -233,42 +221,39 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
   ];
 
   const comingSoon = [
-    { label: "Teams",   icon: <TeamsIcon size={32} /> },
+    { label: "Teams",    icon: <TeamsIcon size={32} /> },
     { label: "LinkedIn", icon: <LinkedInIcon size={32} /> },
-    { label: "GitLab", icon: <GitLabIcon size={32} /> },
-    { label: "Notion",  icon: <NotionIcon size={32} /> },
-    { label: "Linear",  icon: <LinearIcon size={32} /> },
+    { label: "GitLab",   icon: <GitLabIcon size={32} /> },
+    { label: "Notion",   icon: <NotionIcon size={32} /> },
+    { label: "Linear",   icon: <LinearIcon size={32} /> },
   ];
 
   return (
     <div style={{ backgroundColor: bg, color: tx, minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif", display: "flex", flexDirection: "column" }}>
+      <style>{`
+        input::placeholder { color: ${d ? "rgba(240,240,238,0.50)" : "#1a1a1a"} !important; opacity: 1; }
+        .anzen-scrollbar::-webkit-scrollbar { width: 8px; }
+        .anzen-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .anzen-scrollbar::-webkit-scrollbar-thumb { background: ${d ? "rgba(163,255,18,0.25)" : "rgba(100,180,0,0.20)"}; border-radius: 4px; }
+        .anzen-scrollbar::-webkit-scrollbar-thumb:hover { background: ${d ? "rgba(163,255,18,0.40)" : "rgba(100,180,0,0.35)"}; }
+      `}</style>
 
-      {/* ── NAVBAR ── */}
+      {/* NAVBAR */}
       <header style={{ backgroundColor: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 0, zIndex: 50, height: 56 }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 28px", height: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-
           <button onClick={() => { setActivePage("dashboard"); setMessages([]); setInputValue(""); }}
             style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
-            <AnzenLogo />
+            <AnzenLogo isDark={d} />
             <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: tx }}>Anzen</span>
             <span style={{ fontSize: 11, color: muted, letterSpacing: "0.02em", fontWeight: 400 }}>安全</span>
           </button>
 
           <nav style={{ display: "flex", gap: 2 }}>
-            {[
-              { id: "dashboard",   label: "Dashboard" },
-              { id: "connections", label: "Connections" },
-              { id: "history",     label: "History" },
-            ].map(({ id, label }) => {
+            {[{ id: "dashboard", label: "Dashboard" }, { id: "connections", label: "Connections" }, { id: "history", label: "History" }].map(({ id, label }) => {
               const active = activePage === id;
               return (
                 <button key={id} onClick={() => setActivePage(id)}
-                  style={{
-                    padding: "5px 15px", borderRadius: 7, fontSize: 13.5, fontWeight: active ? 600 : 400,
-                    color: active ? tx : muted,
-                    background: active ? (d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)") : "transparent",
-                    border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                  }}>
+                  style={{ padding: "5px 15px", borderRadius: 7, fontSize: 13.5, fontWeight: active ? 600 : 400, color: active ? tx : muted, background: active ? (d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)") : "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
                   {label}
                 </button>
               );
@@ -293,8 +278,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
               style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}>
               {d ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            {/* correct logout path for Auth0 v4 */}
-            <a href="/auth/logout"
+            <a href="/auth/logout?returnTo=/"
               style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: muted, textDecoration: "none", transition: "color 0.15s" }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
               onMouseLeave={(e) => (e.currentTarget.style.color = muted)}>
@@ -306,55 +290,52 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
       </header>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-
-        {/* ── DASHBOARD ── */}
+        {/* DASHBOARD */}
         {activePage === "dashboard" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)" }}>
-
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)", overflow: "hidden" }}>
             {isChatting && (
-              <div style={{ flex: 1, overflowY: "auto", padding: "32px 28px 0" }}>
-                <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-                  <AnimatePresence initial={false}>
-                    {messages.map((m, i) => {
-                      const text = getMessageText(m);
-                      if (!text.trim() && m.role !== "user") return null;
-                      const isUser = m.role === "user";
-                      return (
-                        <motion.div key={m.id ?? i}
-                          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-                          style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", gap: 9 }}>
-                          {!isUser && (
-                            <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-                              <AnzenLogo />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+                <div className="anzen-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "32px 28px 0" }}>
+                  <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+                    <AnimatePresence initial={false}>
+                      {messages.map((m, i) => {
+                        const text = getMessageText(m as any);
+                        if (!text.trim() && m.role !== "user") return null;
+                        const isUser = m.role === "user";
+                        return (
+                          <motion.div key={m.id ?? i}
+                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
+                            style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", gap: 9 }}>
+                            {!isUser && (
+                              <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+                                <AnzenLogo isDark={d} />
+                              </div>
+                            )}
+                            <div style={{ maxWidth: "76%", fontSize: 14, lineHeight: 1.72, color: isUser ? tx : txLight, ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}) }}>
+                              {text.split("\n").map((line, j, arr) => (
+                                <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
+                              ))}
                             </div>
-                          )}
-                          <div style={{
-                            maxWidth: "76%", fontSize: 14, lineHeight: 1.72, color: tx,
-                            ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}),
-                          }}>
-                            {text.split("\n").map((line, j, arr) => (
-                              <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
-                            ))}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </AnimatePresence>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
 
-                  {isLoading && (
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-                      <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <AnzenLogo />
+                    {isLoading && (
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+                        <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <AnzenLogo isDark={d} />
+                        </div>
+                        <div style={{ display: "flex", gap: 4, padding: "9px 14px", background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 14px 3px", alignItems: "center" }}>
+                          {[0, 1, 2].map((i) => (
+                            <motion.span key={i} animate={{ y: [0, -4, 0] }} transition={{ duration: 0.55, repeat: Infinity, delay: i * 0.1 }}
+                              style={{ width: 5, height: 5, borderRadius: "50%", background: accent, opacity: 0.8, display: "block" }} />
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ display: "flex", gap: 4, padding: "9px 14px", background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 14px 3px", alignItems: "center" }}>
-                        {[0, 1, 2].map((i) => (
-                          <motion.span key={i} animate={{ y: [0, -4, 0] }} transition={{ duration: 0.55, repeat: Infinity, delay: i * 0.1 }}
-                            style={{ width: 5, height: 5, borderRadius: "50%", background: accent, opacity: 0.8, display: "block" }} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
               </div>
             )}
@@ -394,8 +375,8 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                   {SUGGESTIONS.map((s) => (
                     <button key={s} onClick={() => setInputValue(s)}
                       style={{ padding: "7px 14px", borderRadius: 999, border: `1px solid ${border}`, background: "transparent", fontSize: 12.5, color: muted, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = tx; e.currentTarget.style.borderColor = `${accent}55`; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border; e.currentTarget.style.transform = "none"; }}>
+                      onMouseEnter={(e) => { e.currentTarget.style.color = tx; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.transform = "none"; }}>
                       {s}
                     </button>
                   ))}
@@ -403,7 +384,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
               </div>
             )}
 
-            <div style={{ position: "sticky", bottom: 0, background: bg, padding: "13px 28px 22px", borderTop: isChatting ? `1px solid ${border}` : "none" }}>
+            <div style={{ padding: "12px 28px 20px", background: bg, borderTop: isChatting ? `1px solid ${border}` : "none" }}>
               <div style={{ maxWidth: 680, margin: "0 auto" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: surface, border: `1px solid ${border}`, borderRadius: 13, padding: "11px 14px" }}>
                   <Zap size={16} style={{ color: accentTx, flexShrink: 0 }} />
@@ -412,25 +393,16 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                     placeholder="Ask Anzen anything…"
                     style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14, color: tx, fontFamily: "inherit" }} />
                   <button onClick={handleSend} disabled={!inputValue.trim() || isLoading}
-                    style={{
-                      width: 30, height: 30, borderRadius: 8, border: "none", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
-                      cursor: inputValue.trim() && !isLoading ? "pointer" : "not-allowed",
-                      background: inputValue.trim() && !isLoading ? accent : (d ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"),
-                      color: inputValue.trim() && !isLoading ? "#000" : muted,
-                      opacity: inputValue.trim() || isLoading ? 1 : 0.35,
-                    }}>
+                    style={{ width: 30, height: 30, borderRadius: 8, border: "none", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", cursor: inputValue.trim() && !isLoading ? "pointer" : "not-allowed", background: inputValue.trim() && !isLoading ? accent : (d ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"), color: inputValue.trim() && !isLoading ? "#000" : muted, opacity: inputValue.trim() || isLoading ? 1 : 0.35 }}>
                     <Send size={14} />
                   </button>
                 </div>
-                <p style={{ textAlign: "center", fontSize: 10.5, color: subtle, margin: "6px 0 0", letterSpacing: "0.02em" }}>
-                  Anzen AI · Secured by Auth0 Token Vault
-                </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── CONNECTIONS ── */}
+        {/* CONNECTIONS */}
         {activePage === "connections" && (
           <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
             <div style={{ marginBottom: 36 }}>
@@ -461,8 +433,8 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                         </span>
                         <button onClick={() => handleDisconnect(p.key)}
                           style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: muted, border: `1px solid ${border}`, cursor: "pointer", transition: "all 0.2s", fontFamily: "inherit" }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(248,113,113,0.08)"; e.currentTarget.style.color = "#f87171"; e.currentTarget.style.borderColor = "rgba(248,113,113,0.3)"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border; }}>
+                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(248,113,113,0.08)"; e.currentTarget.style.color = "#f87171"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = muted; }}>
                           Disconnect
                         </button>
                       </div>
@@ -492,7 +464,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
           </div>
         )}
 
-        {/* ── HISTORY ── */}
+        {/* HISTORY */}
         {activePage === "history" && (
           <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
             <div style={{ marginBottom: 28 }}>
@@ -526,7 +498,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                   ))}
                 </div>
                 {[...messages].reverse().map((m, i) => {
-                  const text = getMessageText(m);
+                  const text = getMessageText(m as any);
                   const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
                   const isUser = m.role === "user";
                   return (
