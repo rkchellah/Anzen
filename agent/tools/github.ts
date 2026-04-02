@@ -10,8 +10,8 @@ export function getGithubTools() {
       parameters: z.object({
         state: z.enum(["open", "closed", "all"]).default("open").describe("Issue state filter"),
       }),
-      execute: async (params) => {
-        const state = (params?.state ?? "open") as "open" | "closed" | "all";
+      execute: async (params: { state?: "open" | "closed" | "all" }) => {
+        const state = params?.state ?? "open";
         const token = await getTokenForProvider("github");
         console.log("GITHUB TOKEN PREVIEW:", token.slice(0, 15), "length:", token.length);
         const octokit = new Octokit({ auth: token });
@@ -37,7 +37,7 @@ export function getGithubTools() {
         repo: z.string().describe("Repository name"),
         issueNumber: z.number().describe("Issue number to close"),
       }),
-      execute: async (params) => {
+      execute: async (params: { owner?: string; repo?: string; issueNumber?: number }) => {
         const owner = params?.owner ?? "";
         const repo = params?.repo ?? "";
         const issueNumber = params?.issueNumber ?? 0;
@@ -56,7 +56,7 @@ export function getGithubTools() {
         issueNumber: z.number().describe("Issue number"),
         comment: z.string().describe("Comment text to add"),
       }),
-      execute: async (params) => {
+      execute: async (params: { owner?: string; repo?: string; issueNumber?: number; comment?: string }) => {
         const owner = params?.owner ?? "";
         const repo = params?.repo ?? "";
         const issueNumber = params?.issueNumber ?? 0;
