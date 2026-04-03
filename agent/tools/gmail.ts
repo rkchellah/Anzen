@@ -1,23 +1,18 @@
-import { tool } from "ai";
-import { z } from "zod";
+import { tool, jsonSchema } from "ai";
 import { google } from "googleapis";
 import { exchangeTokenForProvider } from "@/lib/auth0";
-
-const listEmailsParams = z.object({
-  maxResults: z.number().default(10).describe("Number of emails to return"),
-});
-const sendEmailParams = z.object({
-  to: z.string().describe("Recipient email address"),
-  subject: z.string().describe("Email subject"),
-  body: z.string().describe("Email body in plain text"),
-});
 
 export function getGmailTools(auth0Token: string) {
   return {
     listUnreadEmails: tool({
       description: "List the user's unread emails from Gmail.",
-      inputSchema: listEmailsParams,
-      execute: async ({ maxResults }: z.infer<typeof listEmailsParams>) => {
+      inputSchema: jsonSchema<{ maxResults: number }>({
+        type: "object",
+        properties: {
+          maxResults: { type: "number", default: 10, description: "Number of emails to return" },
+        },
+      }),
+      execute: async ({ maxResults }) => {
         const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });
@@ -41,8 +36,16 @@ export function getGmailTools(auth0Token: string) {
 
     sendEmail: tool({
       description: "Send an email on behalf of the user",
-      inputSchema: sendEmailParams,
-      execute: async ({ to, subject, body }: z.infer<typeof sendEmailParams>) => {
+      inputSchema: jsonSchema<{ to: string; subject: string; body: string }>({
+        type: "object",
+        properties: {
+          to: { type: "string", description: "Recipient email address" },
+          subject: { type: "string", description: "Email subject" },
+          body: { type: "string", description: "Email body in plain text" },
+        },
+        required: ["to", "subject", "body"],
+      }),
+      execute: async ({ to, subject, body }) => {
         const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });

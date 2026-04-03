@@ -1,32 +1,18 @@
-import { tool } from "ai";
-import { z } from "zod";
+import { tool, jsonSchema } from "ai";
 import { Octokit } from "@octokit/rest";
 import { exchangeTokenForProvider } from "@/lib/auth0";
-
-const listAssignedIssuesSchema = z.object({
-  state: z.enum(["open", "closed", "all"]).default("open"),
-});
-
-const closeIssueSchema = z.object({
-  owner: z.string(),
-  repo: z.string(),
-  issueNumber: z.number(),
-});
-
-const commentOnIssueSchema = z.object({
-  owner: z.string(),
-  repo: z.string(),
-  issueNumber: z.number(),
-  comment: z.string(),
-});
 
 export function getGithubTools(auth0Token: string) {
   return {
     listAssignedIssues: tool({
-      description:
-        "List GitHub issues assigned to the current user.",
-      inputSchema: listAssignedIssuesSchema,
-      execute: async ({ state }: z.infer<typeof listAssignedIssuesSchema>) => {
+      description: "List GitHub issues assigned to the current user.",
+      inputSchema: jsonSchema<{ state: "open" | "closed" | "all" }>({
+        type: "object",
+        properties: {
+          state: { type: "string", enum: ["open", "closed", "all"], default: "open" },
+        },
+      }),
+      execute: async ({ state }) => {
         const token = await exchangeTokenForProvider(auth0Token, "github");
         const octokit = new Octokit({ auth: token });
         const { data } = await octokit.rest.issues.list({
@@ -46,8 +32,16 @@ export function getGithubTools(auth0Token: string) {
 
     closeIssue: tool({
       description: "Close a specific GitHub issue by number and repo.",
-      inputSchema: closeIssueSchema,
-      execute: async ({ owner, repo, issueNumber }: z.infer<typeof closeIssueSchema>) => {
+      inputSchema: jsonSchema<{ owner: string; repo: string; issueNumber: number }>({
+        type: "object",
+        properties: {
+          owner: { type: "string" },
+          repo: { type: "string" },
+          issueNumber: { type: "number" },
+        },
+        required: ["owner", "repo", "issueNumber"],
+      }),
+      execute: async ({ owner, repo, issueNumber }) => {
         const token = await exchangeTokenForProvider(auth0Token, "github");
         const octokit = new Octokit({ auth: token });
         await octokit.rest.issues.update({
@@ -62,8 +56,17 @@ export function getGithubTools(auth0Token: string) {
 
     commentOnIssue: tool({
       description: "Add a comment to a GitHub issue.",
-      inputSchema: commentOnIssueSchema,
-      execute: async ({ owner, repo, issueNumber, comment }: z.infer<typeof commentOnIssueSchema>) => {
+      inputSchema: jsonSchema<{ owner: string; repo: string; issueNumber: number; comment: string }>({
+        type: "object",
+        properties: {
+          owner: { type: "string" },
+          repo: { type: "string" },
+          issueNumber: { type: "number" },
+          comment: { type: "string" },
+        },
+        required: ["owner", "repo", "issueNumber", "comment"],
+      }),
+      execute: async ({ owner, repo, issueNumber, comment }) => {
         const token = await exchangeTokenForProvider(auth0Token, "github");
         const octokit = new Octokit({ auth: token });
         const { data } = await octokit.rest.issues.createComment({
