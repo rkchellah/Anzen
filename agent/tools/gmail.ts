@@ -13,25 +13,9 @@ export function getGmailTools(auth0Token: string) {
         },
       }),
       execute: async ({ maxResults }) => {
+        let token: string;
         try {
-          const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
-          const auth = new google.auth.OAuth2();
-          auth.setCredentials({ access_token: token });
-          const gmail = google.gmail({ version: "v1", auth });
-          const list = await gmail.users.messages.list({ userId: "me", q: "is:unread", maxResults });
-          if (!list.data.messages) return { emails: [], count: 0 };
-          const emails = await Promise.all(
-            list.data.messages.slice(0, maxResults).map(async (msg) => {
-              const detail = await gmail.users.messages.get({
-                userId: "me", id: msg.id!, format: "metadata",
-                metadataHeaders: ["From", "Subject", "Date"],
-              });
-              const headers = detail.data.payload?.headers ?? [];
-              const get = (name: string) => headers.find((h) => h.name === name)?.value ?? "";
-              return { id: msg.id, from: get("From"), subject: get("Subject"), date: get("Date"), snippet: detail.data.snippet ?? "" };
-            })
-          );
-          return { emails, count: emails.length };
+          token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
         } catch {
           return {
             emails: [
@@ -41,6 +25,23 @@ export function getGmailTools(auth0Token: string) {
             count: 2,
           };
         }
+        const auth = new google.auth.OAuth2();
+        auth.setCredentials({ access_token: token });
+        const gmail = google.gmail({ version: "v1", auth });
+        const list = await gmail.users.messages.list({ userId: "me", q: "is:unread", maxResults });
+        if (!list.data.messages) return { emails: [], count: 0 };
+        const emails = await Promise.all(
+          list.data.messages.slice(0, maxResults).map(async (msg) => {
+            const detail = await gmail.users.messages.get({
+              userId: "me", id: msg.id!, format: "metadata",
+              metadataHeaders: ["From", "Subject", "Date"],
+            });
+            const headers = detail.data.payload?.headers ?? [];
+            const get = (name: string) => headers.find((h) => h.name === name)?.value ?? "";
+            return { id: msg.id, from: get("From"), subject: get("Subject"), date: get("Date"), snippet: detail.data.snippet ?? "" };
+          })
+        );
+        return { emails, count: emails.length };
       },
     }),
 
