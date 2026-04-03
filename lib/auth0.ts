@@ -10,6 +10,7 @@ export const auth0 = new Auth0Client({
     audience: process.env.AUTH0_AUDIENCE!,
     scope: "openid profile email offline_access read:me:connected_accounts create:me:connected_accounts delete:me:connected_accounts",
   },
+  enableConnectAccountEndpoint: true,
 });
 
 export type Provider = "github" | "google-oauth2" | "slack-oauth2";
