@@ -14,33 +14,13 @@ export const auth0 = new Auth0Client({
 
 export type Provider = "github" | "google-oauth2" | "slack-oauth2";
 
-// Exchanges an Auth0 access token for a provider token via Token Vault.
-// auth0Token must be obtained in the request context before calling tools.
+// Retrieves a provider access token via Auth0 Token Vault.
+// Uses the SDK's built-in getAccessTokenForConnection which exchanges
+// the session refresh token for a connection-specific access token.
 export async function exchangeTokenForProvider(
-  auth0Token: string,
+  _auth0Token: string,
   provider: Provider
 ): Promise<string> {
-  const res = await fetch(`https://${process.env.AUTH0_DOMAIN}/oauth/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
-      subject_token: auth0Token,
-      subject_token_type: "urn:ietf:params:oauth:token-type:access_token",
-      requested_token_type: "urn:auth0:params:oauth:token-type:token-vault",
-      client_id: process.env.AUTH0_CLIENT_ID,
-      client_secret: process.env.AUTH0_CLIENT_SECRET,
-      connection: provider,
-    }),
-  });
-
-  const data = await res.json();
-
-  if (!data.access_token) {
-    throw new Error(
-      `Please connect ${provider} in the Connections page first. (${data.error_description ?? data.error ?? "Token exchange failed"})`
-    );
-  }
-
-  return data.access_token;
+  const result = await auth0.getAccessTokenForConnection({ connection: provider });
+  return result.token;
 }
