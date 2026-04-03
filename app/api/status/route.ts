@@ -1,5 +1,4 @@
-import { auth0 } from "@/lib/auth0";
-import { getTokenForProvider } from "@/lib/auth0";
+import { auth0, exchangeTokenForProvider } from "@/lib/auth0";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -9,6 +8,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const tokenResult = await auth0.getAccessToken();
+  const auth0Token = tokenResult?.token;
+
+  if (!auth0Token) {
+    return NextResponse.json({ error: "Could not get access token" }, { status: 401 });
+  }
+
   const results: Record<string, { success: boolean; error?: string }> = {
     github: { success: false },
     "google-oauth2": { success: false },
@@ -16,21 +22,21 @@ export async function GET() {
   };
 
   try {
-    await getTokenForProvider("github");
+    await exchangeTokenForProvider(auth0Token, "github");
     results.github.success = true;
   } catch (error) {
     results.github.error = String(error);
   }
 
   try {
-    await getTokenForProvider("google-oauth2");
+    await exchangeTokenForProvider(auth0Token, "google-oauth2");
     results["google-oauth2"].success = true;
   } catch (error) {
     results["google-oauth2"].error = String(error);
   }
 
   try {
-    await getTokenForProvider("slack-oauth2");
+    await exchangeTokenForProvider(auth0Token, "slack-oauth2");
     results["slack-oauth2"].success = true;
   } catch (error) {
     results["slack-oauth2"].error = String(error);

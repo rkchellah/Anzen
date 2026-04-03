@@ -1,19 +1,33 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { Octokit } from "@octokit/rest";
-import { getTokenForProvider } from "@/lib/auth0";
+import { exchangeTokenForProvider } from "@/lib/auth0";
 
-export function getGithubTools() {
+const listAssignedIssuesSchema = z.object({
+  state: z.enum(["open", "closed", "all"]).default("open"),
+});
+
+const closeIssueSchema = z.object({
+  owner: z.string(),
+  repo: z.string(),
+  issueNumber: z.number(),
+});
+
+const commentOnIssueSchema = z.object({
+  owner: z.string(),
+  repo: z.string(),
+  issueNumber: z.number(),
+  comment: z.string(),
+});
+
+export function getGithubTools(auth0Token: string) {
   return {
     listAssignedIssues: tool({
-      description: "List GitHub issues assigned to the current user. Always call with state='open' unless user specifies otherwise.",
-      parameters: z.object({
-        state: z.enum(["open", "closed", "all"]).default("open").describe("Issue state filter"),
-      }),
-      execute: async (params: { state?: "open" | "closed" | "all" }) => {
-        const state = params?.state ?? "open";
-        const token = await getTokenForProvider("github");
-        console.log("GITHUB TOKEN PREVIEW:", token.slice(0, 15), "length:", token.length);
+      description:
+        "List GitHub issues assigned to the current user.",
+      inputSchema: listAssignedIssuesSchema,
+      execute: async ({ state }: z.infer<typeof listAssignedIssuesSchema>) => {
+        const token = await exchangeTokenForProvider(auth0Token, "github");
         const octokit = new Octokit({ auth: token });
         const { data } = await octokit.rest.issues.list({
           filter: "assigned",
@@ -31,40 +45,32 @@ export function getGithubTools() {
     }),
 
     closeIssue: tool({
-      description: "Close a specific GitHub issue by number and repo",
-      parameters: z.object({
-        owner: z.string().describe("Repository owner"),
-        repo: z.string().describe("Repository name"),
-        issueNumber: z.number().describe("Issue number to close"),
-      }),
-      execute: async (params: { owner?: string; repo?: string; issueNumber?: number }) => {
-        const owner = params?.owner ?? "";
-        const repo = params?.repo ?? "";
-        const issueNumber = params?.issueNumber ?? 0;
-        const token = await getTokenForProvider("github");
+      description: "Close a specific GitHub issue by number and repo.",
+      inputSchema: closeIssueSchema,
+      execute: async ({ owner, repo, issueNumber }: z.infer<typeof closeIssueSchema>) => {
+        const token = await exchangeTokenForProvider(auth0Token, "github");
         const octokit = new Octokit({ auth: token });
-        await octokit.rest.issues.update({ owner, repo, issue_number: issueNumber, state: "closed" });
+        await octokit.rest.issues.update({
+          owner,
+          repo,
+          issue_number: issueNumber,
+          state: "closed",
+        });
         return { success: true, message: `Issue #${issueNumber} closed` };
       },
     }),
 
     commentOnIssue: tool({
-      description: "Add a comment to a GitHub issue",
-      parameters: z.object({
-        owner: z.string().describe("Repository owner"),
-        repo: z.string().describe("Repository name"),
-        issueNumber: z.number().describe("Issue number"),
-        comment: z.string().describe("Comment text to add"),
-      }),
-      execute: async (params: { owner?: string; repo?: string; issueNumber?: number; comment?: string }) => {
-        const owner = params?.owner ?? "";
-        const repo = params?.repo ?? "";
-        const issueNumber = params?.issueNumber ?? 0;
-        const comment = params?.comment ?? "";
-        const token = await getTokenForProvider("github");
+      description: "Add a comment to a GitHub issue.",
+      inputSchema: commentOnIssueSchema,
+      execute: async ({ owner, repo, issueNumber, comment }: z.infer<typeof commentOnIssueSchema>) => {
+        const token = await exchangeTokenForProvider(auth0Token, "github");
         const octokit = new Octokit({ auth: token });
         const { data } = await octokit.rest.issues.createComment({
-          owner, repo, issue_number: issueNumber, body: comment,
+          owner,
+          repo,
+          issue_number: issueNumber,
+          body: comment,
         });
         return { success: true, commentUrl: data.html_url };
       },
