@@ -12,30 +12,35 @@ export const auth0 = new Auth0Client({
   },
 });
 
-type Provider = "github" | "google-oauth2" | "slack-oauth2";
+export type Provider = "github" | "google-oauth2" | "slack-oauth2";
 
-// Fetches a third-party token from Auth0 Token Vault for a given provider.
-// The agent calls this — it never stores the token, just uses it immediately.
-export async function getTokenForProvider(provider: Provider): Promise<string> {
-  try {
-    const result = await auth0.getAccessToken({
-      authorizationParams: {
-        connection: provider,
-      },
-    });
+// Exchanges an Auth0 access token for a provider token via Token Vault.
+// auth0Token must be obtained in the request context before calling tools.
+export async function exchangeTokenForProvider(
+  auth0Token: string,
+  provider: Provider
+): Promise<string> {
+  const res = await fetch(`https://${process.env.AUTH0_DOMAIN}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+      subject_token: auth0Token,
+      subject_token_type: "urn:ietf:params:oauth:token-type:access_token",
+      requested_token_type: "urn:auth0:params:oauth:token-type:token-vault",
+      client_id: process.env.AUTH0_CLIENT_ID,
+      client_secret: process.env.AUTH0_CLIENT_SECRET,
+      connection: provider,
+    }),
+  });
 
-    const token = result?.token;
+  const data = await res.json();
 
-    if (!token) {
-      throw new Error(
-        `I don't have access to your ${provider} account yet. Please go to Connections and click Connect for ${provider} first.`
-      );
-    }
-
-    return token;
-  } catch (error) {
+  if (!data.access_token) {
     throw new Error(
-      `I don't have access to your ${provider} account yet. Please go to Connections and click Connect first. (${String(error)})`
+      `Please connect ${provider} in the Connections page first. (${data.error_description ?? data.error ?? "Token exchange failed"})`
     );
   }
+
+  return data.access_token;
 }
