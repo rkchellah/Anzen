@@ -17,7 +17,7 @@ export default async function ConnectPage() {
       <div>
         <h2>GitHub</h2>
         <p>Allow Anzen to read and manage your GitHub issues.</p>
-        <a href="/auth/login?connection=github&access_type=offline&returnTo=/connect">
+        <a href="/auth/login?connection=github&connection_scope=repo,read:user&returnTo=/connect">
           Connect GitHub
         </a>
       </div>
@@ -25,7 +25,7 @@ export default async function ConnectPage() {
       <div>
         <h2>Gmail</h2>
         <p>Allow Anzen to read and send emails on your behalf.</p>
-        <a href="/auth/login?connection=google-oauth2&access_type=offline&returnTo=/connect">
+        <a href="/auth/login?connection=google-oauth2&connection_scope=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/gmail.send&returnTo=/connect">
           Connect Gmail
         </a>
       </div>
@@ -33,7 +33,7 @@ export default async function ConnectPage() {
       <div>
         <h2>Slack</h2>
         <p>Allow Anzen to read and post messages in your Slack workspace.</p>
-        <a href="/auth/login?connection=slack-oauth2&access_type=offline&returnTo=/connect">
+        <a href="/auth/login?connection=slack-oauth2&connection_scope=channels:read,chat:write,im:read&returnTo=/connect">
           Connect Slack
         </a>
       </div>
