@@ -14,10 +14,10 @@
 - Confirm with the team before checking off any task as complete.
 
 ## Stack
-- Frontend: Next.js 14 + TypeScript
+- Frontend: Next.js 16 + TypeScript
 - Backend: Node.js + TypeScript via Next.js API routes
-- AI: Vercel AI SDK + GPT-4o
-- Auth: Auth0 + Token Vault
+- AI: Vercel AI SDK + Groq (llama-3.3-70b-versatile)
+- Auth: Auth0 v4 (nextjs-auth0) + Token Vault
 - Integrations: GitHub, Gmail, Slack
 - Deployment: Vercel
 
