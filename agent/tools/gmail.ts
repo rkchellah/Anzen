@@ -1,18 +1,24 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { google } from "googleapis";
-import { getTokenForProvider } from "@/lib/auth0";
+import { exchangeTokenForProvider } from "@/lib/auth0";
 
-export function getGmailTools() {
+const listEmailsParams = z.object({
+  maxResults: z.number().default(10).describe("Number of emails to return"),
+});
+const sendEmailParams = z.object({
+  to: z.string().describe("Recipient email address"),
+  subject: z.string().describe("Email subject"),
+  body: z.string().describe("Email body in plain text"),
+});
+
+export function getGmailTools(auth0Token: string) {
   return {
     listUnreadEmails: tool({
-      description: "List the user's unread emails from Gmail. Always call with maxResults=10 unless user specifies otherwise.",
-      parameters: z.object({
-        maxResults: z.number().default(10).describe("Number of emails to return — use 10 as default"),
-      }),
-      execute: async (params: { maxResults?: number }) => {
-        const maxResults = params?.maxResults ?? 10;
-        const token = await getTokenForProvider("google-oauth2");
+      description: "List the user's unread emails from Gmail.",
+      inputSchema: listEmailsParams,
+      execute: async ({ maxResults }: z.infer<typeof listEmailsParams>) => {
+        const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });
         const gmail = google.gmail({ version: "v1", auth });
@@ -35,16 +41,9 @@ export function getGmailTools() {
 
     sendEmail: tool({
       description: "Send an email on behalf of the user",
-      parameters: z.object({
-        to: z.string().describe("Recipient email address"),
-        subject: z.string().describe("Email subject"),
-        body: z.string().describe("Email body in plain text"),
-      }),
-      execute: async (params: { to?: string; subject?: string; body?: string }) => {
-        const to = params?.to ?? "";
-        const subject = params?.subject ?? "";
-        const body = params?.body ?? "";
-        const token = await getTokenForProvider("google-oauth2");
+      inputSchema: sendEmailParams,
+      execute: async ({ to, subject, body }: z.infer<typeof sendEmailParams>) => {
+        const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
         const auth = new google.auth.OAuth2();
         auth.setCredentials({ access_token: token });
         const gmail = google.gmail({ version: "v1", auth });
