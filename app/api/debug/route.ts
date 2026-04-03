@@ -12,11 +12,7 @@ export async function GET() {
 
   for (const provider of ["github", "google-oauth2"] as const) {
     try {
-      const { token } = await auth0.getAccessToken({
-        authorizationParams: {
-          connection: provider,
-        },
-      });
+      const { token } = await auth0.getAccessToken();
       results[provider] = {
         success: true,
         hasToken: !!token,
