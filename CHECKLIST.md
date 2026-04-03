@@ -69,10 +69,11 @@
 - [ ] Action cards (approve/deny) built
 
 ## Phase 5 — Polish & Submit
-- [x] Code pushed to GitHub
-- [ ] Deployed to Vercel
-- [ ] Auth0 callbacks updated for production URL
-- [ ] README complete and judge-ready
+- [x] Code pushed to GitHub (github.com/rkchellah/Anzen)
+- [x] Deployed to Vercel (anzen-three.vercel.app)
+- [x] Auth0 callbacks updated for production URL
+- [x] README complete and judge-ready
+- [ ] Token Vault token exchange working (pending Auth0 support ticket #02856743)
 - [ ] Demo video recorded (3 min)
 - [ ] Bonus blog post written (250+ words)
 - [ ] Devpost submission complete
