@@ -37,23 +37,25 @@ export default function HomePage() {
     }}>
 
       {/* Navbar */}
-      <header style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", height: 52, display: "flex", alignItems: "center", padding: "0 32px", justifyContent: "space-between" }}>
+      <header style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", height: 52, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", padding: "0 32px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {/* Shield logo */}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="#A3FF12" opacity="0.9" />
             <path d="M9 12l2 2 4-4" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em" }}>Anzen</span>
-          <span style={{ fontSize: 11, color: "rgba(240,240,238,0.38)", letterSpacing: "0.02em" }}>安全</span>
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: "#A3FF12" }}>Anzen</span>
+          <span style={{ fontSize: 11, color: "#A3FF12", letterSpacing: "0.02em" }}>安全</span>
         </div>
 
         <a href="/auth/login"
-          style={{ fontSize: 13, fontWeight: 500, color: "rgba(240,240,238,0.55)", textDecoration: "none", transition: "color 0.15s" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#f0f0ee")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(240,240,238,0.55)")}>
+          style={{ fontSize: 13, fontWeight: 600, color: "#f0f0ee", textDecoration: "none", transition: "color 0.15s", padding: "6px 16px", border: "1px solid rgba(163,255,18,0.35)", borderRadius: 7 }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#A3FF12"; e.currentTarget.style.borderColor = "#A3FF12"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#f0f0ee"; e.currentTarget.style.borderColor = "rgba(163,255,18,0.35)"; }}>
           Sign in
         </a>
+
+        <div />
       </header>
 
       {/* Hero */}
