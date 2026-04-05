@@ -7,7 +7,7 @@ Every OAuth token is sealed inside Auth0 Token Vault. Anzen never sees them,
 never stores them, and never will. You stay in control. Always.
 
 ## Live Demo
-🔗 [anzen.vercel.app](https://anzen.vercel.app) <!-- update with real URL -->
+🔗 [anzen.vercel.app](https://anzen-three.vercel.app/) <!-- update with real URL -->
 
 ## Tech Stack
 - Next.js 16 + TypeScript
