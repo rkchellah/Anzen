@@ -36,26 +36,65 @@ export default function HomePage() {
       flexDirection: "column",
     }}>
 
-      {/* Navbar */}
-      <header style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", height: 52, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", padding: "0 32px" }}>
+      {/* Navbar - Updated to Flexbox for right-alignment */}
+      <header style={{ 
+        borderBottom: "1px solid rgba(255,255,255,0.06)", 
+        height: 52, 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "space-between", // Pushes logo to left, button to right
+        padding: "0 32px" 
+      }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          {/* Shield logo */}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="#A3FF12" opacity="0.9" />
-            <path d="M9 12l2 2 4-4" stroke="#000" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Follower logo */}
+           <svg width="35" height="35" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <path id="petalFlat" d="M -30, -100 C -70,-220 -30,-310 0,-320 C 30,-310 70,-220 30,-100 Z" />
+            </defs>
+            <g transform="translate(512, 512)">
+              <g fill="#D8F601">
+                <use href="#petalFlat" transform="rotate(0)" />
+                <use href="#petalFlat" transform="rotate(30)" />
+                <use href="#petalFlat" transform="rotate(60)" />
+                <use href="#petalFlat" transform="rotate(90)" />
+                <use href="#petalFlat" transform="rotate(120)" />
+                <use href="#petalFlat" transform="rotate(150)" />
+                <use href="#petalFlat" transform="rotate(180)" />
+                <use href="#petalFlat" transform="rotate(210)" />
+                <use href="#petalFlat" transform="rotate(240)" />
+                <use href="#petalFlat" transform="rotate(270)" />
+                <use href="#petalFlat" transform="rotate(300)" />
+                <use href="#petalFlat" transform="rotate(330)" />
+              </g>
+              <circle cx="0" cy="0" r="85" fill="#A8D102" />
+              <circle cx="0" cy="0" r="10" fill="#88A901" />
+            </g>
           </svg>
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: "#A3FF12" }}>Anzen</span>
-          <span style={{ fontSize: 11, color: "#A3FF12", letterSpacing: "0.02em" }}>安全</span>
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: "#f0f0ee" }}>Anzen</span>
+          <span style={{ fontSize: 11, color: "#808080", letterSpacing: "0.02em" }}>安全</span>
         </div>
 
         <a href="/auth/login"
-          style={{ fontSize: 13, fontWeight: 600, color: "#f0f0ee", textDecoration: "none", transition: "color 0.15s", padding: "6px 16px", border: "1px solid rgba(163,255,18,0.35)", borderRadius: 7 }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#A3FF12"; e.currentTarget.style.borderColor = "#A3FF12"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#f0f0ee"; e.currentTarget.style.borderColor = "rgba(163,255,18,0.35)"; }}>
+          style={{ 
+            fontSize: 13, 
+            fontWeight: 600, 
+            color: "#f0f0ee", 
+            textDecoration: "none", 
+            transition: "all 0.15s", 
+            padding: "6px 16px", 
+            border: "1px solid rgba(163,255,18,0.35)", 
+            borderRadius: 7 
+          }}
+          onMouseEnter={(e) => { 
+            e.currentTarget.style.color = "#A3FF12"; 
+            e.currentTarget.style.borderColor = "#A3FF12"; 
+          }}
+          onMouseLeave={(e) => { 
+            e.currentTarget.style.color = "#f0f0ee"; 
+            e.currentTarget.style.borderColor = "rgba(163,255,18,0.35)"; 
+          }}>
           Sign in
         </a>
-
-        <div />
       </header>
 
       {/* Hero */}
@@ -97,7 +136,7 @@ export default function HomePage() {
           </a>
         </div>
 
-        {/* Feature cards — matches reference image */}
+        {/* Feature cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, maxWidth: 620 }}>
           {[
             {
