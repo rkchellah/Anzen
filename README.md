@@ -1,13 +1,11 @@
 # Anzen 安全
 
-> The AI agent that acts on your behalf — without ever touching your credentials.
+> The production demo has an Auth0 callback issue post-hackathon. Full breakdown of what worked, what broke, and why: [Medium Post](https://medium.com/@chellakamina/anzen-what-i-built-what-broke-and-what-i-learned-about-ai-agents-and-credentials-5dee0ff88d30)
 
 Anzen connects to your GitHub, Gmail, and Slack and takes action on your behalf.
 Every OAuth token is sealed inside Auth0 Token Vault. Anzen never sees them,
 never stores them, and never will. You stay in control. Always.
 
-## Medium
-🔗 [Medium Post](https://medium.com/@chellakamina/anzen-what-i-built-what-broke-and-what-i-learned-about-ai-agents-and-credentials-5dee0ff88d30) <!-- update with real URL -->
 ## Live Demo
 🔗 [anzen.vercel.app](https://anzen-o2vn.vercel.app/) <!-- update with real URL -->
 
