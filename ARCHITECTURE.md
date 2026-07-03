@@ -139,33 +139,33 @@ Browser → GET /auth/logout?returnTo=http://localhost:3000
 ```mermaid
 flowchart TB
   subgraph Browser
-    UI[Dashboard / Chat]
+    UI["Dashboard / Chat"]
   end
 
   subgraph Anzen["Anzen (Next.js)"]
-    Proxy[proxy.ts]
-    Chat[/api/chat]
-    Tools[agent/tools]
-    AuthLib[lib/auth0.ts]
+    Proxy["proxy.ts"]
+    ChatRoute["api/chat route"]
+    Tools["agent/tools"]
+    AuthLib["lib/auth0.ts"]
   end
 
   subgraph Auth0
-    Session[User session + MRRT]
-    TV[Token Vault]
-    MA[My Account API]
-    AA[Anzen API audience]
+    Session["User session + MRRT"]
+    TV["Token Vault"]
+    MA["My Account API"]
+    AA["Anzen API audience"]
   end
 
   subgraph Providers
-    GH[GitHub]
-    GM[Gmail / Google]
-    SL[Slack]
+    GH["GitHub"]
+    GM["Gmail / Google"]
+    SL["Slack"]
   end
 
   UI --> Proxy
-  UI --> Chat
+  UI --> ChatRoute
   Proxy --> Session
-  Chat --> AuthLib
+  ChatRoute --> AuthLib
   AuthLib --> TV
   TV --> MA
   Session --> AA
@@ -173,6 +173,7 @@ flowchart TB
   AuthLib --> GH
   AuthLib --> GM
   AuthLib --> SL
+  ChatRoute --> Tools
 ```
 
 ---
