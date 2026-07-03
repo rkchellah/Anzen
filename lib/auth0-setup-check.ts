@@ -13,23 +13,6 @@ const TOKEN_VAULT_SCOPES = [
 
 const SOCIAL_CONNECTIONS = ["github", "google-oauth2", "sign-in-with-slack"] as const;
 
-const DASHBOARD_CHECKLIST = [
-  "Disable Refresh Token Rotation on the Anzen application",
-  "Enable the Token Vault grant type under Application → Advanced Settings",
-  `Create a Custom API with identifier "${process.env.AUTH0_AUDIENCE ?? "https://anzen.api"}"`,
-  "Create a Custom API Client for machine-to-machine token exchanges",
-  "Authorize the app on the My Account API with Connected Accounts scopes",
-  "Enable Allow Skipping User Consent on the My Account API",
-  "Enable Multi-Resource Refresh Token on the My Account API",
-  "Authorize the app on the Management API with update:users (required for disconnect)",
-  "Authorize the app on the Anzen API under Application Access (User and Client)",
-  `Configure Social Connections: ${SOCIAL_CONNECTIONS.join(", ")}`,
-  "GitHub connection → Purpose → enable Connected Accounts for Token Vault",
-  "GitHub OAuth app callback URL: https://YOUR_TENANT.us.auth0.com/login/callback (not localhost)",
-  "GitHub connection → set scopes repo, read:user in Auth0 (not in app connect URL)",
-  "Enable github connection on your app (Applications → Anzen Local → Connections)",
-] as const;
-
 function getCallbackUrls(baseUrl: string) {
   const normalized = baseUrl.replace(/\/$/, "");
   return {
@@ -47,7 +30,7 @@ export type Auth0SetupReport = {
   tokenVaultScopesEnabled: boolean;
   requiredScopes: readonly string[];
   socialConnections: readonly string[];
-  dashboardChecklist: readonly string[];
+  architectureDoc: string;
   sdkNotes: readonly string[];
 };
 
@@ -66,13 +49,14 @@ export function getAuth0SetupReport(): Auth0SetupReport {
       ? TOKEN_VAULT_SCOPES
       : (["openid", "profile", "email", "offline_access"] as const),
     socialConnections: SOCIAL_CONNECTIONS,
-    dashboardChecklist: DASHBOARD_CHECKLIST,
+    architectureDoc: "ARCHITECTURE.md",
     sdkNotes: [
       "Next.js SDK v4 uses /auth/callback (not /api/auth/callback)",
       "Use proxy.ts for Next.js 16 — do not keep a separate middleware.ts",
       "Token Vault tokens are fetched with getAccessTokenForConnection({ connection })",
       "Set AUTH0_TOKEN_VAULT_SCOPES=true after My Account API + Anzen API are authorized for your app",
       `Token Vault scopes when enabled: ${TOKEN_VAULT_SCOPE_LIST.join(", ")}`,
+      "Full Auth0 flow and dashboard setup: see ARCHITECTURE.md and BUGLOG.md",
     ],
   };
 }

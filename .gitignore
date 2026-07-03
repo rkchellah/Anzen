@@ -41,3 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .cursor/
+
+# local project notes (not shared via git)
+RULES.md

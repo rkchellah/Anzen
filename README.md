@@ -120,39 +120,18 @@ Anzen/
 │       ├── gmail.ts
 │       └── slack.ts
 ├── lib/
-│   └── auth0.ts                  — Auth0 client + Token Vault token fetcher
+│   ├── auth0.ts                  — Auth0 client + Token Vault token fetcher
+│   ├── auth0-scopes.ts           — Login scopes + audience gating
+│   └── auth-connections.ts       — Connect URLs per provider
 ├── proxy.ts                      — Auth0 middleware (Next.js 16)
-├── RULES.md
-├── CHECKLIST.md
+├── ARCHITECTURE.md               — Auth0 Token Vault flow (canonical)
+├── BUGLOG.md                     — Bugs, root causes, lessons learned
 └── .env.example
 ```
 
 ---
 
-## What I learned building this
+## Documentation
 
-Four bugs that weren't obvious and took real time to solve.
-
-**Auth0 v4 is a complete rewrite, not an upgrade.** I started with v3 patterns — `handleAuth`, `UserProvider`, `AUTH0_ISSUER_BASE_URL`, callback at `/api/auth/callback`. None of it exists in v4. The library now uses `Auth0Provider`, env variables renamed, callback moved to `/auth/callback`, and Next.js 16's `proxy.ts` replaces `middleware.ts`. The error message (`Cannot read properties of undefined (reading 'middleware')`) points at the wrong thing entirely. You have to know the API changed wholesale to find the right fix.
-
-**Two middleware files will silently break Auth0's state parameter.** Next.js 16 expects `proxy.ts` at the project root. I had a leftover `middleware.ts` from earlier work sitting alongside it. Auth0's login flow generates a `state` parameter during the redirect — with both files present, the request routing broke in a way that ate the state before the callback could read it. The error was `The state parameter is missing`. The fix was deleting `middleware.ts`. Only `proxy.ts` should exist.
-
-**AI SDK v6 changed how messages are stored and how you send them.** Two separate bugs, both invisible unless you know what changed. First: `append({ role, content })` no longer exists — v6 uses `sendMessage({ text })`. Second: message content is no longer in `message.content` as a string — it's in `message.parts` as an array. So even after fixing the send, messages weren't rendering because I was reading a field that doesn't exist anymore. Both required reading the v6 source to understand what actually changed.
-
-**I committed `.env.local` to git.** Not a subtle bug. It happened fast — ran `git add .` before confirming `.gitignore` was in place, pushed, and all credentials were in the public history. Immediate fix: `git rm --cached .env.local`, rotate every key. The prevention is boring but the only thing that works: `git status` before every commit, not after.
-
----
-
-## Auth0 Token Vault — full configuration checklist
-
-Token Vault requires more dashboard setup than the Auth0 docs suggest up front. If something isn't working, check these:
-
-- Disable Refresh Token Rotation in your app's settings
-- Enable the Token Vault grant type under Advanced Settings
-- Create a Custom API with identifier `https://anzen.api`
-- Create a Custom API Client for machine-to-machine token exchanges
-- Authorize your app on the My Account API with Connected Accounts scopes
-- Enable Allow Skipping User Consent on the My Account API
-- Enable Multi-Resource Refresh Token on the My Account API
-- Authorize your app on the Management API with `update:users` scope (required for disconnect)
-- Authorize your app on the Anzen API under Application Access for both User and Client access
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** — Auth0 Token Vault flows, connection map, env flags
+- **[BUGLOG.md](./BUGLOG.md)** — What broke, root causes, and lessons learned building this project
