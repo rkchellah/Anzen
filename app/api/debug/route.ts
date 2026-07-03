@@ -1,5 +1,7 @@
-import { auth0 } from "@/lib/auth0";
+import { auth0, exchangeTokenForProvider, type Provider } from "@/lib/auth0";
 import { NextResponse } from "next/server";
+
+const PROVIDERS: Provider[] = ["github", "google-oauth2", "sign-in-with-slack"];
 
 export async function GET() {
   const session = await auth0.getSession();
@@ -8,16 +10,21 @@ export async function GET() {
     return NextResponse.json({ error: "No session" }, { status: 401 });
   }
 
-  const results: Record<string, unknown> = {};
+  const tokenResult = await auth0.getAccessToken();
+  const auth0Token = tokenResult?.token;
 
-  for (const provider of ["github", "google-oauth2"] as const) {
+  if (!auth0Token) {
+    return NextResponse.json({ error: "Could not get access token" }, { status: 401 });
+  }
+
+  const results: Record<string, { success: boolean; error?: string }> = {};
+
+  for (const provider of PROVIDERS) {
     try {
-      const { token } = await auth0.getAccessToken();
-      results[provider] = {
-        success: true,
-        hasToken: !!token,
-        preview: token ? token.substring(0, 20) + "..." : null,
-      };
+      const token = await exchangeTokenForProvider(auth0Token, provider);
+      results[provider] = token
+        ? { success: true }
+        : { success: false, error: "Token Vault returned an empty token" };
     } catch (error) {
       results[provider] = { success: false, error: String(error) };
     }

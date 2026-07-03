@@ -1,4 +1,5 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
+import { getAuthorizationParameters } from "./auth0-scopes";
 
 export const auth0 = new Auth0Client({
   domain: process.env.AUTH0_DOMAIN!,
@@ -6,14 +7,11 @@ export const auth0 = new Auth0Client({
   clientSecret: process.env.AUTH0_CLIENT_SECRET!,
   secret: process.env.AUTH0_SECRET!,
   appBaseUrl: process.env.APP_BASE_URL!,
-  authorizationParameters: {
-    audience: process.env.AUTH0_AUDIENCE!,
-    scope: "openid profile email offline_access read:me:connected_accounts create:me:connected_accounts delete:me:connected_accounts",
-  },
+  authorizationParameters: getAuthorizationParameters(),
   enableConnectAccountEndpoint: true,
 });
 
-export type Provider = "github" | "google-oauth2" | "slack-oauth2";
+export type Provider = "github" | "google-oauth2" | "sign-in-with-slack";
 
 // Retrieves a provider access token via Auth0 Token Vault.
 // Uses the SDK's built-in getAccessTokenForConnection which exchanges

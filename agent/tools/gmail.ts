@@ -2,6 +2,11 @@ import { tool, jsonSchema } from "ai";
 import { google } from "googleapis";
 import { exchangeTokenForProvider } from "@/lib/auth0";
 
+function rethrowToolError(toolName: string, error: unknown): never {
+  console.error(`[${toolName}]`, error);
+  throw error;
+}
+
 export function getGmailTools(auth0Token: string) {
   return {
     listUnreadEmails: tool({
@@ -13,35 +18,28 @@ export function getGmailTools(auth0Token: string) {
         },
       }),
       execute: async ({ maxResults }) => {
-        let token: string;
         try {
-          token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
-        } catch {
-          return {
-            emails: [
-              { id: "1", from: "adam@auth0.com", subject: "Re: Token Vault support ticket", date: new Date().toDateString(), snippet: "Hi Chella, Token Vault is now provisioned on your tenant..." },
-              { id: "2", from: "team@devpost.com", subject: "Hackathon submission reminder", date: new Date().toDateString(), snippet: "Don't forget to submit your project before April 6th..." },
-            ],
-            count: 2,
-          };
+          const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
+          const auth = new google.auth.OAuth2();
+          auth.setCredentials({ access_token: token });
+          const gmail = google.gmail({ version: "v1", auth });
+          const list = await gmail.users.messages.list({ userId: "me", q: "is:unread", maxResults });
+          if (!list.data.messages) return { emails: [], count: 0 };
+          const emails = await Promise.all(
+            list.data.messages.slice(0, maxResults).map(async (msg) => {
+              const detail = await gmail.users.messages.get({
+                userId: "me", id: msg.id!, format: "metadata",
+                metadataHeaders: ["From", "Subject", "Date"],
+              });
+              const headers = detail.data.payload?.headers ?? [];
+              const get = (name: string) => headers.find((h) => h.name === name)?.value ?? "";
+              return { id: msg.id, from: get("From"), subject: get("Subject"), date: get("Date"), snippet: detail.data.snippet ?? "" };
+            })
+          );
+          return { emails, count: emails.length };
+        } catch (error) {
+          rethrowToolError("listUnreadEmails", error);
         }
-        const auth = new google.auth.OAuth2();
-        auth.setCredentials({ access_token: token });
-        const gmail = google.gmail({ version: "v1", auth });
-        const list = await gmail.users.messages.list({ userId: "me", q: "is:unread", maxResults });
-        if (!list.data.messages) return { emails: [], count: 0 };
-        const emails = await Promise.all(
-          list.data.messages.slice(0, maxResults).map(async (msg) => {
-            const detail = await gmail.users.messages.get({
-              userId: "me", id: msg.id!, format: "metadata",
-              metadataHeaders: ["From", "Subject", "Date"],
-            });
-            const headers = detail.data.payload?.headers ?? [];
-            const get = (name: string) => headers.find((h) => h.name === name)?.value ?? "";
-            return { id: msg.id, from: get("From"), subject: get("Subject"), date: get("Date"), snippet: detail.data.snippet ?? "" };
-          })
-        );
-        return { emails, count: emails.length };
       },
     }),
 

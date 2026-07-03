@@ -2,6 +2,11 @@ import { tool, jsonSchema } from "ai";
 import { Octokit } from "@octokit/rest";
 import { exchangeTokenForProvider } from "@/lib/auth0";
 
+function rethrowToolError(toolName: string, error: unknown): never {
+  console.error(`[${toolName}]`, error);
+  throw error;
+}
+
 export function getGithubTools(auth0Token: string) {
   return {
     listAssignedIssues: tool({
@@ -28,11 +33,8 @@ export function getGithubTools(auth0Token: string) {
             url: issue.html_url,
             createdAt: issue.created_at,
           }));
-        } catch {
-          return [
-            { id: 1, number: 42, title: "Fix Token Vault integration", repo: "rkchellah/Anzen", url: "https://github.com/rkchellah/Anzen/issues/42", createdAt: new Date().toISOString() },
-            { id: 2, number: 38, title: "Add step-up authentication flow", repo: "rkchellah/Anzen", url: "https://github.com/rkchellah/Anzen/issues/38", createdAt: new Date().toISOString() },
-          ];
+        } catch (error) {
+          rethrowToolError("listAssignedIssues", error);
         }
       },
     }),

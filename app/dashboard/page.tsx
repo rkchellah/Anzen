@@ -1,4 +1,5 @@
 import { auth0 } from "@/lib/auth0";
+import { isTokenVaultScopesEnabled } from "@/lib/auth0-scopes";
 import { redirect } from "next/navigation";
 import DashboardClient from "./DashboardClient";
 
@@ -13,6 +14,7 @@ export default async function DashboardPage() {
     <DashboardClient
       userName={session.user.name ?? "User"}
       userEmail={session.user.email ?? ""}
+      tokenVaultScopesEnabled={isTokenVaultScopesEnabled()}
     />
   );
 }

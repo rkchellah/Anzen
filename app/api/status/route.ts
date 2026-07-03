@@ -18,7 +18,7 @@ export async function GET() {
   const results: Record<string, { success: boolean; error?: string }> = {
     github: { success: false },
     "google-oauth2": { success: false },
-    "slack-oauth2": { success: false },
+    "sign-in-with-slack": { success: false },
   };
 
   try {
@@ -36,10 +36,10 @@ export async function GET() {
   }
 
   try {
-    await exchangeTokenForProvider(auth0Token, "slack-oauth2");
-    results["slack-oauth2"].success = true;
+    await exchangeTokenForProvider(auth0Token, "sign-in-with-slack");
+    results["sign-in-with-slack"].success = true;
   } catch (error) {
-    results["slack-oauth2"].error = String(error);
+    results["sign-in-with-slack"].error = String(error);
   }
 
   return NextResponse.json({ results });

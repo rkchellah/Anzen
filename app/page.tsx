@@ -1,10 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+function HomePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const setupRequired = searchParams.get("setup") === "required";
+  const authError = searchParams.get("auth_error");
+  const authErrorDescription = searchParams.get("auth_error_description");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -99,6 +111,59 @@ export default function HomePage() {
 
       {/* Hero */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "64px 32px 40px", maxWidth: 760, margin: "0 auto", width: "100%" }}>
+
+        {setupRequired && (
+          <div style={{
+            marginBottom: 24,
+            padding: "14px 16px",
+            borderRadius: 10,
+            border: "1px solid rgba(248,113,113,0.35)",
+            background: "rgba(248,113,113,0.08)",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: "rgba(240,240,238,0.85)",
+          }}>
+            Auth0 is not configured. Copy <code style={{ color: "#A3FF12" }}>.env.example</code> to{" "}
+            <code style={{ color: "#A3FF12" }}>.env.local</code>, fill in your Auth0 credentials, then restart{" "}
+            <code style={{ color: "#A3FF12" }}>npm run dev</code>.{" "}
+            <code style={{ color: "#A3FF12" }}>AUTH0_DOMAIN</code> must be the full hostname (e.g.{" "}
+            <code style={{ color: "#A3FF12" }}>dev-xxx.us.auth0.com</code>), not just the tenant name.
+          </div>
+        )}
+
+        {authError && (
+          <div style={{
+            marginBottom: 24,
+            padding: "14px 16px",
+            borderRadius: 10,
+            border: "1px solid rgba(248,113,113,0.35)",
+            background: "rgba(248,113,113,0.08)",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: "rgba(240,240,238,0.85)",
+          }}>
+            <strong>Sign-in failed ({authError}).</strong>{" "}
+            {authErrorDescription}
+            {authErrorDescription?.includes("not authorized to access resource server") && (
+              <>
+                {" "}In Auth0: <strong>Applications → APIs</strong> → open your API with identifier{" "}
+                <code style={{ color: "#A3FF12" }}>https://anzen.api</code> (create it if missing) →{" "}
+                <strong>Application Access</strong> → enable your <strong>Anzen</strong> app for{" "}
+                <strong>User</strong> and <strong>Client</strong>. Or: <strong>Applications → Anzen → APIs</strong> →
+                authorize the Anzen API. Then try sign-in again.
+              </>
+            )}
+            {(authError === "invalid_scope" || authError === "access_denied") && (
+              <>
+                {" "}This usually means your Auth0 app is missing Token Vault setup. In the Auth0 dashboard,
+                authorize <strong>Anzen Local</strong> on the <strong>My Account API</strong> with the
+                connected-accounts scopes, enable MRRT, then set{" "}
+                <code style={{ color: "#A3FF12" }}>AUTH0_TOKEN_VAULT_SCOPES=true</code> in{" "}
+                <code style={{ color: "#A3FF12" }}>.env.local</code> and restart the dev server.
+              </>
+            )}
+          </div>
+        )}
 
         {/* Status badge */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 28 }}>

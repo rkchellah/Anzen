@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, LogOut, Moon, Sun, RotateCw, Send, Shield, CheckCircle2, Zap } from "lucide-react";
+import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
+import { buildLogoutUrl } from "@/lib/auth-routes";
 
 type ConnectionStatus = { github: boolean; gmail: boolean; slack: boolean };
 
@@ -116,7 +118,15 @@ function getMessageText(message: { role: string; content: unknown; parts?: unkno
   return "";
 }
 
-export default function DashboardClient({ userName, userEmail }: { userName: string; userEmail: string }) {
+export default function DashboardClient({
+  userName,
+  userEmail,
+  tokenVaultScopesEnabled,
+}: {
+  userName: string;
+  userEmail: string;
+  tokenVaultScopesEnabled: boolean;
+}) {
   const [connStatus, setConnStatus] = useState<ConnectionStatus>({ github: false, gmail: false, slack: false });
   const [statusLoading, setStatusLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
@@ -138,7 +148,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
         setConnStatus({
           github: data.results["github"]?.success === true,
           gmail: data.results["google-oauth2"]?.success === true,
-          slack: data.results["slack-oauth2"]?.success === true,
+          slack: data.results["sign-in-with-slack"]?.success === true,
         });
       }
     } catch (error) {
@@ -178,7 +188,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
     const providerMap: Record<string, string> = {
       github: "github",
       gmail: "google-oauth2",
-      slack: "slack-oauth2",
+      slack: "sign-in-with-slack",
     };
     try {
       const res = await fetch("/api/auth/disconnect", {
@@ -214,11 +224,16 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
     borderRadius: 14,
   };
 
-  const activeProviders = [
-    { key: "github", label: "GitHub", desc: "Issues, PRs & repos",  connectHref: "/auth/login?connection=github&connection_scope=repo,read:user&returnTo=/dashboard", icon: <GitHubIcon size={40} /> },
-    { key: "gmail",  label: "Gmail",  desc: "Emails & drafts",       connectHref: "/auth/login?connection=google-oauth2&returnTo=/dashboard",                         icon: <GmailIcon size={40} /> },
-    { key: "slack",  label: "Slack",  desc: "Channels & messages",   connectHref: "/auth/login?connection=slack-oauth2&returnTo=/dashboard",                          icon: <SlackIcon size={40} /> },
-  ];
+  const activeProviders = (["github", "gmail", "slack"] as const).map((key) => ({
+    key,
+    label: CONNECTIONS[key].label,
+    desc: CONNECTIONS[key].desc,
+    connectHref: buildConnectUrl(key, "/dashboard"),
+    icon:
+      key === "github" ? <GitHubIcon size={40} /> :
+      key === "gmail" ? <GmailIcon size={40} /> :
+      <SlackIcon size={40} />,
+  }));
 
   const comingSoon = [
     { label: "Teams",    icon: <TeamsIcon size={32} /> },
@@ -237,6 +252,20 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
         .anzen-scrollbar::-webkit-scrollbar-thumb { background: ${d ? "rgba(163,255,18,0.25)" : "rgba(100,180,0,0.20)"}; border-radius: 4px; }
         .anzen-scrollbar::-webkit-scrollbar-thumb:hover { background: ${d ? "rgba(163,255,18,0.40)" : "rgba(100,180,0,0.35)"}; }
       `}</style>
+
+      {!tokenVaultScopesEnabled && (
+        <div style={{ background: "#451a03", borderBottom: "1px solid #92400e", color: "#fef3c7", padding: "10px 28px", fontSize: 13, lineHeight: 1.5 }}>
+          Connect is disabled: set <code style={{ background: "rgba(0,0,0,0.25)", padding: "1px 6px", borderRadius: 4 }}>AUTH0_TOKEN_VAULT_SCOPES=true</code> in{" "}
+          <code style={{ background: "rgba(0,0,0,0.25)", padding: "1px 6px", borderRadius: 4 }}>.env.local</code>, restart the dev server, then sign out and sign in again.
+        </div>
+      )}
+
+      {tokenVaultScopesEnabled && connectedCount === 0 && !statusLoading && (
+        <div style={{ background: accentBg, borderBottom: `1px solid ${accent}40`, color: accentTx, padding: "10px 28px", fontSize: 13, lineHeight: 1.5 }}>
+          To connect GitHub, Gmail, or Slack: use the Connections tab, click Connect once per provider, and complete the provider consent screen. If you just enabled Token Vault scopes,{" "}
+          <a href={buildLogoutUrl("/")} style={{ color: accentTx, fontWeight: 600 }}>sign out and sign in again</a> first.
+        </div>
+      )}
 
       {/* NAVBAR */}
       <header style={{ backgroundColor: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 0, zIndex: 50, height: 56 }}>
@@ -278,7 +307,7 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
               style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}>
               {d ? <Sun size={14} /> : <Moon size={14} />}
             </button>
-            <a href="/auth/logout?returnTo=/"
+            <a href={buildLogoutUrl("/")}
               style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: muted, textDecoration: "none", transition: "color 0.15s" }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
               onMouseLeave={(e) => (e.currentTarget.style.color = muted)}>
@@ -355,9 +384,13 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                   {activeProviders.map((p) => {
                     const connected = connStatus[p.key as keyof ConnectionStatus];
                     return (
-                      <a key={p.key} href={connected ? "#" : p.connectHref}
-                        onClick={(e) => connected && e.preventDefault()}
-                        style={{ ...card, padding: "20px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textDecoration: "none", cursor: connected ? "default" : "pointer", transition: "all 0.18s", ...(connected ? { borderColor: `${accent}30` } : { opacity: 0.52 }) }}
+                      <a
+                        key={p.key}
+                        href={connected || !tokenVaultScopesEnabled ? "#" : p.connectHref}
+                        onClick={(e) => {
+                          if (connected || !tokenVaultScopesEnabled) e.preventDefault();
+                        }}
+                        style={{ ...card, padding: "20px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textDecoration: "none", cursor: connected || !tokenVaultScopesEnabled ? "default" : "pointer", transition: "all 0.18s", ...(connected ? { borderColor: `${accent}30` } : { opacity: tokenVaultScopesEnabled ? 0.52 : 0.35 }) }}
                         onMouseEnter={(e) => { if (!connected) { e.currentTarget.style.opacity = "0.78"; e.currentTarget.style.transform = "translateY(-2px)"; } }}
                         onMouseLeave={(e) => { e.currentTarget.style.opacity = connected ? "1" : "0.52"; e.currentTarget.style.transform = "none"; }}>
                         <div style={{ width: 52, height: 52, background: surface2, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${border}` }}>{p.icon}</div>
@@ -439,10 +472,31 @@ export default function DashboardClient({ userName, userEmail }: { userName: str
                         </button>
                       </div>
                     ) : (
-                      <a href={p.connectHref}
-                        style={{ display: "inline-block", padding: "8px 20px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", textDecoration: "none", transition: "opacity 0.2s" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}>
+                      <a
+                        href={tokenVaultScopesEnabled ? p.connectHref : "#"}
+                        aria-disabled={!tokenVaultScopesEnabled}
+                        onClick={(e) => {
+                          if (!tokenVaultScopesEnabled) e.preventDefault();
+                        }}
+                        style={{
+                          display: "inline-block",
+                          padding: "8px 20px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          borderRadius: 8,
+                          background: tokenVaultScopesEnabled ? accent : surface2,
+                          color: tokenVaultScopesEnabled ? "#000" : muted,
+                          textDecoration: "none",
+                          transition: "opacity 0.2s",
+                          pointerEvents: tokenVaultScopesEnabled ? "auto" : "none",
+                          opacity: tokenVaultScopesEnabled ? 1 : 0.5,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (tokenVaultScopesEnabled) e.currentTarget.style.opacity = "0.85";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (tokenVaultScopesEnabled) e.currentTarget.style.opacity = "1";
+                        }}>
                         Connect
                       </a>
                     )}
