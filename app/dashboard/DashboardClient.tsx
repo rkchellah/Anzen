@@ -2,12 +2,38 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, LogOut, Moon, Sun, RotateCw, Send, Shield, CheckCircle2, Zap } from "lucide-react";
+import {
+  describeWriteAction,
+  getToolNameFromPart,
+  getToolParts,
+  isToolErrorPart,
+  isWriteToolName,
+  reconnectKeyForToolPart,
+} from "@/agent/action-descriptions";
+import { findPendingManualApprovals, hasPendingManualApprovals } from "@/agent/pending-approvals";
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import { buildLogoutUrl } from "@/lib/auth-routes";
+import { connectionKeyForToolName } from "@/lib/tool-errors";
+import { defaultUserPermissions, type ProviderAccessMode } from "@/lib/permissions";
+import { ConnectionAccessControl } from "@/components/ConnectionAccessControl";
+import { useAnzenTheme } from "@/components/AnzenThemeProvider";
+import { anzenPageStyle } from "@/components/anzen-theme";
 
 type ConnectionStatus = { github: boolean; gmail: boolean; slack: boolean };
+type ConnectionKey = keyof ConnectionStatus;
+type AccessModes = Record<ConnectionKey, ProviderAccessMode>;
+
+type AuditEntry = {
+  id: string;
+  timestamp: number;
+  toolName: string;
+  parameters: Record<string, unknown>;
+  outcome: "success" | "failure";
+  message: string;
+};
 
 const GitHubIcon = ({ size = 24 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -105,7 +131,6 @@ const AnzenLogo = ({ isDark }: { isDark?: boolean }) => (
 );
 
 function getMessageText(message: { role: string; content: unknown; parts?: unknown[] }): string {
-  console.log("MSG:", JSON.stringify(message).slice(0, 200));
   if (typeof message.content === "string") return message.content;
   if (Array.isArray(message.parts)) {
     return (message.parts as Array<{ type: string; text?: string }>)
@@ -118,6 +143,18 @@ function getMessageText(message: { role: string; content: unknown; parts?: unkno
   return "";
 }
 
+function messageHasVisibleContent(message: { role: string; content: unknown; parts?: unknown[] }): boolean {
+  if (message.role === "user") return true;
+  if (getMessageText(message).trim()) return true;
+  return getToolParts(message).some(
+    (part) =>
+      part.state === "approval-requested" ||
+      part.state === "approval-responded" ||
+      part.state === "output-denied" ||
+      part.state === "output-error"
+  );
+}
+
 export default function DashboardClient({
   userName,
   userEmail,
@@ -128,15 +165,54 @@ export default function DashboardClient({
   tokenVaultScopesEnabled: boolean;
 }) {
   const [connStatus, setConnStatus] = useState<ConnectionStatus>({ github: false, gmail: false, slack: false });
+  const [accessModes, setAccessModes] = useState<AccessModes>(defaultUserPermissions());
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [permissionsSaving, setPermissionsSaving] = useState<ConnectionKey | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [disconnectingKey, setDisconnectingKey] = useState<string | null>(null);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
+  const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
   const [activePage, setActivePage] = useState("dashboard");
-  const [dark, setDark] = useState(true);
+  const { theme, isDark: dark, toggleDarkMode } = useAnzenTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, status: chatStatus, setMessages } = useChat();
+  const { messages, sendMessage, status: chatStatus, setMessages, addToolApprovalResponse } = useChat({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+  });
   const isLoading = chatStatus === "streaming" || chatStatus === "submitted";
   const isChatting = messages.length > 0;
+  const pendingApprovals = findPendingManualApprovals(messages);
+
+  const fetchPermissions = async () => {
+    setPermissionsLoading(true);
+    try {
+      const response = await fetch("/api/permissions");
+      if (!response.ok) throw new Error("Failed to fetch permissions");
+      const data = (await response.json()) as { permissions?: AccessModes };
+      if (data.permissions) setAccessModes(data.permissions);
+    } catch (error) {
+      console.error("Error fetching permissions:", error);
+    } finally {
+      setPermissionsLoading(false);
+    }
+  };
+
+  const fetchAuditLogs = async () => {
+    setAuditLoading(true);
+    try {
+      const response = await fetch("/api/audit");
+      if (!response.ok) throw new Error("Failed to fetch audit logs");
+      const data = (await response.json()) as { entries?: AuditEntry[] };
+      setAuditEntries(data.entries ?? []);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
 
   const fetchConnectionStatus = async () => {
     setStatusLoading(true);
@@ -160,18 +236,19 @@ export default function DashboardClient({
 
   useEffect(() => {
     fetchConnectionStatus();
+    fetchPermissions();
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") fetchConnectionStatus();
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    const savedDark = localStorage.getItem("anzen-dark-mode");
-    if (savedDark !== null) setDark(JSON.parse(savedDark));
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("anzen-dark-mode", JSON.stringify(dark));
-  }, [dark]);
+    if (activePage === "history") {
+      fetchAuditLogs();
+    }
+  }, [activePage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -179,9 +256,35 @@ export default function DashboardClient({
 
   const handleSend = () => {
     if (!inputValue.trim() || isLoading) return;
+    if (hasPendingManualApprovals(messages)) {
+      setApprovalGateError("Confirm or cancel the pending action above before sending a new message.");
+      return;
+    }
+    setApprovalGateError(null);
     const text = inputValue.trim();
     setInputValue("");
     sendMessage({ text });
+  };
+
+  const handleAccessModeChange = async (providerKey: ConnectionKey, mode: ProviderAccessMode) => {
+    setPermissionsSaving(providerKey);
+    try {
+      const res = await fetch("/api/permissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: providerKey, mode }),
+      });
+      const data = (await res.json()) as { permissions?: AccessModes; error?: string };
+      if (!res.ok || !data.permissions) {
+        console.error("Failed to update permissions:", data.error);
+        return;
+      }
+      setAccessModes(data.permissions);
+    } catch (error) {
+      console.error("Error updating permissions:", error);
+    } finally {
+      setPermissionsSaving(null);
+    }
   };
 
   const handleDisconnect = async (providerKey: string) => {
@@ -190,33 +293,43 @@ export default function DashboardClient({
       gmail: "google-oauth2",
       slack: "sign-in-with-slack",
     };
+    setDisconnectError(null);
+    setDisconnectingKey(providerKey);
     try {
       const res = await fetch("/api/auth/disconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: providerMap[providerKey] }),
       });
-      const data = await res.json();
-      if (data.success) await fetchConnectionStatus();
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        setDisconnectError(data.error ?? "Failed to disconnect. Try again.");
+        return;
+      }
+      await fetchConnectionStatus();
     } catch (error) {
       console.error("Error disconnecting:", error);
+      setDisconnectError("Network error while disconnecting. Try again.");
+    } finally {
+      setDisconnectingKey(null);
     }
   };
 
   const connectedCount = Object.values(connStatus).filter(Boolean).length;
   const d = dark;
 
-  const bg       = d ? "#0a0d12"                : "#f7f6f3";
-  const surface  = d ? "#111620"                : "#ffffff";
-  const surface2 = d ? "#181e2c"                : "#f0f0ed";
-  const border   = d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
-  const tx       = d ? "#f0f0ee"                : "#000000";
-  const txLight  = d ? "rgba(240,240,238,0.85)" : "#000000";
-  const muted    = d ? "rgba(240,240,238,0.40)" : "#1a1a1a";
-  const subtle   = d ? "rgba(240,240,238,0.16)" : "#666666";
-  const accent   = "#A3FF12";
-  const accentBg = d ? "rgba(163,255,18,0.10)"  : "rgba(100,180,0,0.12)";
-  const accentTx = d ? accent                   : "#2d5200";
+  const bg = theme.bg;
+  const surface = theme.surface;
+  const surface2 = theme.surface2;
+  const border = theme.border;
+  const tx = theme.text;
+  const txLight = theme.textLight;
+  const muted = theme.muted;
+  const subtle = theme.subtle;
+  const accent = theme.accent;
+  const accentBg = theme.accentBg;
+  const accentTx = theme.accentText;
+  const caption = theme.caption;
 
   const card: React.CSSProperties = {
     backgroundColor: surface,
@@ -244,7 +357,15 @@ export default function DashboardClient({
   ];
 
   return (
-    <div style={{ backgroundColor: bg, color: tx, minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif", display: "flex", flexDirection: "column" }}>
+    <div
+      suppressHydrationWarning
+      className="anzen-page"
+      style={{
+        ...anzenPageStyle(theme),
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <style>{`
         input::placeholder { color: ${d ? "rgba(240,240,238,0.50)" : "#1a1a1a"} !important; opacity: 1; }
         .anzen-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -303,7 +424,7 @@ export default function DashboardClient({
                 </button>
               </>
             )}
-            <button onClick={() => setDark(!d)}
+            <button onClick={toggleDarkMode}
               style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}>
               {d ? <Sun size={14} /> : <Moon size={14} />}
             </button>
@@ -329,22 +450,138 @@ export default function DashboardClient({
                     <AnimatePresence initial={false}>
                       {messages.map((m, i) => {
                         const text = getMessageText(m as any);
-                        if (!text.trim() && m.role !== "user") return null;
+                        if (!messageHasVisibleContent(m as any)) return null;
                         const isUser = m.role === "user";
+                        const toolParts = getToolParts(m as any);
                         return (
                           <motion.div key={m.id ?? i}
                             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-                            style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", gap: 9 }}>
-                            {!isUser && (
-                              <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-                                <AnzenLogo isDark={d} />
+                            style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: isUser ? "flex-end" : "flex-start" }}>
+                            {(text.trim() || isUser) && (
+                              <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", gap: 9, width: "100%" }}>
+                                {!isUser && (
+                                  <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+                                    <AnzenLogo isDark={d} />
+                                  </div>
+                                )}
+                                <div style={{ maxWidth: "76%", fontSize: 14, lineHeight: 1.72, color: isUser ? tx : txLight, ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}) }}>
+                                  {text.split("\n").map((line, j, arr) => (
+                                    <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
+                                  ))}
+                                </div>
                               </div>
                             )}
-                            <div style={{ maxWidth: "76%", fontSize: 14, lineHeight: 1.72, color: isUser ? tx : txLight, ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}) }}>
-                              {text.split("\n").map((line, j, arr) => (
-                                <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
-                              ))}
-                            </div>
+
+                            {!isUser && toolParts.map((part) => {
+                              const toolName = getToolNameFromPart(part);
+
+                              if (isToolErrorPart(part)) {
+                                const reconnectKey = reconnectKeyForToolPart(part);
+                                return (
+                                  <div key={part.toolCallId ?? `${toolName}-error`}
+                                    style={{ ...card, maxWidth: 420, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)", marginLeft: 35 }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 8px" }}>
+                                      Couldn&apos;t complete action
+                                    </p>
+                                    <p style={{ fontSize: 14, color: tx, margin: "0 0 14px", lineHeight: 1.6 }}>{part.errorText}</p>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
+                                      {reconnectKey && (
+                                        <a
+                                          href={buildConnectUrl(reconnectKey, "/dashboard")}
+                                          style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", textDecoration: "none", fontFamily: "inherit" }}>
+                                          Reconnect {CONNECTIONS[reconnectKey].label}
+                                        </a>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => setActivePage("connections")}
+                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: muted, border: `1px solid ${border}`, cursor: "pointer", fontFamily: "inherit" }}>
+                                        Open Connections
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              if (!isWriteToolName(toolName)) return null;
+
+                              if (part.state === "approval-requested" && part.approval?.id) {
+                                const summary = describeWriteAction(toolName, part.input);
+                                const writeKey = connectionKeyForToolName(toolName);
+                                if (writeKey && accessModes[writeKey] === "read") {
+                                  return (
+                                    <div key={part.toolCallId ?? part.approval.id}
+                                      style={{ ...card, maxWidth: 420, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)", marginLeft: 35 }}>
+                                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 8px" }}>
+                                        Write action blocked
+                                      </p>
+                                      <p style={{ fontSize: 14, color: tx, margin: "0 0 8px", lineHeight: 1.6 }}>{summary}</p>
+                                      <p style={{ fontSize: 13, color: muted, margin: "0 0 14px", lineHeight: 1.5 }}>
+                                        {CONNECTIONS[writeKey].label} is set to read-only. Switch to Read &amp; write in Connections to allow this.
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => setActivePage("connections")}
+                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                                        Open Connections
+                                      </button>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div key={part.toolCallId ?? part.approval.id}
+                                    style={{ ...card, maxWidth: 420, padding: "16px 18px", borderColor: `${accent}35`, marginLeft: 35 }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: accentTx, margin: "0 0 8px" }}>
+                                      Confirm action
+                                    </p>
+                                    <p style={{ fontSize: 14, color: tx, margin: "0 0 14px", lineHeight: 1.6 }}>{summary}</p>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => addToolApprovalResponse({ id: part.approval!.id, approved: true })}
+                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+                                        Confirm
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => addToolApprovalResponse({ id: part.approval!.id, approved: false, reason: "User cancelled" })}
+                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: muted, border: `1px solid ${border}`, cursor: "pointer", fontFamily: "inherit" }}>
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+
+                              if (part.state === "approval-responded" && part.approval) {
+                                return (
+                                  <div key={part.toolCallId ?? part.approval.id}
+                                    style={{ fontSize: 12, color: muted, marginLeft: 35 }}>
+                                    {part.approval.approved ? "Confirmed — running action…" : "Action cancelled."}
+                                  </div>
+                                );
+                              }
+
+                              if (part.state === "output-denied") {
+                                const summary = describeWriteAction(toolName, part.input);
+                                const reason =
+                                  typeof part.approval?.reason === "string" ? part.approval.reason : null;
+                                return (
+                                  <div key={part.toolCallId ?? `${toolName}-denied`}
+                                    style={{ ...card, maxWidth: 420, padding: "14px 16px", borderColor: "rgba(248,113,113,0.35)", marginLeft: 35 }}>
+                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 6px" }}>
+                                      Action blocked
+                                    </p>
+                                    <p style={{ fontSize: 13, color: tx, margin: "0 0 6px", lineHeight: 1.55 }}>{summary}</p>
+                                    <p style={{ fontSize: 12, color: muted, margin: 0, lineHeight: 1.5 }}>
+                                      {reason ?? "Action was not performed (cancelled or denied)."}
+                                    </p>
+                                  </div>
+                                );
+                              }
+
+                              return null;
+                            })}
                           </motion.div>
                         );
                       })}
@@ -370,7 +607,7 @@ export default function DashboardClient({
             )}
 
             {!isChatting && (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 28px 172px", gap: 36 }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "48px 28px 16px", gap: 32, minHeight: 0, overflowY: "auto" }}>
                 <div style={{ textAlign: "center", maxWidth: 520 }}>
                   <h1 style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.08, margin: "0 0 12px", color: tx }}>
                     What can I<br />help with?
@@ -417,19 +654,39 @@ export default function DashboardClient({
               </div>
             )}
 
-            <div style={{ padding: "12px 28px 20px", background: bg, borderTop: isChatting ? `1px solid ${border}` : "none" }}>
+            <div style={{ flexShrink: 0, padding: "12px 28px 20px", background: bg }}>
               <div style={{ maxWidth: 680, margin: "0 auto" }}>
+                {pendingApprovals.length > 0 && (
+                  <div style={{ ...card, padding: "12px 14px", marginBottom: 10, borderColor: `${accent}40`, background: accentBg }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: accentTx, margin: "0 0 4px" }}>
+                      {pendingApprovals.length === 1
+                        ? "1 action waiting for your confirmation"
+                        : `${pendingApprovals.length} actions waiting for your confirmation`}
+                    </p>
+                    <p style={{ fontSize: 12, color: muted, margin: 0, lineHeight: 1.45 }}>
+                      Review the Confirm / Cancel cards above. New messages are paused until you respond.
+                    </p>
+                  </div>
+                )}
+                {approvalGateError && (
+                  <p style={{ fontSize: 12, color: "#f87171", margin: "0 0 8px", lineHeight: 1.45 }}>{approvalGateError}</p>
+                )}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: surface, border: `1px solid ${border}`, borderRadius: 13, padding: "11px 14px" }}>
                   <Zap size={16} style={{ color: accentTx, flexShrink: 0 }} />
-                  <input value={inputValue} onChange={(e) => setInputValue(e.target.value)}
+                  <input value={inputValue} onChange={(e) => { setInputValue(e.target.value); if (approvalGateError) setApprovalGateError(null); }}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                    placeholder="Ask Anzen anything…"
+                    placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Ask Anzen anything…"}
+                    disabled={pendingApprovals.length > 0}
                     style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14, color: tx, fontFamily: "inherit" }} />
-                  <button onClick={handleSend} disabled={!inputValue.trim() || isLoading}
+                  <button onClick={handleSend} disabled={!inputValue.trim() || isLoading || pendingApprovals.length > 0}
                     style={{ width: 30, height: 30, borderRadius: 8, border: "none", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", cursor: inputValue.trim() && !isLoading ? "pointer" : "not-allowed", background: inputValue.trim() && !isLoading ? accent : (d ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"), color: inputValue.trim() && !isLoading ? "#000" : muted, opacity: inputValue.trim() || isLoading ? 1 : 0.35 }}>
                     <Send size={14} />
                   </button>
                 </div>
+                <p style={{ fontSize: 11, color: caption, textAlign: "center", margin: "8px 0 0", lineHeight: 1.45 }}>
+                  Chat and content from your connected accounts are processed by Groq to generate responses.{" "}
+                  <a href="/privacy" style={{ color: caption, textDecoration: "underline", textUnderlineOffset: 2 }}>Privacy</a>
+                </p>
               </div>
             </div>
           </div>
@@ -440,8 +697,14 @@ export default function DashboardClient({
           <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
             <div style={{ marginBottom: 36 }}>
               <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Connections</h1>
-              <p style={{ fontSize: 14, color: muted, margin: 0 }}>Credentials stored in Auth0 Token Vault — Anzen never sees them.</p>
+              <p style={{ fontSize: 14, color: muted, margin: 0 }}>Credentials stored in Auth0 Token Vault — Anzen never sees them. Set each connection to read-only or read &amp; write to control what the agent can change.</p>
             </div>
+
+            {disconnectError && (
+              <div style={{ background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", padding: "10px 14px", borderRadius: 8, fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
+                {disconnectError}
+              </div>
+            )}
 
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: muted, margin: "0 0 12px" }}>
               Active · {statusLoading ? "…" : `${connectedCount} of 3 connected`}
@@ -459,17 +722,29 @@ export default function DashboardClient({
                       <p style={{ fontSize: 12, color: muted, margin: 0 }}>{p.desc}</p>
                     </div>
                     {connected ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: accentTx, display: "flex", alignItems: "center", gap: 5 }}>
                           <CheckCircle2 size={14} style={{ color: accent }} />
                           Connected
                         </span>
-                        <button onClick={() => handleDisconnect(p.key)}
-                          style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: muted, border: `1px solid ${border}`, cursor: "pointer", transition: "all 0.2s", fontFamily: "inherit" }}
-                          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(248,113,113,0.08)"; e.currentTarget.style.color = "#f87171"; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = muted; }}>
-                          Disconnect
-                        </button>
+                        <ConnectionAccessControl
+                          providerLabel={p.label}
+                          mode={accessModes[p.key]}
+                          onModeChange={(mode) => handleAccessModeChange(p.key, mode)}
+                          onDisconnect={() => handleDisconnect(p.key)}
+                          disabled={permissionsLoading}
+                          saving={permissionsSaving === p.key}
+                          disconnecting={disconnectingKey === p.key}
+                          isDark={d}
+                          colors={{
+                            border,
+                            surface,
+                            surface2,
+                            tx,
+                            muted,
+                            caption,
+                          }}
+                        />
                       </div>
                     ) : (
                       <a
@@ -521,17 +796,25 @@ export default function DashboardClient({
         {/* HISTORY */}
         {activePage === "history" && (
           <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
-            <div style={{ marginBottom: 28 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Audit Logs</h1>
-              <p style={{ fontSize: 14, color: muted, margin: 0 }}>Every action Anzen takes on your behalf is recorded here.</p>
+            <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+              <div>
+                <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Audit Logs</h1>
+                <p style={{ fontSize: 14, color: muted, margin: 0 }}>Confirmed write actions Anzen performed on your behalf.</p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchAuditLogs}
+                disabled={auditLoading}
+                style={{ padding: "8px 14px", fontSize: 13, borderRadius: 8, border: `1px solid ${border}`, background: surface2, color: muted, cursor: "pointer", fontFamily: "inherit" }}>
+                {auditLoading ? "Loading…" : "Refresh"}
+              </button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 24 }}>
               {[
-                { label: "Total",       value: messages.length,                                       color: accentTx },
-                { label: "Responses",   value: messages.filter((m) => m.role === "assistant").length, color: accentTx },
-                { label: "Your msgs",   value: messages.filter((m) => m.role === "user").length,      color: "#60A5FA" },
-                { label: "Connections", value: connectedCount,                                        color: "#60A5FA" },
+                { label: "Total actions", value: auditEntries.length, color: accentTx },
+                { label: "Succeeded", value: auditEntries.filter((e) => e.outcome === "success").length, color: accentTx },
+                { label: "Failed", value: auditEntries.filter((e) => e.outcome === "failure").length, color: "#f87171" },
               ].map((s) => (
                 <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
                   <p style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: muted, margin: "0 0 8px" }}>{s.label}</p>
@@ -540,30 +823,40 @@ export default function DashboardClient({
               ))}
             </div>
 
-            {messages.length === 0 ? (
+            {auditLoading && auditEntries.length === 0 ? (
               <div style={{ ...card, padding: "52px 20px", textAlign: "center" }}>
-                <p style={{ color: muted, fontSize: 14, margin: 0 }}>No activity yet. Start a conversation to see logs here.</p>
+                <p style={{ color: muted, fontSize: 14, margin: 0 }}>Loading audit logs…</p>
+              </div>
+            ) : auditEntries.length === 0 ? (
+              <div style={{ ...card, padding: "52px 20px", textAlign: "center" }}>
+                <p style={{ color: muted, fontSize: 14, margin: 0 }}>No write actions yet. Confirm a close, email, or Slack post to see entries here.</p>
               </div>
             ) : (
               <div style={{ ...card, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "70px 1fr 100px 80px", gap: 16, padding: "10px 18px", borderBottom: `1px solid ${border}`, background: surface2 }}>
-                  {["Role", "Message", "Time", "Status"].map((h) => (
+                <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "10px 18px", borderBottom: `1px solid ${border}`, background: surface2 }}>
+                  {["Tool", "Details", "Time", "Outcome"].map((h) => (
                     <span key={h} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: muted }}>{h}</span>
                   ))}
                 </div>
-                {[...messages].reverse().map((m, i) => {
-                  const text = getMessageText(m as any);
-                  const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
-                  const isUser = m.role === "user";
+                {auditEntries.map((entry, i) => {
+                  const ok = entry.outcome === "success";
+                  const time = new Date(entry.timestamp).toLocaleString([], {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
                   return (
-                    <div key={m.id ?? i}
-                      style={{ display: "grid", gridTemplateColumns: "70px 1fr 100px 80px", gap: 16, padding: "13px 18px", borderBottom: i < messages.length - 1 ? `1px solid ${border}` : "none", transition: "background 0.12s" }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = d ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)"; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}>
-                      <code style={{ fontSize: 11, color: isUser ? "#60A5FA" : accentTx, background: isUser ? "rgba(96,165,250,0.1)" : accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>{m.role}</code>
-                      <span style={{ fontSize: 13, color: tx, alignSelf: "center" }}>{preview || "(tool call)"}</span>
-                      <span style={{ fontSize: 12, color: muted, alignSelf: "center" }}>{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>Success</span>
+                    <div key={entry.id}
+                      style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "13px 18px", borderBottom: i < auditEntries.length - 1 ? `1px solid ${border}` : "none" }}>
+                      <code style={{ fontSize: 11, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>{entry.toolName}</code>
+                      <span style={{ fontSize: 13, color: tx, alignSelf: "center" }}>{entry.message}</span>
+                      <span style={{ fontSize: 12, color: muted, alignSelf: "center" }}>{time}</span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const,
+                        color: ok ? accentTx : "#f87171",
+                        background: ok ? accentBg : "rgba(248,113,113,0.12)",
+                      }}>{ok ? "Success" : "Failed"}</span>
                     </div>
                   );
                 })}

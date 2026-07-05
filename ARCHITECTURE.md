@@ -22,9 +22,8 @@ Anzen only ever holds:
 | **User** | Signs in to Anzen; connects GitHub, Gmail, Slack via Connected Accounts |
 | **Anzen app** (`gbUeOd5OL7…`) | Next.js Regular Web App — login, connect, chat, dashboard |
 | **Auth0 tenant** | Identity provider, session issuer, Token Vault store |
-| **My Account API** | Connected Accounts scopes (`read/create/delete:me:connected_accounts`) |
+| **My Account API** | Connected Accounts scopes (`read/create/delete:me:connected_accounts`); list and delete linked accounts |
 | **Anzen API** (`https://anzen.api`) | Custom API **audience** for MRRT / Token Vault login (no custom scopes required) |
-| **Management API** | Disconnect connected accounts (`update:users`) |
 | **GitHub / Google / Slack** | Upstream OAuth providers; must issue **refresh tokens** where required |
 
 ---
@@ -122,7 +121,24 @@ Browser → GET /api/status
 
 ---
 
-### 5. Sign out
+### 5. Disconnect a provider (Token Vault unlink)
+
+```
+Browser → POST /api/auth/disconnect { provider }
+       → auth0.getAccessToken({ audience: https://{tenant}/me/, scope: read/delete connected_accounts })
+       → GET /me/v1/connected-accounts/accounts?connection={provider}
+       → DELETE /me/v1/connected-accounts/accounts/{id}
+       → Auth0 removes federated tokens from Token Vault
+       → Dashboard refreshes connection status
+```
+
+**Code:** `lib/my-account-api.ts` · `app/api/auth/disconnect/route.ts` · `DashboardClient.tsx`
+
+Uses the **user’s** My Account access token (not Management API M2M). Requires `delete:me:connected_accounts` from login when `AUTH0_TOKEN_VAULT_SCOPES=true`.
+
+---
+
+### 6. Sign out
 
 ```
 Browser → GET /auth/logout?returnTo=http://localhost:3000
@@ -215,6 +231,8 @@ lib/auth0.ts             Auth0Client + getAccessTokenForConnection
 lib/auth0-scopes.ts      Login scopes + audience gating
 lib/auth-connections.ts  Connect URLs per provider
 lib/auth-routes.ts       Absolute logout URLs
+lib/my-account-api.ts    My Account API list/delete connected accounts
+app/api/auth/disconnect/route.ts  Token Vault disconnect
 app/api/chat/route.ts    Groq agent + tool registration
 app/api/status/route.ts  Connection probe
 agent/tools/*.ts         Provider API calls (no credential storage)

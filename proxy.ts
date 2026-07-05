@@ -86,7 +86,7 @@ export default async function middleware(request: NextRequest) {
     const hostMismatch =
       Boolean(host) &&
       Boolean(appBaseUrl) &&
-      !appBaseUrl.includes(host.split(":")[0] ?? "");
+      !appBaseUrl.includes((host ?? "").split(":")[0] ?? "");
     const oauthError = request.nextUrl.searchParams.get("error");
     const oauthErrorDescription =
       request.nextUrl.searchParams.get("error_description");

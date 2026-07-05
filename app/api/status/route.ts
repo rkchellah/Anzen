@@ -1,5 +1,26 @@
-import { auth0, exchangeTokenForProvider } from "@/lib/auth0";
+import { auth0, exchangeTokenForProvider, type Provider } from "@/lib/auth0";
+import { isTokenVaultScopesEnabled } from "@/lib/auth0-scopes";
+import { getConnectedProvidersFromMyAccount } from "@/lib/my-account-api";
 import { NextResponse } from "next/server";
+
+const PROVIDERS: Provider[] = ["github", "google-oauth2", "sign-in-with-slack"];
+
+async function probeTokenExchange(
+  auth0Token: string
+): Promise<Record<Provider, { success: boolean; error?: string }>> {
+  const results = {} as Record<Provider, { success: boolean; error?: string }>;
+
+  for (const provider of PROVIDERS) {
+    try {
+      await exchangeTokenForProvider(auth0Token, provider);
+      results[provider] = { success: true };
+    } catch (error) {
+      results[provider] = { success: false, error: String(error) };
+    }
+  }
+
+  return results;
+}
 
 export async function GET() {
   const session = await auth0.getSession();
@@ -15,32 +36,24 @@ export async function GET() {
     return NextResponse.json({ error: "Could not get access token" }, { status: 401 });
   }
 
-  const results: Record<string, { success: boolean; error?: string }> = {
-    github: { success: false },
-    "google-oauth2": { success: false },
-    "sign-in-with-slack": { success: false },
-  };
+  // Prefer My Account API — matches what disconnect uses. Token exchange alone can
+  // succeed for login identities that are not Token Vault linked accounts.
+  if (isTokenVaultScopesEnabled()) {
+    try {
+      const linked = await getConnectedProvidersFromMyAccount();
+      const results = Object.fromEntries(
+        PROVIDERS.map((provider) => [
+          provider,
+          { success: linked[provider] },
+        ])
+      );
 
-  try {
-    await exchangeTokenForProvider(auth0Token, "github");
-    results.github.success = true;
-  } catch (error) {
-    results.github.error = String(error);
+      return NextResponse.json({ results, source: "my_account_api" });
+    } catch (error) {
+      console.warn("My Account status check failed, falling back to token probe:", error);
+    }
   }
 
-  try {
-    await exchangeTokenForProvider(auth0Token, "google-oauth2");
-    results["google-oauth2"].success = true;
-  } catch (error) {
-    results["google-oauth2"].error = String(error);
-  }
-
-  try {
-    await exchangeTokenForProvider(auth0Token, "sign-in-with-slack");
-    results["sign-in-with-slack"].success = true;
-  } catch (error) {
-    results["sign-in-with-slack"].error = String(error);
-  }
-
-  return NextResponse.json({ results });
+  const results = await probeTokenExchange(auth0Token);
+  return NextResponse.json({ results, source: "token_exchange_probe" });
 }

@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
-import { DM_Sans, Space_Mono, Plus_Jakarta_Sans, Manrope } from "next/font/google";
+import { Inter, DM_Sans, Space_Mono, Plus_Jakarta_Sans, Manrope } from "next/font/google";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
+import { AnzenThemeInitScript } from "@/components/AnzenThemeInitScript";
+import { AnzenThemeProvider } from "@/components/AnzenThemeProvider";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -41,9 +49,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${spaceMono.variable} ${plusJakartaSans.variable} ${manrope.variable}`}>
-      <body suppressHydrationWarning className="font-sans bg-[#f9f9f9] text-[#1a1c1c] antialiased">
-        <Auth0Provider>{children}</Auth0Provider>
+    <html
+      lang="en"
+      className={`${inter.variable} ${dmSans.variable} ${spaceMono.variable} ${plusJakartaSans.variable} ${manrope.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        <AnzenThemeInitScript />
+      </head>
+      <body suppressHydrationWarning className="antialiased">
+        <Auth0Provider>
+          <AnzenThemeProvider>{children}</AnzenThemeProvider>
+        </Auth0Provider>
       </body>
     </html>
   );

@@ -44,3 +44,8 @@ next-env.d.ts
 
 # local project notes (not shared via git)
 RULES.md
+HANDBOOK.md
+GOALS.md
+
+# local permission store fallback (Phase 4)
+.data/

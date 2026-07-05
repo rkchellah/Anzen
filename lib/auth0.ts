@@ -1,5 +1,6 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
 import { getAuthorizationParameters } from "./auth0-scopes";
+import { mapErrorToUserFacing } from "./tool-errors";
 
 export const auth0 = new Auth0Client({
   domain: process.env.AUTH0_DOMAIN!,
@@ -20,6 +21,16 @@ export async function exchangeTokenForProvider(
   _auth0Token: string,
   provider: Provider
 ): Promise<string> {
-  const result = await auth0.getAccessTokenForConnection({ connection: provider });
-  return result.token;
+  try {
+    const result = await auth0.getAccessTokenForConnection({ connection: provider });
+    if (!result.token) {
+      throw mapErrorToUserFacing(
+        new Error("Token Vault returned an empty token"),
+        provider
+      );
+    }
+    return result.token;
+  } catch (error) {
+    throw mapErrorToUserFacing(error, provider);
+  }
 }

@@ -1,0 +1,12 @@
+title = "Anzen gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlisted paths"
+paths = [
+  '''\.env\.example$''',
+  '''BUGLOG\.md$''',
+  '''ARCHITECTURE\.md$''',
+]

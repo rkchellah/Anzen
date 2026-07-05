@@ -1,13 +1,15 @@
 import { tool, jsonSchema } from "ai";
 import { google } from "googleapis";
 import { exchangeTokenForProvider } from "@/lib/auth0";
+import { runAuditedWrite } from "@/lib/audit-log";
+import { throwToolError } from "@/lib/tool-errors";
+import { assertWriteAllowed } from "@/lib/tool-permissions";
+import { assertWriteMatchesLatestUserIntent } from "@/lib/write-execute-guard";
+import { wrapUntrustedExternalContent } from "@/agent/wrap-untrusted-content";
 
-function rethrowToolError(toolName: string, error: unknown): never {
-  console.error(`[${toolName}]`, error);
-  throw error;
-}
+const GMAIL_PROVIDER = "google-oauth2" as const;
 
-export function getGmailTools(auth0Token: string) {
+export function getGmailTools(auth0Token: string, userId: string) {
   return {
     listUnreadEmails: tool({
       description: "List the user's unread emails from Gmail.",
@@ -19,12 +21,14 @@ export function getGmailTools(auth0Token: string) {
       }),
       execute: async ({ maxResults }) => {
         try {
-          const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
+          const token = await exchangeTokenForProvider(auth0Token, GMAIL_PROVIDER);
           const auth = new google.auth.OAuth2();
           auth.setCredentials({ access_token: token });
           const gmail = google.gmail({ version: "v1", auth });
           const list = await gmail.users.messages.list({ userId: "me", q: "is:unread", maxResults });
-          if (!list.data.messages) return { emails: [], count: 0 };
+          if (!list.data.messages) {
+            return wrapUntrustedExternalContent({ emails: [], count: 0 });
+          }
           const emails = await Promise.all(
             list.data.messages.slice(0, maxResults).map(async (msg) => {
               const detail = await gmail.users.messages.get({
@@ -36,15 +40,16 @@ export function getGmailTools(auth0Token: string) {
               return { id: msg.id, from: get("From"), subject: get("Subject"), date: get("Date"), snippet: detail.data.snippet ?? "" };
             })
           );
-          return { emails, count: emails.length };
+          return wrapUntrustedExternalContent({ emails, count: emails.length });
         } catch (error) {
-          rethrowToolError("listUnreadEmails", error);
+          throwToolError("listUnreadEmails", error, GMAIL_PROVIDER);
         }
       },
     }),
 
     sendEmail: tool({
       description: "Send an email on behalf of the user",
+      needsApproval: true,
       inputSchema: jsonSchema<{ to: string; subject: string; body: string }>({
         type: "object",
         properties: {
@@ -54,15 +59,28 @@ export function getGmailTools(auth0Token: string) {
         },
         required: ["to", "subject", "body"],
       }),
-      execute: async ({ to, subject, body }) => {
-        const token = await exchangeTokenForProvider(auth0Token, "google-oauth2");
-        const auth = new google.auth.OAuth2();
-        auth.setCredentials({ access_token: token });
-        const gmail = google.gmail({ version: "v1", auth });
-        const message = [`To: ${to}`, `Subject: ${subject}`, "Content-Type: text/plain; charset=utf-8", "", body].join("\n");
-        const encoded = Buffer.from(message).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-        await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } });
-        return { success: true, message: `Email sent to ${to}` };
+      execute: async ({ to, subject, body }, { messages }) => {
+        try {
+          assertWriteMatchesLatestUserIntent("sendEmail", { to, subject, body }, messages);
+          return await runAuditedWrite(
+            userId,
+            "sendEmail",
+            { to, subject, body },
+            async () => {
+              await assertWriteAllowed(userId, "gmail");
+              const token = await exchangeTokenForProvider(auth0Token, GMAIL_PROVIDER);
+              const auth = new google.auth.OAuth2();
+              auth.setCredentials({ access_token: token });
+              const gmail = google.gmail({ version: "v1", auth });
+              const message = [`To: ${to}`, `Subject: ${subject}`, "Content-Type: text/plain; charset=utf-8", "", body].join("\n");
+              const encoded = Buffer.from(message).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+              await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } });
+              return { success: true, message: `Email sent to ${to}` };
+            }
+          );
+        } catch (error) {
+          throwToolError("sendEmail", error, GMAIL_PROVIDER);
+        }
       },
     }),
   };
