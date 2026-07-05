@@ -13,7 +13,7 @@ Anzen doesn't hold any of it. You connect GitHub, Gmail, and Slack through Auth0
 ---
 
 ## Live Demo
-🔗 [anzen-o2vn.vercel.app](https://anzen-o2vn.vercel.app/)
+🔗 [Anzen](https://anzen-eight.vercel.app/)
 
 ---
 
