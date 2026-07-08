@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Menu, Moon, Sun, X } from "lucide-react";
 import { AnzenLogo } from "@/components/AnzenLogo";
 import { useAnzenTheme } from "@/components/AnzenThemeProvider";
 
@@ -24,6 +24,7 @@ export function SiteHeader({
 }) {
   const { theme: t, isDark, toggleDarkMode } = useAnzenTheme();
   const [session, setSession] = useState<SessionState>({ status: "loading" });
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +63,13 @@ export function SiteHeader({
     };
   }, []);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    window.addEventListener("resize", close);
+    return () => window.removeEventListener("resize", close);
+  }, [menuOpen]);
+
   const authLink =
     session.status === "authenticated"
       ? { href: "/dashboard", label: "Dashboard" }
@@ -75,6 +83,56 @@ export function SiteHeader({
       )
   );
 
+  const themeButton = (
+    <button
+      type="button"
+      onClick={toggleDarkMode}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Light mode" : "Dark mode"}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        border: `1px solid ${t.border}`,
+        background: t.surface2,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        color: t.muted,
+        flexShrink: 0,
+        padding: 0,
+      }}
+    >
+      {isDark ? <Sun size={13} /> : <Moon size={13} />}
+    </button>
+  );
+
+  const authLinkEl =
+    session.status !== "loading" ? (
+      <Link
+        href={authLink.href}
+        onClick={() => setMenuOpen(false)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 5,
+          fontSize: 13,
+          fontWeight: session.status === "authenticated" ? 600 : 500,
+          color: session.status === "authenticated" ? t.accentText : t.muted,
+          textDecoration: "none",
+          padding: "5px 10px",
+          borderRadius: 6,
+          border: `1px solid ${session.status === "authenticated" ? `${t.accent}55` : t.border}`,
+          background: session.status === "authenticated" ? t.accentBg : t.surface2,
+          lineHeight: 1.3,
+        }}
+      >
+        {authLink.label}
+      </Link>
+    ) : null;
+
   return (
     <header
       style={{
@@ -87,84 +145,102 @@ export function SiteHeader({
       }}
     >
       <div
+        className="anzen-site-x"
         style={{
           maxWidth: 1080,
           margin: "0 auto",
-          padding: "0 28px",
           height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          gap: 8,
         }}
       >
         <Link
           href={homeHref}
-          style={{ display: "flex", alignItems: "center", gap: 7, textDecoration: "none", flexShrink: 0 }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            textDecoration: "none",
+            flexShrink: 0,
+            minWidth: 0,
+          }}
         >
           <AnzenLogo size={35} />
-          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: t.text }}>Anzen</span>
-          <span style={{ fontSize: 11, color: t.muted, letterSpacing: "0.02em", fontWeight: 400 }}>安全</span>
+          <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: t.text }}>
+            Anzen
+          </span>
+          <span style={{ fontSize: 11, color: t.muted, letterSpacing: "0.02em", fontWeight: 400 }}>
+            安全
+          </span>
         </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <div className="anzen-header-nav">
           {visibleNavLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               style={{
-                padding: "5px 15px",
+                padding: "10px 15px",
                 borderRadius: 7,
                 fontSize: 13.5,
                 fontWeight: 400,
                 color: t.muted,
                 textDecoration: "none",
                 fontFamily: "inherit",
+                minHeight: 44,
+                display: "flex",
+                alignItems: "center",
               }}
             >
               {link.label}
             </Link>
           ))}
+          {themeButton}
+          {authLinkEl}
+        </div>
+
+        <div className="anzen-header-mobile-tools">
+          {themeButton}
           <button
             type="button"
-            onClick={toggleDarkMode}
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-            title={isDark ? "Light mode" : "Dark mode"}
+            className="anzen-header-menu-btn anzen-touch-target"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
             style={{
-              width: 30,
-              height: 30,
+              width: 44,
+              height: 44,
               borderRadius: 7,
               border: `1px solid ${t.border}`,
               background: t.surface2,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
               cursor: "pointer",
               color: t.muted,
             }}
           >
-            {isDark ? <Sun size={14} /> : <Moon size={14} />}
+            {menuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
-          {session.status !== "loading" && (
-            <Link
-              href={authLink.href}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                fontSize: 13,
-                fontWeight: session.status === "authenticated" ? 600 : 500,
-                color: session.status === "authenticated" ? t.accentText : t.muted,
-                textDecoration: "none",
-                padding: "5px 12px",
-                borderRadius: 7,
-                border: `1px solid ${session.status === "authenticated" ? `${t.accent}55` : t.border}`,
-                background: session.status === "authenticated" ? t.accentBg : t.surface2,
-              }}
-            >
-              {authLink.label}
-            </Link>
-          )}
         </div>
+      </div>
+
+      <div
+        className="anzen-header-mobile-panel"
+        data-open={menuOpen ? "true" : "false"}
+        style={{ backgroundColor: t.bg, borderBottomColor: t.border }}
+      >
+        {visibleNavLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="anzen-header-mobile-link"
+            onClick={() => setMenuOpen(false)}
+            style={{ color: t.muted }}
+          >
+            {link.label}
+          </Link>
+        ))}
+        {authLinkEl}
       </div>
     </header>
   );

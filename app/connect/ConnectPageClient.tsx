@@ -28,7 +28,7 @@ export function ConnectPageClient() {
     >
       <SiteHeader />
 
-      <main style={{ flex: 1, maxWidth: 640, margin: "0 auto", padding: "48px 28px", width: "100%", lineHeight: 1.65 }}>
+      <main className="anzen-site-x anzen-page-y" style={{ flex: 1, maxWidth: 640, margin: "0 auto", width: "100%", lineHeight: 1.65 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em", margin: "0 0 12px", color: t.text }}>
           Connect your accounts
         </h1>

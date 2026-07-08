@@ -29,14 +29,20 @@ function agentDebugLog(
 // #endregion
 
 export default async function middleware(request: NextRequest) {
-  if (!isAuth0Configured()) {
-    const { pathname } = request.nextUrl;
+  const { pathname } = request.nextUrl;
 
-    if (
-      pathname === "/" ||
-      pathname.startsWith("/_next") ||
-      pathname === "/favicon.ico"
-    ) {
+  if (
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/icon.png" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/manifest.json"
+  ) {
+    return NextResponse.next();
+  }
+
+  if (!isAuth0Configured()) {
+    if (pathname === "/" || pathname.startsWith("/_next")) {
       return NextResponse.next();
     }
 
@@ -51,7 +57,7 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/?setup=required", request.url));
   }
 
-  const { pathname, search } = request.nextUrl;
+  const { search } = request.nextUrl;
   const isAuthRoute = pathname.startsWith("/auth/");
 
   // Auth0 OIDC logout requires an absolute post_logout_redirect_uri — relative paths 400.
@@ -157,7 +163,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image).*)"],
 };

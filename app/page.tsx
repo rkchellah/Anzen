@@ -60,18 +60,19 @@ function HomePageContent() {
       <SiteHeader />
 
       <main
+        className="anzen-site-x anzen-page-y"
         style={{
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          padding: "48px 28px 40px",
-          maxWidth: 760,
+          maxWidth: 1080,
           margin: "0 auto",
           width: "100%",
         }}
       >
         {setupRequired && (
           <div
+            className="anzen-break-anywhere"
             style={{
               marginBottom: 24,
               padding: "14px 16px",
@@ -93,6 +94,7 @@ function HomePageContent() {
 
         {authError && (
           <div
+            className="anzen-break-anywhere"
             style={{
               marginBottom: 24,
               padding: "14px 16px",
@@ -142,8 +144,8 @@ function HomePageContent() {
         </div>
 
         <h1
+          className="anzen-hero-title"
           style={{
-            fontSize: 58,
             fontWeight: 800,
             letterSpacing: "-0.045em",
             lineHeight: 0.98,
@@ -199,7 +201,7 @@ function HomePageContent() {
           </a>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, maxWidth: 620 }}>
+        <div className="anzen-grid-3" style={{ maxWidth: 620 }}>
           {[
             {
               label: "MONITOR",

@@ -48,7 +48,7 @@ export function LegalPageShell({
             background: t.surface,
           }}
         >
-          <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 28px 36px" }}>
+          <div className="anzen-site-x" style={{ maxWidth: 800, margin: "0 auto", paddingTop: 32, paddingBottom: 28 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
               <span
                 style={{
@@ -83,13 +83,7 @@ export function LegalPageShell({
           </div>
         </div>
 
-        <div
-          style={{
-            maxWidth: 800,
-            margin: "0 auto",
-            padding: "36px 28px 56px",
-          }}
-        >
+        <div className="anzen-site-x" style={{ maxWidth: 800, margin: "0 auto", paddingTop: 28, paddingBottom: 56 }}>
           <nav
             aria-label="On this page"
             style={{
@@ -137,6 +131,7 @@ export function LegalPageShell({
               <section
                 key={section.id}
                 id={section.id}
+                className="anzen-legal-section"
                 style={{
                   padding: "24px 24px 22px",
                   borderRadius: 14,

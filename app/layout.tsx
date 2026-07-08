@@ -43,6 +43,12 @@ export const metadata: Metadata = {
   description: "Secure AI agent that acts on your behalf",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -55,6 +61,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
         <AnzenThemeInitScript />
       </head>
       <body suppressHydrationWarning className="antialiased">

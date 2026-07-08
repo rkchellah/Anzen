@@ -375,14 +375,14 @@ export default function DashboardClient({
       `}</style>
 
       {!tokenVaultScopesEnabled && (
-        <div style={{ background: "#451a03", borderBottom: "1px solid #92400e", color: "#fef3c7", padding: "10px 28px", fontSize: 13, lineHeight: 1.5 }}>
+        <div className="anzen-site-x anzen-break-anywhere" style={{ background: "#451a03", borderBottom: "1px solid #92400e", color: "#fef3c7", paddingTop: 10, paddingBottom: 10, fontSize: 13, lineHeight: 1.5 }}>
           Connect is disabled: set <code style={{ background: "rgba(0,0,0,0.25)", padding: "1px 6px", borderRadius: 4 }}>AUTH0_TOKEN_VAULT_SCOPES=true</code> in{" "}
           <code style={{ background: "rgba(0,0,0,0.25)", padding: "1px 6px", borderRadius: 4 }}>.env.local</code>, restart the dev server, then sign out and sign in again.
         </div>
       )}
 
       {tokenVaultScopesEnabled && connectedCount === 0 && !statusLoading && (
-        <div style={{ background: accentBg, borderBottom: `1px solid ${accent}40`, color: accentTx, padding: "10px 28px", fontSize: 13, lineHeight: 1.5 }}>
+        <div className="anzen-site-x anzen-break-anywhere" style={{ background: accentBg, borderBottom: `1px solid ${accent}40`, color: accentTx, paddingTop: 10, paddingBottom: 10, fontSize: 13, lineHeight: 1.5 }}>
           To connect GitHub, Gmail, or Slack: use the Connections tab, click Connect once per provider, and complete the provider consent screen. If you just enabled Token Vault scopes,{" "}
           <a href={buildLogoutUrl("/")} style={{ color: accentTx, fontWeight: 600 }}>sign out and sign in again</a> first.
         </div>
@@ -390,7 +390,7 @@ export default function DashboardClient({
 
       {/* NAVBAR */}
       <header style={{ backgroundColor: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 0, zIndex: 50, height: 56 }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "0 28px", height: "100%", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="anzen-site-x" style={{ maxWidth: 1080, margin: "0 auto", height: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <button onClick={() => { setActivePage("dashboard"); setMessages([]); setInputValue(""); }}
             style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
             <AnzenLogo isDark={d} />
@@ -398,54 +398,71 @@ export default function DashboardClient({
             <span style={{ fontSize: 11, color: muted, letterSpacing: "0.02em", fontWeight: 400 }}>安全</span>
           </button>
 
-          <nav style={{ display: "flex", gap: 2 }}>
+          <nav className="anzen-dash-header-nav" aria-label="Dashboard sections">
             {[{ id: "dashboard", label: "Dashboard" }, { id: "connections", label: "Connections" }, { id: "history", label: "History" }].map(({ id, label }) => {
               const active = activePage === id;
               return (
                 <button key={id} onClick={() => setActivePage(id)}
-                  style={{ padding: "5px 15px", borderRadius: 7, fontSize: 13.5, fontWeight: active ? 600 : 400, color: active ? tx : muted, background: active ? (d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)") : "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}>
+                  style={{ padding: "10px 15px", borderRadius: 7, fontSize: 13.5, fontWeight: active ? 600 : 400, color: active ? tx : muted, background: active ? (d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)") : "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", minHeight: 44 }}>
                   {label}
                 </button>
               );
             })}
           </nav>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <div className="anzen-dash-header-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {!statusLoading && (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: muted }}>
                   <span style={{ width: 6, height: 6, borderRadius: "50%", background: connectedCount > 0 ? accent : subtle, display: "inline-block", boxShadow: connectedCount > 0 ? `0 0 5px ${accent}` : "none" }} />
                   {connectedCount}/3
                 </div>
-                <button onClick={fetchConnectionStatus}
-                  style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}
+                <button onClick={fetchConnectionStatus} className="anzen-touch-target"
+                  style={{ width: 44, height: 44, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}
                   title="Refresh connection status">
                   <RotateCw size={14} />
                 </button>
               </>
             )}
             <button onClick={toggleDarkMode}
-              style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}>
-              {d ? <Sun size={14} /> : <Moon size={14} />}
+              style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted, padding: 0 }}>
+              {d ? <Sun size={13} /> : <Moon size={13} />}
             </button>
             <a href={buildLogoutUrl("/")}
-              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: muted, textDecoration: "none", transition: "color 0.15s" }}
+              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: muted, textDecoration: "none", transition: "color 0.15s", padding: "10px 8px", minHeight: 44 }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
               onMouseLeave={(e) => (e.currentTarget.style.color = muted)}>
               <LogOut size={14} />
-              Sign out
+              <span className="anzen-dash-signout-label">Sign out</span>
             </a>
           </div>
         </div>
       </header>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <nav className="anzen-dash-bottom-nav" aria-label="Dashboard navigation" style={{ backgroundColor: bg, borderTopColor: border }}>
+        {[{ id: "dashboard", label: "Chat" }, { id: "connections", label: "Connections" }, { id: "history", label: "History" }].map(({ id, label }) => {
+          const active = activePage === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActivePage(id)}
+              style={{ color: active ? tx : muted, fontWeight: active ? 600 : 500 }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? accent : "transparent", boxShadow: active ? `0 0 6px ${accent}` : "none" }} />
+              {label}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="anzen-dash-has-bottom-nav" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {/* DASHBOARD */}
         {activePage === "dashboard" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)", overflow: "hidden" }}>
             {isChatting && (
               <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-                <div className="anzen-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "32px 28px 0" }}>
+                <div className="anzen-scrollbar anzen-site-x" style={{ flex: 1, overflowY: "auto", paddingTop: 24, paddingBottom: 0 }}>
                   <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
                     <AnimatePresence initial={false}>
                       {messages.map((m, i) => {
@@ -464,7 +481,7 @@ export default function DashboardClient({
                                     <AnzenLogo isDark={d} />
                                   </div>
                                 )}
-                                <div style={{ maxWidth: "76%", fontSize: 14, lineHeight: 1.72, color: isUser ? tx : txLight, ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}) }}>
+                                <div className="anzen-chat-bubble" style={{ fontSize: 14, lineHeight: 1.72, color: isUser ? tx : txLight, ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}) }}>
                                   {text.split("\n").map((line, j, arr) => (
                                     <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
                                   ))}
@@ -479,7 +496,8 @@ export default function DashboardClient({
                                 const reconnectKey = reconnectKeyForToolPart(part);
                                 return (
                                   <div key={part.toolCallId ?? `${toolName}-error`}
-                                    style={{ ...card, maxWidth: 420, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)", marginLeft: 35 }}>
+                                    className="anzen-tool-card"
+                                    style={{ ...card, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)" }}>
                                     <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 8px" }}>
                                       Couldn&apos;t complete action
                                     </p>
@@ -511,7 +529,8 @@ export default function DashboardClient({
                                 if (writeKey && accessModes[writeKey] === "read") {
                                   return (
                                     <div key={part.toolCallId ?? part.approval.id}
-                                      style={{ ...card, maxWidth: 420, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)", marginLeft: 35 }}>
+                                      className="anzen-tool-card"
+                                      style={{ ...card, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)" }}>
                                       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 8px" }}>
                                         Write action blocked
                                       </p>
@@ -530,7 +549,8 @@ export default function DashboardClient({
                                 }
                                 return (
                                   <div key={part.toolCallId ?? part.approval.id}
-                                    style={{ ...card, maxWidth: 420, padding: "16px 18px", borderColor: `${accent}35`, marginLeft: 35 }}>
+                                    className="anzen-tool-card"
+                                    style={{ ...card, padding: "16px 18px", borderColor: `${accent}35` }}>
                                     <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: accentTx, margin: "0 0 8px" }}>
                                       Confirm action
                                     </p>
@@ -556,7 +576,8 @@ export default function DashboardClient({
                               if (part.state === "approval-responded" && part.approval) {
                                 return (
                                   <div key={part.toolCallId ?? part.approval.id}
-                                    style={{ fontSize: 12, color: muted, marginLeft: 35 }}>
+                                    className="anzen-tool-card"
+                                    style={{ fontSize: 12, color: muted }}>
                                     {part.approval.approved ? "Confirmed — running action…" : "Action cancelled."}
                                   </div>
                                 );
@@ -568,7 +589,8 @@ export default function DashboardClient({
                                   typeof part.approval?.reason === "string" ? part.approval.reason : null;
                                 return (
                                   <div key={part.toolCallId ?? `${toolName}-denied`}
-                                    style={{ ...card, maxWidth: 420, padding: "14px 16px", borderColor: "rgba(248,113,113,0.35)", marginLeft: 35 }}>
+                                    className="anzen-tool-card"
+                                    style={{ ...card, padding: "14px 16px", borderColor: "rgba(248,113,113,0.35)" }}>
                                     <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 6px" }}>
                                       Action blocked
                                     </p>
@@ -607,9 +629,9 @@ export default function DashboardClient({
             )}
 
             {!isChatting && (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "48px 28px 16px", gap: 32, minHeight: 0, overflowY: "auto" }}>
-                <div style={{ textAlign: "center", maxWidth: 520 }}>
-                  <h1 style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.08, margin: "0 0 12px", color: tx }}>
+              <div className="anzen-site-x" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 32, paddingBottom: 16, gap: 28, minHeight: 0, overflowY: "auto" }}>
+                <div style={{ textAlign: "center", maxWidth: 520, width: "100%" }}>
+                  <h1 className="anzen-dash-hero-title" style={{ fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.08, margin: "0 0 12px", color: tx }}>
                     What can I<br />help with?
                   </h1>
                   <p style={{ fontSize: 15, color: muted, margin: 0, lineHeight: 1.65 }}>
@@ -617,7 +639,7 @@ export default function DashboardClient({
                   </p>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, width: "100%", maxWidth: 500 }}>
+                <div className="anzen-grid-3" style={{ width: "100%", maxWidth: 500 }}>
                   {activeProviders.map((p) => {
                     const connected = connStatus[p.key as keyof ConnectionStatus];
                     return (
@@ -654,7 +676,7 @@ export default function DashboardClient({
               </div>
             )}
 
-            <div style={{ flexShrink: 0, padding: "12px 28px 20px", background: bg }}>
+            <div className="anzen-site-x" style={{ flexShrink: 0, paddingTop: 12, paddingBottom: 20, background: bg }}>
               <div style={{ maxWidth: 680, margin: "0 auto" }}>
                 {pendingApprovals.length > 0 && (
                   <div style={{ ...card, padding: "12px 14px", marginBottom: 10, borderColor: `${accent}40`, background: accentBg }}>
@@ -671,16 +693,16 @@ export default function DashboardClient({
                 {approvalGateError && (
                   <p style={{ fontSize: 12, color: "#f87171", margin: "0 0 8px", lineHeight: 1.45 }}>{approvalGateError}</p>
                 )}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, background: surface, border: `1px solid ${border}`, borderRadius: 13, padding: "11px 14px" }}>
-                  <Zap size={16} style={{ color: accentTx, flexShrink: 0 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: surface, border: `1px solid ${border}`, borderRadius: 999, padding: "6px 8px 6px 12px" }}>
+                  <Zap size={14} style={{ color: accentTx, flexShrink: 0 }} />
                   <input value={inputValue} onChange={(e) => { setInputValue(e.target.value); if (approvalGateError) setApprovalGateError(null); }}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                     placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Ask Anzen anything…"}
                     disabled={pendingApprovals.length > 0}
-                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14, color: tx, fontFamily: "inherit" }} />
+                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 13, color: tx, fontFamily: "inherit", lineHeight: 1.4, padding: "2px 0" }} />
                   <button onClick={handleSend} disabled={!inputValue.trim() || isLoading || pendingApprovals.length > 0}
-                    style={{ width: 30, height: 30, borderRadius: 8, border: "none", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", cursor: inputValue.trim() && !isLoading ? "pointer" : "not-allowed", background: inputValue.trim() && !isLoading ? accent : (d ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"), color: inputValue.trim() && !isLoading ? "#000" : muted, opacity: inputValue.trim() || isLoading ? 1 : 0.35 }}>
-                    <Send size={14} />
+                    style={{ width: 28, height: 28, borderRadius: 999, border: "none", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", cursor: inputValue.trim() && !isLoading ? "pointer" : "not-allowed", background: inputValue.trim() && !isLoading ? accent : (d ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"), color: inputValue.trim() && !isLoading ? "#000" : muted, opacity: inputValue.trim() || isLoading ? 1 : 0.35, padding: 0 }}>
+                    <Send size={12} />
                   </button>
                 </div>
                 <p style={{ fontSize: 11, color: caption, textAlign: "center", margin: "8px 0 0", lineHeight: 1.45 }}>
@@ -694,7 +716,7 @@ export default function DashboardClient({
 
         {/* CONNECTIONS */}
         {activePage === "connections" && (
-          <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
+          <div className="anzen-site-x" style={{ maxWidth: 1080, margin: "0 auto", width: "100%", paddingTop: 32, paddingBottom: 32 }}>
             <div style={{ marginBottom: 36 }}>
               <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Connections</h1>
               <p style={{ fontSize: 14, color: muted, margin: 0 }}>Credentials stored in Auth0 Token Vault — Anzen never sees them. Set each connection to read-only or read &amp; write to control what the agent can change.</p>
@@ -709,7 +731,7 @@ export default function DashboardClient({
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: muted, margin: "0 0 12px" }}>
               Active · {statusLoading ? "…" : `${connectedCount} of 3 connected`}
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 36 }}>
+            <div className="anzen-grid-3" style={{ marginBottom: 36, gap: 12 }}>
               {activeProviders.map((p) => {
                 const connected = connStatus[p.key as keyof ConnectionStatus];
                 return (
@@ -781,7 +803,7 @@ export default function DashboardClient({
             </div>
 
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: muted, margin: "0 0 12px" }}>Coming soon</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+            <div className="anzen-grid-5">
               {comingSoon.map((app) => (
                 <div key={app.label} style={{ ...card, padding: "20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, opacity: 0.38 }}>
                   <div style={{ width: 56, height: 56, background: surface2, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{app.icon}</div>
@@ -795,8 +817,8 @@ export default function DashboardClient({
 
         {/* HISTORY */}
         {activePage === "history" && (
-          <div style={{ maxWidth: 1080, margin: "0 auto", width: "100%", padding: "44px 28px" }}>
-            <div style={{ marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+          <div className="anzen-site-x" style={{ maxWidth: 1080, margin: "0 auto", width: "100%", paddingTop: 32, paddingBottom: 32 }}>
+            <div className="anzen-history-header" style={{ marginBottom: 28 }}>
               <div>
                 <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Audit Logs</h1>
                 <p style={{ fontSize: 14, color: muted, margin: 0 }}>Confirmed write actions Anzen performed on your behalf.</p>
@@ -810,7 +832,7 @@ export default function DashboardClient({
               </button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 24 }}>
+            <div className="anzen-stats-3" style={{ marginBottom: 24 }}>
               {[
                 { label: "Total actions", value: auditEntries.length, color: accentTx },
                 { label: "Succeeded", value: auditEntries.filter((e) => e.outcome === "success").length, color: accentTx },
@@ -833,33 +855,61 @@ export default function DashboardClient({
               </div>
             ) : (
               <div style={{ ...card, overflow: "hidden" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "10px 18px", borderBottom: `1px solid ${border}`, background: surface2 }}>
-                  {["Tool", "Details", "Time", "Outcome"].map((h) => (
-                    <span key={h} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: muted }}>{h}</span>
-                  ))}
+                <div className="anzen-audit-table">
+                  <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "10px 18px", borderBottom: `1px solid ${border}`, background: surface2 }}>
+                    {["Tool", "Details", "Time", "Outcome"].map((h) => (
+                      <span key={h} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: muted }}>{h}</span>
+                    ))}
+                  </div>
+                  {auditEntries.map((entry, i) => {
+                    const ok = entry.outcome === "success";
+                    const time = new Date(entry.timestamp).toLocaleString([], {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    return (
+                      <div key={entry.id}
+                        style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "13px 18px", borderBottom: i < auditEntries.length - 1 ? `1px solid ${border}` : "none" }}>
+                        <code style={{ fontSize: 11, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>{entry.toolName}</code>
+                        <span style={{ fontSize: 13, color: tx, alignSelf: "center" }}>{entry.message}</span>
+                        <span style={{ fontSize: 12, color: muted, alignSelf: "center" }}>{time}</span>
+                        <span style={{
+                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const,
+                          color: ok ? accentTx : "#f87171",
+                          background: ok ? accentBg : "rgba(248,113,113,0.12)",
+                        }}>{ok ? "Success" : "Failed"}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                {auditEntries.map((entry, i) => {
-                  const ok = entry.outcome === "success";
-                  const time = new Date(entry.timestamp).toLocaleString([], {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-                  return (
-                    <div key={entry.id}
-                      style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "13px 18px", borderBottom: i < auditEntries.length - 1 ? `1px solid ${border}` : "none" }}>
-                      <code style={{ fontSize: 11, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>{entry.toolName}</code>
-                      <span style={{ fontSize: 13, color: tx, alignSelf: "center" }}>{entry.message}</span>
-                      <span style={{ fontSize: 12, color: muted, alignSelf: "center" }}>{time}</span>
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const,
-                        color: ok ? accentTx : "#f87171",
-                        background: ok ? accentBg : "rgba(248,113,113,0.12)",
-                      }}>{ok ? "Success" : "Failed"}</span>
-                    </div>
-                  );
-                })}
+
+                <div className="anzen-audit-cards">
+                  {auditEntries.map((entry) => {
+                    const ok = entry.outcome === "success";
+                    const time = new Date(entry.timestamp).toLocaleString([], {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                    return (
+                      <div key={entry.id} className="anzen-audit-card" style={{ borderBottomColor: border }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+                          <code style={{ fontSize: 11, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5 }}>{entry.toolName}</code>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, whiteSpace: "nowrap" as const, flexShrink: 0,
+                            color: ok ? accentTx : "#f87171",
+                            background: ok ? accentBg : "rgba(248,113,113,0.12)",
+                          }}>{ok ? "Success" : "Failed"}</span>
+                        </div>
+                        <p style={{ fontSize: 13, color: tx, margin: "0 0 6px", lineHeight: 1.5 }}>{entry.message}</p>
+                        <p style={{ fontSize: 12, color: muted, margin: 0 }}>{time}</p>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

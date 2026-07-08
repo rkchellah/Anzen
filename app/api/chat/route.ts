@@ -1,6 +1,5 @@
 import { auth0 } from "@/lib/auth0";
 import { checkChatRateLimit } from "@/lib/rate-limit";
-import { createGroq } from "@ai-sdk/groq";
 import {
   streamText,
   convertToModelMessages,
@@ -12,12 +11,11 @@ import { getGithubTools } from "@/agent/tools/github";
 import { getGmailTools } from "@/agent/tools/gmail";
 import { getSlackTools } from "@/agent/tools/slack";
 import {
-  groqChatErrorMessage,
-  prepareGroqChatStep,
-  repairGroqToolCall,
-} from "@/lib/groq-chat";
-
-const groq = createGroq();
+  chatStreamErrorMessage,
+  prepareReadOnlyFollowUpStep,
+  repairMalformedToolCall,
+} from "@/lib/ai-chat";
+import { getAiProviderConfig, getChatModel } from "@/lib/ai-provider";
 
 export async function POST(req: Request) {
   const session = await auth0.getSession();
@@ -29,6 +27,19 @@ export async function POST(req: Request) {
   if (!auth0Token) {
     return new Response("Could not get access token", { status: 401 });
   }
+
+  let aiConfig;
+  try {
+    aiConfig = getAiProviderConfig();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "AI provider is not configured.";
+    return Response.json({ error: message }, { status: 503 });
+  }
+
+  console.log(
+    `[chat] Using provider: ${aiConfig.provider} (${aiConfig.modelId})`
+  );
 
   const { messages } = (await req.json()) as { messages: UIMessage[] };
   const modelMessages = await convertToModelMessages(messages, {
@@ -53,8 +64,10 @@ export async function POST(req: Request) {
     );
   }
 
+  const useGroqWorkarounds = aiConfig.provider === "groq";
+
   const result = streamText({
-    model: groq("llama-3.3-70b-versatile"),
+    model: getChatModel(),
     system: `You are Anzen, an AI agent that acts on behalf of the user using Auth0 Token Vault. You help users manage their GitHub issues, emails, and Slack messages — securely, without ever storing their credentials.
 
 Current user: ${session.user.name} (${session.user.email})
@@ -87,15 +100,19 @@ Each provider can be set to read-only or read & write on the Connections page. I
       hasToolCall("postMessage"),
       stepCountIs(6),
     ],
-    experimental_repairToolCall: repairGroqToolCall,
-    prepareStep: prepareGroqChatStep,
+    ...(useGroqWorkarounds
+      ? {
+          experimental_repairToolCall: repairMalformedToolCall,
+          prepareStep: prepareReadOnlyFollowUpStep,
+        }
+      : {}),
     onError: ({ error }) => {
-      groqChatErrorMessage(error);
+      chatStreamErrorMessage(error, aiConfig.provider);
     },
   });
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
-    onError: groqChatErrorMessage,
+    onError: (error) => chatStreamErrorMessage(error, aiConfig.provider),
   });
 }
