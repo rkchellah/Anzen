@@ -21,6 +21,7 @@ import { defaultUserPermissions, type ProviderAccessMode } from "@/lib/permissio
 import { ConnectionAccessControl } from "@/components/ConnectionAccessControl";
 import { useAnzenTheme } from "@/components/AnzenThemeProvider";
 import { anzenPageStyle } from "@/components/anzen-theme";
+import { AI_PROVIDER_SHORT_LABEL } from "@/lib/ai-display";
 
 type ConnectionStatus = { github: boolean; gmail: boolean; slack: boolean };
 type ConnectionKey = keyof ConnectionStatus;
@@ -337,6 +338,21 @@ export default function DashboardClient({
     borderRadius: 14,
   };
 
+  const headerIconBtn: React.CSSProperties = {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    border: `1px solid ${border}`,
+    background: surface2,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    color: muted,
+    padding: 0,
+    flexShrink: 0,
+  };
+
   const activeProviders = (["github", "gmail", "slack"] as const).map((key) => ({
     key,
     label: CONNECTIONS[key].label,
@@ -367,7 +383,7 @@ export default function DashboardClient({
       }}
     >
       <style>{`
-        input::placeholder { color: ${d ? "rgba(240,240,238,0.50)" : "#1a1a1a"} !important; opacity: 1; }
+        input::placeholder { color: ${d ? "rgba(240,240,238,0.50)" : "rgba(0,0,0,0.38)"} !important; opacity: 1; }
         .anzen-scrollbar::-webkit-scrollbar { width: 8px; }
         .anzen-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .anzen-scrollbar::-webkit-scrollbar-thumb { background: ${d ? "rgba(163,255,18,0.25)" : "rgba(100,180,0,0.20)"}; border-radius: 4px; }
@@ -411,21 +427,21 @@ export default function DashboardClient({
           </nav>
 
           <div className="anzen-dash-header-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            {!statusLoading && (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: muted }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: connectedCount > 0 ? accent : subtle, display: "inline-block", boxShadow: connectedCount > 0 ? `0 0 5px ${accent}` : "none" }} />
-                  {connectedCount}/3
-                </div>
-                <button onClick={fetchConnectionStatus} className="anzen-touch-target"
-                  style={{ width: 44, height: 44, borderRadius: 7, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted }}
-                  title="Refresh connection status">
-                  <RotateCw size={14} />
-                </button>
-              </>
-            )}
-            <button onClick={toggleDarkMode}
-              style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${border}`, background: surface2, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: muted, padding: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: muted, minWidth: 34 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: connectedCount > 0 ? accent : subtle, display: "inline-block", boxShadow: connectedCount > 0 ? `0 0 5px ${accent}` : "none", opacity: statusLoading ? 0.45 : 1 }} />
+              {statusLoading ? "…/3" : `${connectedCount}/3`}
+            </div>
+            <button
+              type="button"
+              onClick={() => void fetchConnectionStatus()}
+              disabled={statusLoading}
+              style={{ ...headerIconBtn, opacity: statusLoading ? 0.55 : 1, cursor: statusLoading ? "default" : "pointer" }}
+              title="Refresh connection status"
+              aria-label="Refresh connection status"
+            >
+              <RotateCw size={13} />
+            </button>
+            <button type="button" onClick={toggleDarkMode} aria-label={d ? "Switch to light mode" : "Switch to dark mode"} style={headerIconBtn}>
               {d ? <Sun size={13} /> : <Moon size={13} />}
             </button>
             <a href={buildLogoutUrl("/")}
@@ -676,7 +692,7 @@ export default function DashboardClient({
               </div>
             )}
 
-            <div className="anzen-site-x" style={{ flexShrink: 0, paddingTop: 12, paddingBottom: 20, background: bg }}>
+            <div className="anzen-site-x anzen-chat-composer" style={{ flexShrink: 0, paddingTop: 12, background: bg }}>
               <div style={{ maxWidth: 680, margin: "0 auto" }}>
                 {pendingApprovals.length > 0 && (
                   <div style={{ ...card, padding: "12px 14px", marginBottom: 10, borderColor: `${accent}40`, background: accentBg }}>
@@ -706,7 +722,7 @@ export default function DashboardClient({
                   </button>
                 </div>
                 <p style={{ fontSize: 11, color: caption, textAlign: "center", margin: "8px 0 0", lineHeight: 1.45 }}>
-                  Chat and content from your connected accounts are processed by Groq to generate responses.{" "}
+                  Chat and content from your connected accounts are processed by {AI_PROVIDER_SHORT_LABEL} to generate responses.{" "}
                   <a href="/privacy" style={{ color: caption, textDecoration: "underline", textUnderlineOffset: 2 }}>Privacy</a>
                 </p>
               </div>

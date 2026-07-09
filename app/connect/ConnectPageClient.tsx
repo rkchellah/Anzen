@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
+import { AI_PROVIDER_SHORT_LABEL } from "@/lib/ai-display";
 import { anzenPageStyle } from "@/components/anzen-theme";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -37,7 +38,7 @@ export function ConnectPageClient() {
         </p>
         <p style={{ fontSize: 14, color: t.muted, margin: "0 0 16px" }}>
           When you connect an account, Anzen never stores your token. Auth0 Token Vault holds it securely.
-          Message and issue content you ask about is processed by Groq (AI) to generate responses — see{" "}
+          Message and issue content you ask about is processed by {AI_PROVIDER_SHORT_LABEL} (AI) to generate responses — see{" "}
           <Link href="/privacy" style={{ color: t.accentText, textDecoration: "none", fontWeight: 500 }}>
             Privacy Policy
           </Link>

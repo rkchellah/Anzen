@@ -13,17 +13,29 @@ type SessionState =
   | { status: "guest" }
   | { status: "authenticated"; name: string | null };
 
+export type InitialAuthState =
+  | { status: "authenticated"; name: string | null }
+  | { status: "guest" };
+
 export function SiteHeader({
   homeHref = "/",
   navLinks = [],
   signInHref = "/auth/login",
+  initialAuth,
 }: {
   homeHref?: string;
   navLinks?: NavLink[];
   signInHref?: string;
+  initialAuth?: InitialAuthState;
 }) {
   const { theme: t, isDark, toggleDarkMode } = useAnzenTheme();
-  const [session, setSession] = useState<SessionState>({ status: "loading" });
+  const [session, setSession] = useState<SessionState>(
+    initialAuth
+      ? initialAuth.status === "authenticated"
+        ? { status: "authenticated", name: initialAuth.name }
+        : { status: "guest" }
+      : { status: "loading" }
+  );
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -108,30 +120,33 @@ export function SiteHeader({
     </button>
   );
 
-  const authLinkEl =
-    session.status !== "loading" ? (
-      <Link
-        href={authLink.href}
-        onClick={() => setMenuOpen(false)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 5,
-          fontSize: 13,
-          fontWeight: session.status === "authenticated" ? 600 : 500,
-          color: session.status === "authenticated" ? t.accentText : t.muted,
-          textDecoration: "none",
-          padding: "5px 10px",
-          borderRadius: 6,
-          border: `1px solid ${session.status === "authenticated" ? `${t.accent}55` : t.border}`,
-          background: session.status === "authenticated" ? t.accentBg : t.surface2,
-          lineHeight: 1.3,
-        }}
-      >
-        {authLink.label}
-      </Link>
-    ) : null;
+  const authLinkEl = (
+    <Link
+      href={authLink.href}
+      onClick={() => setMenuOpen(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 5,
+        fontSize: 13,
+        fontWeight: session.status === "authenticated" ? 600 : 500,
+        color: session.status === "authenticated" ? t.accentText : t.muted,
+        textDecoration: "none",
+        padding: "5px 10px",
+        borderRadius: 6,
+        border: `1px solid ${session.status === "authenticated" ? `${t.accent}55` : t.border}`,
+        background: session.status === "authenticated" ? t.accentBg : t.surface2,
+        lineHeight: 1.3,
+        visibility: session.status === "loading" ? "hidden" : "visible",
+        minWidth: session.status === "loading" ? 72 : undefined,
+      }}
+      aria-hidden={session.status === "loading"}
+      tabIndex={session.status === "loading" ? -1 : undefined}
+    >
+      {session.status === "loading" ? "Sign in" : authLink.label}
+    </Link>
+  );
 
   return (
     <header

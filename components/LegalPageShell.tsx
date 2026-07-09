@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { anzenPageStyle } from "@/components/anzen-theme";
 import { SiteFooter } from "@/components/SiteFooter";
-import { SiteHeader } from "@/components/SiteHeader";
+import { SiteHeader, type InitialAuthState } from "@/components/SiteHeader";
 import { useAnzenTheme } from "@/components/AnzenThemeProvider";
 
 export type LegalSection = {
@@ -19,12 +19,14 @@ export function LegalPageShell({
   subtitle,
   sections,
   relatedLink,
+  initialAuth,
 }: {
   kind: "Privacy" | "Terms";
   title: string;
   subtitle: string;
   sections: LegalSection[];
   relatedLink?: { href: string; label: string };
+  initialAuth?: InitialAuthState;
 }) {
   const { theme: t } = useAnzenTheme();
 
@@ -38,7 +40,7 @@ export function LegalPageShell({
         flexDirection: "column",
       }}
     >
-      <SiteHeader />
+      <SiteHeader initialAuth={initialAuth} />
 
       <main style={{ flex: 1, width: "100%" }}>
         <div

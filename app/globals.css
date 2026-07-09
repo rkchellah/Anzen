@@ -25,6 +25,18 @@
 
 html[data-anzen-theme="light"] {
   color-scheme: light;
+  --anzen-bg: #f4f4f1;
+  --anzen-surface: #ffffff;
+  --anzen-surface-2: #ececea;
+  --anzen-border: rgba(0, 0, 0, 0.12);
+  --anzen-text: #0a0a0a;
+  --anzen-text-light: #1a1a1a;
+  --anzen-muted: #4a4a4a;
+  --anzen-caption: rgba(0, 0, 0, 0.52);
+  --anzen-subtle: rgba(0, 0, 0, 0.24);
+  --anzen-accent: #5cd400;
+  --anzen-accent-bg: rgba(92, 212, 0, 0.2);
+  --anzen-accent-text: #1a5c00;
 }
 
 html[data-anzen-theme="dark"] {
@@ -302,6 +314,16 @@ html {
 
   .anzen-dash-has-bottom-nav {
     padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.anzen-chat-composer {
+  padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .anzen-chat-composer {
+    padding-bottom: 40px;
   }
 }
 

@@ -1,4 +1,7 @@
+import { auth0 } from "@/lib/auth0";
 import { LegalPageShell, type LegalSection } from "@/components/LegalPageShell";
+import { AI_PROVIDER_PRIVACY_LABEL } from "@/lib/ai-display";
+import type { InitialAuthState } from "@/components/SiteHeader";
 
 const sections: LegalSection[] = [
   {
@@ -22,13 +25,13 @@ const sections: LegalSection[] = [
     ),
   },
   {
-    id: "groq",
-    title: "AI processing (Groq)",
+    id: "ai",
+    title: "AI processing (DeepSeek)",
     body: (
       <p style={{ margin: 0 }}>
         Chat messages and content retrieved from your connected accounts — such as email subjects, Slack message
         text, and GitHub issue titles — are sent to{" "}
-        <strong style={{ fontWeight: 600 }}>Groq (LLaMA 3.3 70B)</strong> to generate
+        <strong style={{ fontWeight: 600 }}>{AI_PROVIDER_PRIVACY_LABEL}</strong> to generate
         responses. Do not use Anzen with highly sensitive content you do not want processed by this AI provider.
       </p>
     ),
@@ -66,7 +69,12 @@ const sections: LegalSection[] = [
   },
 ];
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const session = await auth0.getSession();
+  const initialAuth: InitialAuthState = session?.user
+    ? { status: "authenticated", name: session.user.name ?? null }
+    : { status: "guest" };
+
   return (
     <LegalPageShell
       kind="Privacy"
@@ -74,6 +82,7 @@ export default function PrivacyPage() {
       subtitle="Last updated July 2026. Placeholder structure — final legal text will be provided by the project owner."
       sections={sections}
       relatedLink={{ href: "/terms", label: "Terms of Service" }}
+      initialAuth={initialAuth}
     />
   );
 }

@@ -15,18 +15,18 @@ export type AnzenTheme = {
 };
 
 export const ANZEN_LIGHT: AnzenTheme = {
-  bg: "#f7f6f3",
+  bg: "#f4f4f1",
   surface: "#ffffff",
-  surface2: "#f0f0ed",
-  border: "rgba(0,0,0,0.08)",
-  text: "#000000",
-  textLight: "#000000",
-  muted: "#666666",
-  caption: "rgba(0,0,0,0.42)",
-  subtle: "#666666",
-  accent: "#A3FF12",
-  accentBg: "rgba(100,180,0,0.12)",
-  accentText: "#2d5200",
+  surface2: "#ececea",
+  border: "rgba(0,0,0,0.12)",
+  text: "#0a0a0a",
+  textLight: "#1a1a1a",
+  muted: "#4a4a4a",
+  caption: "rgba(0,0,0,0.52)",
+  subtle: "rgba(0,0,0,0.24)",
+  accent: "#5cd400",
+  accentBg: "rgba(92,212,0,0.20)",
+  accentText: "#1a5c00",
 };
 
 export const ANZEN_DARK: AnzenTheme = {

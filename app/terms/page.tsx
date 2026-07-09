@@ -1,4 +1,7 @@
+import { auth0 } from "@/lib/auth0";
 import { LegalPageShell, type LegalSection } from "@/components/LegalPageShell";
+import { AI_PROVIDER_SHORT_LABEL } from "@/lib/ai-display";
+import type { InitialAuthState } from "@/components/SiteHeader";
 
 const sections: LegalSection[] = [
   {
@@ -37,14 +40,19 @@ const sections: LegalSection[] = [
     title: "Third-party services",
     body: (
       <p style={{ margin: 0 }}>
-        Anzen relies on Auth0, Groq, GitHub, Google, Slack, and hosting providers. Your use of those services is
-        subject to their respective terms and privacy policies.
+        Anzen relies on Auth0, {AI_PROVIDER_SHORT_LABEL}, GitHub, Google, Slack, and hosting providers. Your use of
+        those services is subject to their respective terms and privacy policies.
       </p>
     ),
   },
 ];
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const session = await auth0.getSession();
+  const initialAuth: InitialAuthState = session?.user
+    ? { status: "authenticated", name: session.user.name ?? null }
+    : { status: "guest" };
+
   return (
     <LegalPageShell
       kind="Terms"
@@ -52,6 +60,7 @@ export default function TermsPage() {
       subtitle="Last updated July 2026. Placeholder structure — final legal text will be provided by the project owner."
       sections={sections}
       relatedLink={{ href: "/privacy", label: "Privacy Policy" }}
+      initialAuth={initialAuth}
     />
   );
 }
