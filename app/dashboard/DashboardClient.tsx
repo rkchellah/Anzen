@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, LogOut, Moon, Sun, RotateCw, Send, Shield, CheckCircle2, Zap } from "lucide-react";
+import { LogOut, Moon, Sun, RotateCw, Send, CheckCircle2, Zap } from "lucide-react";
 import {
   describeWriteAction,
   getToolNameFromPart,
@@ -105,7 +105,7 @@ const SUGGESTIONS = [
   "List my Slack channels",
 ];
 
-const AnzenLogo = ({ isDark }: { isDark?: boolean }) => (
+const AnzenLogo = () => (
   <svg width="35" height="35" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <path id="petalFlat" d="M -30, -100 C -70,-220 -30,-310 0,-320 C 30,-310 70,-220 30,-100 Z" />
@@ -131,7 +131,7 @@ const AnzenLogo = ({ isDark }: { isDark?: boolean }) => (
   </svg>
 );
 
-function getMessageText(message: { role: string; content: unknown; parts?: unknown[] }): string {
+function getMessageText(message: { role: string; content?: unknown; parts?: unknown[] }): string {
   if (typeof message.content === "string") return message.content;
   if (Array.isArray(message.parts)) {
     return (message.parts as Array<{ type: string; text?: string }>)
@@ -144,7 +144,7 @@ function getMessageText(message: { role: string; content: unknown; parts?: unkno
   return "";
 }
 
-function messageHasVisibleContent(message: { role: string; content: unknown; parts?: unknown[] }): boolean {
+function messageHasVisibleContent(message: { role: string; content?: unknown; parts?: unknown[] }): boolean {
   if (message.role === "user") return true;
   if (getMessageText(message).trim()) return true;
   return getToolParts(message).some(
@@ -157,8 +157,6 @@ function messageHasVisibleContent(message: { role: string; content: unknown; par
 }
 
 export default function DashboardClient({
-  userName,
-  userEmail,
   tokenVaultScopesEnabled,
 }: {
   userName: string;
@@ -409,7 +407,7 @@ export default function DashboardClient({
         <div className="anzen-site-x" style={{ maxWidth: 1080, margin: "0 auto", height: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <button onClick={() => { setActivePage("dashboard"); setMessages([]); setInputValue(""); }}
             style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
-            <AnzenLogo isDark={d} />
+            <AnzenLogo />
             <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: tx }}>Anzen</span>
             <span style={{ fontSize: 11, color: muted, letterSpacing: "0.02em", fontWeight: 400 }}>安全</span>
           </button>
@@ -482,10 +480,10 @@ export default function DashboardClient({
                   <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
                     <AnimatePresence initial={false}>
                       {messages.map((m, i) => {
-                        const text = getMessageText(m as any);
-                        if (!messageHasVisibleContent(m as any)) return null;
+                        const text = getMessageText(m);
+                        if (!messageHasVisibleContent(m)) return null;
                         const isUser = m.role === "user";
-                        const toolParts = getToolParts(m as any);
+                        const toolParts = getToolParts(m);
                         return (
                           <motion.div key={m.id ?? i}
                             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
@@ -494,7 +492,7 @@ export default function DashboardClient({
                               <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", gap: 9, width: "100%" }}>
                                 {!isUser && (
                                   <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-                                    <AnzenLogo isDark={d} />
+                                    <AnzenLogo />
                                   </div>
                                 )}
                                 <div className="anzen-chat-bubble" style={{ fontSize: 14, lineHeight: 1.72, color: isUser ? tx : txLight, ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}) }}>
@@ -628,7 +626,7 @@ export default function DashboardClient({
                     {isLoading && (
                       <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
                         <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <AnzenLogo isDark={d} />
+                          <AnzenLogo />
                         </div>
                         <div style={{ display: "flex", gap: 4, padding: "9px 14px", background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 14px 3px", alignItems: "center" }}>
                           {[0, 1, 2].map((i) => (

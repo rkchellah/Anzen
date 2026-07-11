@@ -53,8 +53,15 @@ export function AnzenThemeProvider({ children }: { children: ReactNode }) {
     applyDocumentTheme(isDark);
   }, [isDark]);
 
+  // Re-read preference after client navigations (e.g. soft nav from another tab's write).
   useEffect(() => {
-    syncFromStorage();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) syncFromStorage();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [pathname, syncFromStorage]);
 
   useEffect(() => {

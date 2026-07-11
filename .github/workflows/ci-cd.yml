@@ -1,0 +1,92 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  ci:
+    name: Lint & typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+  deploy:
+    name: Deploy to Vercel
+    needs: ci
+    runs-on: ubuntu-latest
+    # Skip fork PRs — they cannot access repository secrets
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment (production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: vercel pull --yes --environment=production
+
+      - name: Pull Vercel environment (preview)
+        if: github.ref != 'refs/heads/main' || github.event_name == 'pull_request'
+        run: vercel pull --yes --environment=preview
+
+      - name: Build project artifacts (production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: vercel build --prod
+
+      - name: Build project artifacts (preview)
+        if: github.ref != 'refs/heads/main' || github.event_name == 'pull_request'
+        run: vercel build
+
+      - name: Deploy to Vercel (production)
+        id: deploy_prod
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          url=$(vercel deploy --prebuilt --prod)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Production deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "[$url]($url)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy to Vercel (preview)
+        id: deploy_preview
+        if: github.ref != 'refs/heads/main' || github.event_name == 'pull_request'
+        run: |
+          url=$(vercel deploy --prebuilt)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Preview deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "[$url]($url)" >> "$GITHUB_STEP_SUMMARY"

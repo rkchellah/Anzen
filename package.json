@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "ci": "npm run lint && npm run typecheck",
     "verify:isolation": "node scripts/verify-data-isolation.mjs"
   },
   "dependencies": {

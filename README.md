@@ -89,6 +89,46 @@ You'll need an Auth0 account with Token Vault enabled and a Groq API key (free a
 
 ---
 
+## CI/CD (GitHub Actions → Vercel)
+
+Anzen uses GitHub Actions for continuous integration and deployment. The workflow lives at [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml). Full one-time setup steps: [`docs/CI-CD-SETUP.md`](docs/CI-CD-SETUP.md).
+
+| Event | CI (lint + typecheck) | Deploy |
+| --- | --- | --- |
+| Pull request → `main` | Yes | Preview |
+| Push to `main` | Yes | Production |
+
+Local parity:
+
+```bash
+npm run ci          # lint + typecheck
+npm run typecheck   # tsc --noEmit
+```
+
+### Required secrets
+
+On `rkchellah/Anzen` → Settings → Secrets and variables → Actions:
+
+| Secret | Purpose |
+| --- | --- |
+| `VERCEL_TOKEN` | Vercel access token ([create one](https://vercel.com/account/tokens)) |
+| `VERCEL_ORG_ID` | From `.vercel/project.json` after `npx vercel link` |
+| `VERCEL_PROJECT_ID` | From `.vercel/project.json` after `npx vercel link` |
+
+Keep Auth0 / AI keys in the **Vercel** project env — `vercel pull` loads them during CI builds. Do not commit `.env.local`.
+
+### Disable Vercel Git auto-deploy
+
+Vercel Project → Settings → Git → turn off automatic deployments for Production and Preview. Otherwise every push triggers both Vercel’s Git deploy and the Actions deploy.
+
+### Success checks
+
+- Open a PR → Actions is green → preview URL in the job summary
+- Merge to `main` → production updates from the Actions deploy only
+- Break lint/types on a branch → CI fails → deploy job does not run
+
+---
+
 ## Stack
 
 - **Frontend**: Next.js 16 + TypeScript
@@ -103,6 +143,11 @@ You'll need an Auth0 account with Token Vault enabled and a Groq API key (free a
 
 ```
 Anzen/
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml             — GitHub Actions CI + Vercel deploy
+├── docs/
+│   └── CI-CD-SETUP.md            — One-time secrets & Vercel Git settings
 ├── app/
 │   ├── api/
 │   │   ├── chat/route.ts         — AI agent chat endpoint (Groq + tools)
