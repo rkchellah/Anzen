@@ -94,10 +94,38 @@ export function applyDocumentTheme(isDark: boolean): void {
   const root = document.documentElement;
 
   root.dataset.anzenTheme = isDark ? "dark" : "light";
+  root.classList.toggle("dark", isDark);
   root.style.colorScheme = isDark ? "dark" : "light";
   root.style.backgroundColor = theme.bg;
   document.body.style.backgroundColor = theme.bg;
   document.body.style.color = theme.text;
+
+  // Map Anzen palette → shadcn semantic tokens (chatbot kit)
+  root.style.setProperty("--background", theme.bg);
+  root.style.setProperty("--foreground", theme.text);
+  root.style.setProperty("--card", theme.surface);
+  root.style.setProperty("--card-foreground", theme.text);
+  root.style.setProperty("--popover", theme.surface);
+  root.style.setProperty("--popover-foreground", theme.text);
+  root.style.setProperty("--primary", theme.accent);
+  root.style.setProperty("--primary-foreground", "#000000");
+  root.style.setProperty("--secondary", theme.surface2);
+  root.style.setProperty("--secondary-foreground", theme.text);
+  root.style.setProperty("--muted", theme.surface2);
+  root.style.setProperty("--muted-foreground", theme.muted);
+  root.style.setProperty("--accent", theme.accentBg);
+  root.style.setProperty("--accent-foreground", theme.accentText);
+  root.style.setProperty("--border", theme.border);
+  root.style.setProperty("--input", theme.border);
+  root.style.setProperty("--ring", theme.accent);
+  root.style.setProperty("--sidebar", theme.surface);
+  root.style.setProperty("--sidebar-foreground", theme.text);
+  root.style.setProperty("--sidebar-primary", theme.accent);
+  root.style.setProperty("--sidebar-primary-foreground", "#000000");
+  root.style.setProperty("--sidebar-accent", theme.surface2);
+  root.style.setProperty("--sidebar-accent-foreground", theme.text);
+  root.style.setProperty("--sidebar-border", theme.border);
+  root.style.setProperty("--sidebar-ring", theme.accent);
 
   for (const [token, cssVar] of Object.entries(THEME_CSS_VAR_MAP) as Array<
     [keyof AnzenTheme, string]

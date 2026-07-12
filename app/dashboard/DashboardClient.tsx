@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
-import { LogOut, Moon, Sun, RotateCw, Send, CheckCircle2, Zap } from "lucide-react";
+import { LogOut, Moon, Sun, RotateCw, CheckCircle2 } from "lucide-react";
 import {
   describeWriteAction,
   getToolNameFromPart,
@@ -20,6 +20,8 @@ import { connectionKeyForToolName } from "@/lib/tool-errors";
 import { defaultUserPermissions, type ProviderAccessMode } from "@/lib/permissions";
 import { ConnectionAccessControl } from "@/components/ConnectionAccessControl";
 import { useAnzenTheme } from "@/components/AnzenThemeProvider";
+import { AnzenChatPanel } from "@/components/AnzenChatPanel";
+import { AnzenToolApprovals } from "@/components/AnzenToolApprovals";
 import { anzenPageStyle } from "@/components/anzen-theme";
 import { AI_PROVIDER_SHORT_LABEL } from "@/lib/ai-display";
 
@@ -176,7 +178,6 @@ export default function DashboardClient({
   const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
   const [activePage, setActivePage] = useState("dashboard");
   const { theme, isDark: dark, toggleDarkMode } = useAnzenTheme();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, status: chatStatus, setMessages, addToolApprovalResponse } = useChat({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
@@ -245,13 +246,9 @@ export default function DashboardClient({
 
   useEffect(() => {
     if (activePage === "history") {
-      fetchAuditLogs();
+      void fetchAuditLogs();
     }
   }, [activePage]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   const handleSend = () => {
     if (!inputValue.trim() || isLoading) return;
@@ -262,7 +259,18 @@ export default function DashboardClient({
     setApprovalGateError(null);
     const text = inputValue.trim();
     setInputValue("");
-    sendMessage({ text });
+    void sendMessage({ text });
+  };
+
+  const handleSuggestion = (text: string) => {
+    if (isLoading) return;
+    if (hasPendingManualApprovals(messages)) {
+      setApprovalGateError("Confirm or cancel the pending action above before sending a new message.");
+      return;
+    }
+    setApprovalGateError(null);
+    setInputValue("");
+    void sendMessage({ text });
   };
 
   const handleAccessModeChange = async (providerKey: ConnectionKey, mode: ProviderAccessMode) => {
@@ -474,257 +482,93 @@ export default function DashboardClient({
         {/* DASHBOARD */}
         {activePage === "dashboard" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)", overflow: "hidden" }}>
-            {isChatting && (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-                <div className="anzen-scrollbar anzen-site-x" style={{ flex: 1, overflowY: "auto", paddingTop: 24, paddingBottom: 0 }}>
-                  <div style={{ maxWidth: 680, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-                    <AnimatePresence initial={false}>
-                      {messages.map((m, i) => {
-                        const text = getMessageText(m);
-                        if (!messageHasVisibleContent(m)) return null;
-                        const isUser = m.role === "user";
-                        const toolParts = getToolParts(m);
-                        return (
-                          <motion.div key={m.id ?? i}
-                            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}
-                            style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: isUser ? "flex-end" : "flex-start" }}>
-                            {(text.trim() || isUser) && (
-                              <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", alignItems: "flex-start", gap: 9, width: "100%" }}>
-                                {!isUser && (
-                                  <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-                                    <AnzenLogo />
-                                  </div>
-                                )}
-                                <div className="anzen-chat-bubble" style={{ fontSize: 14, lineHeight: 1.72, color: isUser ? tx : txLight, ...(isUser ? { background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 3px 14px", padding: "9px 14px" } : {}) }}>
-                                  {text.split("\n").map((line, j, arr) => (
-                                    <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {!isUser && toolParts.map((part) => {
-                              const toolName = getToolNameFromPart(part);
-
-                              if (isToolErrorPart(part)) {
-                                const reconnectKey = reconnectKeyForToolPart(part);
-                                return (
-                                  <div key={part.toolCallId ?? `${toolName}-error`}
-                                    className="anzen-tool-card"
-                                    style={{ ...card, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)" }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 8px" }}>
-                                      Couldn&apos;t complete action
-                                    </p>
-                                    <p style={{ fontSize: 14, color: tx, margin: "0 0 14px", lineHeight: 1.6 }}>{part.errorText}</p>
-                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" as const }}>
-                                      {reconnectKey && (
-                                        <a
-                                          href={buildConnectUrl(reconnectKey, "/dashboard")}
-                                          style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", textDecoration: "none", fontFamily: "inherit" }}>
-                                          Reconnect {CONNECTIONS[reconnectKey].label}
-                                        </a>
-                                      )}
-                                      <button
-                                        type="button"
-                                        onClick={() => setActivePage("connections")}
-                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: muted, border: `1px solid ${border}`, cursor: "pointer", fontFamily: "inherit" }}>
-                                        Open Connections
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              if (!isWriteToolName(toolName)) return null;
-
-                              if (part.state === "approval-requested" && part.approval?.id) {
-                                const summary = describeWriteAction(toolName, part.input);
-                                const writeKey = connectionKeyForToolName(toolName);
-                                if (writeKey && accessModes[writeKey] === "read") {
-                                  return (
-                                    <div key={part.toolCallId ?? part.approval.id}
-                                      className="anzen-tool-card"
-                                      style={{ ...card, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)" }}>
-                                      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 8px" }}>
-                                        Write action blocked
-                                      </p>
-                                      <p style={{ fontSize: 14, color: tx, margin: "0 0 8px", lineHeight: 1.6 }}>{summary}</p>
-                                      <p style={{ fontSize: 13, color: muted, margin: "0 0 14px", lineHeight: 1.5 }}>
-                                        {CONNECTIONS[writeKey].label} is set to read-only. Switch to Read &amp; write in Connections to allow this.
-                                      </p>
-                                      <button
-                                        type="button"
-                                        onClick={() => setActivePage("connections")}
-                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-                                        Open Connections
-                                      </button>
-                                    </div>
-                                  );
-                                }
-                                return (
-                                  <div key={part.toolCallId ?? part.approval.id}
-                                    className="anzen-tool-card"
-                                    style={{ ...card, padding: "16px 18px", borderColor: `${accent}35` }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: accentTx, margin: "0 0 8px" }}>
-                                      Confirm action
-                                    </p>
-                                    <p style={{ fontSize: 14, color: tx, margin: "0 0 14px", lineHeight: 1.6 }}>{summary}</p>
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                      <button
-                                        type="button"
-                                        onClick={() => addToolApprovalResponse({ id: part.approval!.id, approved: true })}
-                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: accent, color: "#000", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-                                        Confirm
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => addToolApprovalResponse({ id: part.approval!.id, approved: false, reason: "User cancelled" })}
-                                        style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: muted, border: `1px solid ${border}`, cursor: "pointer", fontFamily: "inherit" }}>
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              if (part.state === "approval-responded" && part.approval) {
-                                return (
-                                  <div key={part.toolCallId ?? part.approval.id}
-                                    className="anzen-tool-card"
-                                    style={{ fontSize: 12, color: muted }}>
-                                    {part.approval.approved ? "Confirmed — running action…" : "Action cancelled."}
-                                  </div>
-                                );
-                              }
-
-                              if (part.state === "output-denied") {
-                                const summary = describeWriteAction(toolName, part.input);
-                                const reason =
-                                  typeof part.approval?.reason === "string" ? part.approval.reason : null;
-                                return (
-                                  <div key={part.toolCallId ?? `${toolName}-denied`}
-                                    className="anzen-tool-card"
-                                    style={{ ...card, padding: "14px 16px", borderColor: "rgba(248,113,113,0.35)" }}>
-                                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "#f87171", margin: "0 0 6px" }}>
-                                      Action blocked
-                                    </p>
-                                    <p style={{ fontSize: 13, color: tx, margin: "0 0 6px", lineHeight: 1.55 }}>{summary}</p>
-                                    <p style={{ fontSize: 12, color: muted, margin: 0, lineHeight: 1.5 }}>
-                                      {reason ?? "Action was not performed (cancelled or denied)."}
-                                    </p>
-                                  </div>
-                                );
-                              }
-
-                              return null;
-                            })}
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-
-                    {isLoading && (
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-                        <div style={{ width: 26, height: 26, borderRadius: 7, background: accentBg, border: `1px solid ${accent}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <AnzenLogo />
-                        </div>
-                        <div style={{ display: "flex", gap: 4, padding: "9px 14px", background: surface2, border: `1px solid ${border}`, borderRadius: "14px 14px 14px 3px", alignItems: "center" }}>
-                          {[0, 1, 2].map((i) => (
-                            <motion.span key={i} animate={{ y: [0, -4, 0] }} transition={{ duration: 0.55, repeat: Infinity, delay: i * 0.1 }}
-                              style={{ width: 5, height: 5, borderRadius: "50%", background: accent, opacity: 0.8, display: "block" }} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {!isChatting && (
-              <div className="anzen-site-x" style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 32, paddingBottom: 16, gap: 28, minHeight: 0, overflowY: "auto" }}>
-                <div style={{ textAlign: "center", maxWidth: 520, width: "100%" }}>
-                  <h1 className="anzen-dash-hero-title" style={{ fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.08, margin: "0 0 12px", color: tx }}>
-                    What can I<br />help with?
-                  </h1>
-                  <p style={{ fontSize: 15, color: muted, margin: 0, lineHeight: 1.65 }}>
-                    Your AI Chief of Staff — secured by Auth0 Token Vault.
-                  </p>
-                </div>
-
-                <div className="anzen-grid-3" style={{ width: "100%", maxWidth: 500 }}>
-                  {activeProviders.map((p) => {
-                    const connected = connStatus[p.key as keyof ConnectionStatus];
-                    return (
-                      <a
-                        key={p.key}
-                        href={connected || !tokenVaultScopesEnabled ? "#" : p.connectHref}
-                        onClick={(e) => {
-                          if (connected || !tokenVaultScopesEnabled) e.preventDefault();
-                        }}
-                        style={{ ...card, padding: "20px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textDecoration: "none", cursor: connected || !tokenVaultScopesEnabled ? "default" : "pointer", transition: "all 0.18s", ...(connected ? { borderColor: `${accent}30` } : { opacity: tokenVaultScopesEnabled ? 0.52 : 0.35 }) }}
-                        onMouseEnter={(e) => { if (!connected) { e.currentTarget.style.opacity = "0.78"; e.currentTarget.style.transform = "translateY(-2px)"; } }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = connected ? "1" : "0.52"; e.currentTarget.style.transform = "none"; }}>
-                        <div style={{ width: 52, height: 52, background: surface2, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${border}` }}>{p.icon}</div>
-                        <div style={{ textAlign: "center" }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: tx, margin: "0 0 2px" }}>{p.label}</p>
-                          <p style={{ fontSize: 11, color: muted, margin: 0 }}>{p.desc}</p>
-                        </div>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: connected ? accent : subtle, display: "block", boxShadow: connected ? `0 0 6px ${accent}` : "none" }} />
-                      </a>
-                    );
-                  })}
-                </div>
-
-                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 7, maxWidth: 500 }}>
-                  {SUGGESTIONS.map((s) => (
-                    <button key={s} onClick={() => setInputValue(s)}
-                      style={{ padding: "7px 14px", borderRadius: 999, border: `1px solid ${border}`, background: "transparent", fontSize: 12.5, color: muted, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = tx; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = muted; e.currentTarget.style.transform = "none"; }}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="anzen-site-x anzen-chat-composer" style={{ flexShrink: 0, paddingTop: 12, background: bg }}>
-              <div style={{ maxWidth: 680, margin: "0 auto" }}>
-                {pendingApprovals.length > 0 && (
-                  <div style={{ ...card, padding: "12px 14px", marginBottom: 10, borderColor: `${accent}40`, background: accentBg }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: accentTx, margin: "0 0 4px" }}>
-                      {pendingApprovals.length === 1
-                        ? "1 action waiting for your confirmation"
-                        : `${pendingApprovals.length} actions waiting for your confirmation`}
-                    </p>
-                    <p style={{ fontSize: 12, color: muted, margin: 0, lineHeight: 1.45 }}>
-                      Review the Confirm / Cancel cards above. New messages are paused until you respond.
+            <AnzenChatPanel
+              messages={messages}
+              input={inputValue}
+              onInputChange={(value) => {
+                setInputValue(value);
+                if (approvalGateError) setApprovalGateError(null);
+              }}
+              onSubmit={handleSend}
+              onSuggestion={handleSuggestion}
+              isGenerating={isLoading}
+              suggestions={SUGGESTIONS}
+              inputDisabled={pendingApprovals.length > 0}
+              placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Ask Anzen anything…"}
+              emptyState={
+                <div className="anzen-site-x" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 32, paddingBottom: 16, gap: 28 }}>
+                  <div style={{ textAlign: "center", maxWidth: 520, width: "100%" }}>
+                    <h1 className="anzen-dash-hero-title" style={{ fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.08, margin: "0 0 12px", color: tx }}>
+                      What can I<br />help with?
+                    </h1>
+                    <p style={{ fontSize: 15, color: muted, margin: 0, lineHeight: 1.65 }}>
+                      Your AI Chief of Staff — secured by Auth0 Token Vault.
                     </p>
                   </div>
-                )}
-                {approvalGateError && (
-                  <p style={{ fontSize: 12, color: "#f87171", margin: "0 0 8px", lineHeight: 1.45 }}>{approvalGateError}</p>
-                )}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, background: surface, border: `1px solid ${border}`, borderRadius: 999, padding: "6px 8px 6px 12px" }}>
-                  <Zap size={14} style={{ color: accentTx, flexShrink: 0 }} />
-                  <input value={inputValue} onChange={(e) => { setInputValue(e.target.value); if (approvalGateError) setApprovalGateError(null); }}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                    placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Ask Anzen anything…"}
-                    disabled={pendingApprovals.length > 0}
-                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 13, color: tx, fontFamily: "inherit", lineHeight: 1.4, padding: "2px 0" }} />
-                  <button onClick={handleSend} disabled={!inputValue.trim() || isLoading || pendingApprovals.length > 0}
-                    style={{ width: 28, height: 28, borderRadius: 999, border: "none", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", cursor: inputValue.trim() && !isLoading ? "pointer" : "not-allowed", background: inputValue.trim() && !isLoading ? accent : (d ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"), color: inputValue.trim() && !isLoading ? "#000" : muted, opacity: inputValue.trim() || isLoading ? 1 : 0.35, padding: 0 }}>
-                    <Send size={12} />
-                  </button>
+                  <div className="anzen-grid-3" style={{ width: "100%", maxWidth: 500 }}>
+                    {activeProviders.map((p) => {
+                      const connected = connStatus[p.key as keyof ConnectionStatus];
+                      return (
+                        <a
+                          key={p.key}
+                          href={connected || !tokenVaultScopesEnabled ? "#" : p.connectHref}
+                          onClick={(e) => {
+                            if (connected || !tokenVaultScopesEnabled) e.preventDefault();
+                          }}
+                          style={{ ...card, padding: "20px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textDecoration: "none", cursor: connected || !tokenVaultScopesEnabled ? "default" : "pointer", transition: "all 0.18s", ...(connected ? { borderColor: `${accent}30` } : { opacity: tokenVaultScopesEnabled ? 0.52 : 0.35 }) }}
+                        >
+                          <div style={{ width: 52, height: 52, background: surface2, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${border}` }}>{p.icon}</div>
+                          <div style={{ textAlign: "center" }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: tx, margin: "0 0 2px" }}>{p.label}</p>
+                            <p style={{ fontSize: 11, color: muted, margin: 0 }}>{p.desc}</p>
+                          </div>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: connected ? accent : subtle, display: "block", boxShadow: connected ? `0 0 6px ${accent}` : "none" }} />
+                        </a>
+                      );
+                    })}
+                  </div>
                 </div>
-                <p style={{ fontSize: 11, color: caption, textAlign: "center", margin: "8px 0 0", lineHeight: 1.45 }}>
+              }
+              toolApprovals={
+                <AnzenToolApprovals
+                  messages={messages}
+                  accessModes={accessModes}
+                  onOpenConnections={() => setActivePage("connections")}
+                  onApprove={(id, approved, reason) =>
+                    addToolApprovalResponse(
+                      approved
+                        ? { id, approved: true }
+                        : { id, approved: false, reason: reason ?? "User cancelled" }
+                    )
+                  }
+                />
+              }
+              composerNotice={
+                <>
+                  {pendingApprovals.length > 0 && (
+                    <div style={{ ...card, padding: "12px 14px", marginBottom: 10, borderColor: `${accent}40`, background: accentBg }}>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: accentTx, margin: "0 0 4px" }}>
+                        {pendingApprovals.length === 1
+                          ? "1 action waiting for your confirmation"
+                          : `${pendingApprovals.length} actions waiting for your confirmation`}
+                      </p>
+                      <p style={{ fontSize: 12, color: muted, margin: 0, lineHeight: 1.45 }}>
+                        Review the Confirm / Cancel cards above. New messages are paused until you respond.
+                      </p>
+                    </div>
+                  )}
+                  {approvalGateError && (
+                    <p style={{ fontSize: 12, color: "#f87171", margin: "0 0 8px", lineHeight: 1.45 }}>{approvalGateError}</p>
+                  )}
+                </>
+              }
+              footer={
+                <p className="mt-2 text-center text-[11px] leading-[1.45] text-muted-foreground">
                   Chat and content from your connected accounts are processed by {AI_PROVIDER_SHORT_LABEL} to generate responses.{" "}
-                  <a href="/privacy" style={{ color: caption, textDecoration: "underline", textUnderlineOffset: 2 }}>Privacy</a>
+                  <a href="/privacy" className="underline underline-offset-2">Privacy</a>
                 </p>
-              </div>
-            </div>
+              }
+            />
           </div>
         )}
 
