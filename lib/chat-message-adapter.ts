@@ -17,34 +17,40 @@ export function getUiMessageText(message: UIMessage): string {
  * for MessageList / ChatMessage rendering.
  */
 export function toKitMessages(messages: UIMessage[]): Message[] {
-  return messages
-    .map((message) => {
-      const content = getUiMessageText(message);
-      if (!content.trim() && message.role !== "user") {
-        // Skip assistant messages that are only tool/approval parts
-        const hasText = message.parts?.some((p) => p.type === "text" && Boolean((p as { text?: string }).text?.trim()));
-        if (!hasText) return null;
+  const result: Message[] = [];
+
+  for (const message of messages) {
+    const content = getUiMessageText(message);
+    const hasText = message.parts?.some(
+      (p) => p.type === "text" && Boolean((p as { text?: string }).text?.trim())
+    );
+
+    if (!content.trim() && message.role !== "user" && !hasText) {
+      continue;
+    }
+
+    const parts: Message["parts"] = [];
+    for (const p of message.parts ?? []) {
+      if (p.type === "text") {
+        parts.push({ type: "text", text: p.text });
+      } else if (p.type === "reasoning") {
+        const text =
+          "text" in p && typeof p.text === "string"
+            ? p.text
+            : "reasoning" in p && typeof (p as { reasoning?: string }).reasoning === "string"
+              ? (p as { reasoning: string }).reasoning
+              : "";
+        parts.push({ type: "reasoning", reasoning: text });
       }
-      return {
-        id: message.id,
-        role: message.role,
-        content,
-        parts: message.parts
-          ?.filter((p) => p.type === "text" || p.type === "reasoning")
-          .map((p) => {
-            if (p.type === "text") return { type: "text" as const, text: p.text };
-            if (p.type === "reasoning") {
-              const text =
-                "text" in p && typeof p.text === "string"
-                  ? p.text
-                  : "reasoning" in p && typeof (p as { reasoning?: string }).reasoning === "string"
-                    ? (p as { reasoning: string }).reasoning
-                    : "";
-              return { type: "reasoning" as const, reasoning: text };
-            }
-            return { type: "text" as const, text: "" };
-          }),
-      } satisfies Message;
-    })
-    .filter((m): m is Message => m !== null);
+    }
+
+    result.push({
+      id: message.id,
+      role: message.role,
+      content,
+      parts: parts.length > 0 ? parts : undefined,
+    });
+  }
+
+  return result;
 }

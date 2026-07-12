@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { UIMessage } from "ai";
 import {
   describeWriteAction,
@@ -36,7 +37,7 @@ export function AnzenToolApprovals({
     borderRadius: 14,
   } as const;
 
-  const blocks: React.ReactNode[] = [];
+  const blocks: ReactNode[] = [];
 
   for (const m of messages) {
     if (m.role === "user") continue;

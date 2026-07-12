@@ -1,22 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { motion, AnimatePresence } from "framer-motion";
 import { LogOut, Moon, Sun, RotateCw, CheckCircle2 } from "lucide-react";
-import {
-  describeWriteAction,
-  getToolNameFromPart,
-  getToolParts,
-  isToolErrorPart,
-  isWriteToolName,
-  reconnectKeyForToolPart,
-} from "@/agent/action-descriptions";
 import { findPendingManualApprovals, hasPendingManualApprovals } from "@/agent/pending-approvals";
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import { buildLogoutUrl } from "@/lib/auth-routes";
-import { connectionKeyForToolName } from "@/lib/tool-errors";
 import { defaultUserPermissions, type ProviderAccessMode } from "@/lib/permissions";
 import { ConnectionAccessControl } from "@/components/ConnectionAccessControl";
 import { useAnzenTheme } from "@/components/AnzenThemeProvider";
@@ -133,31 +123,6 @@ const AnzenLogo = () => (
   </svg>
 );
 
-function getMessageText(message: { role: string; content?: unknown; parts?: unknown[] }): string {
-  if (typeof message.content === "string") return message.content;
-  if (Array.isArray(message.parts)) {
-    return (message.parts as Array<{ type: string; text?: string }>)
-      .filter((p) => p.type === "text").map((p) => p.text ?? "").join("");
-  }
-  if (Array.isArray(message.content)) {
-    return (message.content as Array<{ type: string; text?: string }>)
-      .filter((p) => p.type === "text").map((p) => p.text ?? "").join("");
-  }
-  return "";
-}
-
-function messageHasVisibleContent(message: { role: string; content?: unknown; parts?: unknown[] }): boolean {
-  if (message.role === "user") return true;
-  if (getMessageText(message).trim()) return true;
-  return getToolParts(message).some(
-    (part) =>
-      part.state === "approval-requested" ||
-      part.state === "approval-responded" ||
-      part.state === "output-denied" ||
-      part.state === "output-error"
-  );
-}
-
 export default function DashboardClient({
   tokenVaultScopesEnabled,
 }: {
@@ -183,7 +148,6 @@ export default function DashboardClient({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const isLoading = chatStatus === "streaming" || chatStatus === "submitted";
-  const isChatting = messages.length > 0;
   const pendingApprovals = findPendingManualApprovals(messages);
 
   const fetchPermissions = async () => {
@@ -330,7 +294,6 @@ export default function DashboardClient({
   const surface2 = theme.surface2;
   const border = theme.border;
   const tx = theme.text;
-  const txLight = theme.textLight;
   const muted = theme.muted;
   const subtle = theme.subtle;
   const accent = theme.accent;

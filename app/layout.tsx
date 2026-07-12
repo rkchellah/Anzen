@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, DM_Sans, Space_Mono, Plus_Jakarta_Sans, Manrope } from "next/font/google";
+import { Inter, DM_Sans, Space_Mono, Plus_Jakarta_Sans, Manrope, Geist } from "next/font/google";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { AnzenThemeInitScript } from "@/components/AnzenThemeInitScript";
 import { AnzenThemeProvider } from "@/components/AnzenThemeProvider";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,7 +60,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${dmSans.variable} ${spaceMono.variable} ${plusJakartaSans.variable} ${manrope.variable}`}
+      className={cn(inter.variable, dmSans.variable, spaceMono.variable, plusJakartaSans.variable, manrope.variable, "font-sans", geist.variable)}
       suppressHydrationWarning
     >
       <head>
