@@ -89,44 +89,31 @@ You'll need an Auth0 account with Token Vault enabled and a Groq API key (free a
 
 ---
 
-## CI/CD (CircleCI → Vercel)
+## CI/CD (CircleCI + Vercel Git)
 
-Anzen uses CircleCI for continuous integration and deployment. The pipeline lives at [`.circleci/config.yml`](.circleci/config.yml). Full one-time setup: [`docs/CI-CD-SETUP.md`](docs/CI-CD-SETUP.md).
+CircleCI runs lint + typecheck. Vercel deploys from the GitHub connection. Pipeline: [`.circleci/config.yml`](.circleci/config.yml). Setup: [`docs/CI-CD-SETUP.md`](docs/CI-CD-SETUP.md).
 
 | Event | CI (lint + typecheck) | Deploy |
 | --- | --- | --- |
-| Branch / pull request | Yes | Preview |
-| Push to `main` | Yes | Production |
+| Branch / pull request | CircleCI | Vercel preview |
+| Push to `main` | CircleCI | Vercel production |
 
 Local parity:
 
 ```bash
 npm run ci          # lint + typecheck
 npm run typecheck   # tsc --noEmit
-circleci config validate .circleci/config.yml   # optional
 ```
 
-### Required environment variables
+### Vercel Git settings
 
-In CircleCI → Project Settings → Environment Variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `VERCEL_TOKEN` | Vercel access token ([create one](https://vercel.com/account/tokens)) |
-| `VERCEL_ORG_ID` | From `.vercel/project.json` after `npx vercel link` |
-| `VERCEL_PROJECT_ID` | From `.vercel/project.json` after `npx vercel link` |
-
-Keep Auth0 / AI keys in the **Vercel** project env — `vercel pull` loads them during CI builds. Do not commit `.env.local`.
-
-### Disable Vercel Git auto-deploy
-
-Vercel Project → Settings → Git → turn off automatic deployments for Production and Preview. Otherwise every push triggers both Vercel’s Git deploy and the CircleCI deploy.
+Vercel → anzen → Settings → Git → **Ignored Build Step = Off** (do not use “Don’t build anything”). Keep the repo connected so pushes deploy.
 
 ### Success checks
 
-- Open a PR → CircleCI is green → preview URL in the `deploy` job
-- Merge to `main` → production updates from CircleCI only
-- Break lint/types on a branch → `ci` fails → `deploy` does not run
+- Open a PR → CircleCI green + Vercel preview
+- Merge to `main` → production updates from Vercel
+- Break lint/types → CircleCI fails
 
 ---
 
@@ -145,9 +132,9 @@ Vercel Project → Settings → Git → turn off automatic deployments for Produ
 ```
 Anzen/
 ├── .circleci/
-│   └── config.yml                — CircleCI lint/typecheck + Vercel deploy
+│   └── config.yml                — CircleCI lint + typecheck
 ├── docs/
-│   └── CI-CD-SETUP.md            — One-time CircleCI env vars & Vercel Git settings
+│   └── CI-CD-SETUP.md            — CircleCI + Vercel Git setup
 ├── app/
 │   ├── api/
 │   │   ├── chat/route.ts         — AI agent chat endpoint (Groq + tools)

@@ -1,4 +1,5 @@
-# CircleCI — lint/typecheck + Vercel deploy
+# CircleCI — lint + typecheck
+# Production/preview deploys: Vercel Git integration (not CLI)
 version: 2.1
 
 orbs:
@@ -19,77 +20,7 @@ jobs:
           name: Typecheck
           command: npm run typecheck
 
-  deploy:
-    docker:
-      - image: cimg/node:20.19
-    steps:
-      - checkout
-      - run:
-          name: Require Vercel credentials
-          command: |
-            set -e
-            if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
-              echo "Missing VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID"
-              exit 1
-            fi
-            # Trim paste artifacts
-            export VERCEL_TOKEN="$(printf '%s' "$VERCEL_TOKEN" | tr -d '\r\n ')"
-            export VERCEL_ORG_ID="$(printf '%s' "$VERCEL_ORG_ID" | tr -d '\r\n ')"
-            export VERCEL_PROJECT_ID="$(printf '%s' "$VERCEL_PROJECT_ID" | tr -d '\r\n ')"
-            {
-              echo "export VERCEL_TOKEN=$(printf %q "$VERCEL_TOKEN")"
-              echo "export VERCEL_ORG_ID=$(printf %q "$VERCEL_ORG_ID")"
-              echo "export VERCEL_PROJECT_ID=$(printf %q "$VERCEL_PROJECT_ID")"
-            } >> "$BASH_ENV"
-            echo "ORG len=${#VERCEL_ORG_ID} PROJECT len=${#VERCEL_PROJECT_ID} TOKEN len=${#VERCEL_TOKEN}"
-      - run:
-          name: Install Vercel CLI
-          command: npm install --global vercel@latest && vercel --version
-      - run:
-          name: Verify token can access project
-          command: |
-            set -e
-            echo "=== vercel whoami ==="
-            vercel whoami --token="$VERCEL_TOKEN"
-            echo "=== API project check ==="
-            CODE=$(curl -sS -o /tmp/vercel-project.json -w "%{http_code}" \
-              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-              "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}")
-            echo "HTTP $CODE"
-            cat /tmp/vercel-project.json
-            echo
-            if [ "$CODE" != "200" ]; then
-              echo "Token cannot read project (HTTP $CODE). Wrong account/team scope on the token."
-              exit 1
-            fi
-      - run:
-          name: Deploy to Vercel
-          command: |
-            set -e
-            # CLI deploy builds on Vercel — does not use Git "Ignored Build Step"
-            mkdir -p .vercel
-            printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
-
-            if [ "$CIRCLE_BRANCH" = "main" ] && [ -z "${CIRCLE_PULL_REQUEST:-}" ]; then
-              url=$(vercel deploy --yes --prod \
-                --token="$VERCEL_TOKEN" \
-                --scope=rkchellahs-projects)
-              echo "Production deployment: $url"
-            else
-              url=$(vercel deploy --yes \
-                --token="$VERCEL_TOKEN" \
-                --scope=rkchellahs-projects)
-              echo "Preview deployment: $url"
-            fi
-            echo "$url" > /tmp/deploy-url.txt
-      - store_artifacts:
-          path: /tmp/deploy-url.txt
-          destination: deploy-url.txt
-
 workflows:
-  ci-cd:
+  ci:
     jobs:
       - ci
-      - deploy:
-          requires:
-            - ci

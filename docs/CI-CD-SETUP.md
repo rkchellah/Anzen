@@ -1,54 +1,33 @@
-# One-time CI/CD setup (CircleCI → Vercel)
+# One-time CI/CD setup (CircleCI + Vercel Git)
 
-Anzen deploys via **CircleCI**, not GitHub Actions. Config: [`.circleci/config.yml`](../.circleci/config.yml).
+**CircleCI** runs lint + typecheck. **Vercel** deploys from GitHub (production on `main`, preview on other branches).
 
-## 1. Connect the repo in CircleCI
+Config: [`.circleci/config.yml`](../.circleci/config.yml).
 
-1. Open https://app.circleci.com/ → **Projects**
-2. Find `rkchellah/Anzen` (GitHub) → **Set Up Project**
-3. Use the existing config at `.circleci/config.yml` (fastest path)
+## 1. CircleCI project
 
-## 2. Project environment variables
+1. https://app.circleci.com/ → **Projects** → `rkchellah/Anzen`
+2. Use existing `.circleci/config.yml`
+3. Trigger: **All pushes** (already set)
 
-CircleCI → Project Settings → **Environment Variables** — add:
+No Vercel tokens needed in CircleCI for this setup.
 
-| Name | Value |
-| --- | --- |
-| `VERCEL_TOKEN` | [Create a token](https://vercel.com/account/tokens) with access to the anzen project |
-| `VERCEL_ORG_ID` | From `.vercel/project.json` after `npx vercel link` (`orgId`) |
-| `VERCEL_PROJECT_ID` | From `.vercel/project.json` (`projectId`) |
+## 2. Vercel Git deploy (required)
 
-Auth0 / AI keys stay in the **Vercel** project env — `vercel pull` loads them during CI builds. Do not put secrets in the repo.
+1. Vercel → **anzen** → **Settings** → **Git**
+2. Ensure the GitHub repo `rkchellah/Anzen` is connected
+3. **Ignored Build Step**: set to **Off** / clear any custom ignore (do **not** use “Don’t build anything”)
+4. Production branch: `main`
 
-## 3. Disable Vercel Git auto-deploy
+## 3. Verify
 
-1. Vercel → Anzen project → **Settings** → **Git**
-2. Turn off automatic deployments for **Production** and **Preview**
-3. Keep the GitHub connection so the project stays linked; only CircleCI should deploy
-
-Without this, every push triggers both Vercel’s Git deploy and the CircleCI deploy.
-
-## 4. Disable GitHub Actions (if still enabled)
-
-If an old Actions workflow remains under `.github/workflows/`, delete it or disable Actions for the repo (Settings → Actions → Disable). CircleCI owns CI/CD now.
-
-## 5. Verify
-
-1. Push a branch or open a PR → CircleCI **ci-cd** workflow runs
-2. Confirm preview URL in the `deploy` job logs / artifact `deploy-url.txt`
-3. Merge to `main` → production deploy from CircleCI only
-4. Break lint/types → `ci` fails → `deploy` does not run
+1. Push to `main` → CircleCI `ci` green + Vercel production deploy
+2. Open a PR → CircleCI `ci` + Vercel preview
+3. Break lint/types → CircleCI fails (Vercel may still build unless you add a check gate later)
 
 ## Local parity
 
 ```bash
 npm run ci          # lint + typecheck
 npm run typecheck   # tsc --noEmit
-```
-
-Optional: validate CircleCI config locally (CLI via winget `CircleCI.CLI.Preview`; requires `circleci auth login` once):
-
-```bash
-circleci auth login
-circleci config validate .circleci/config.yml
 ```
