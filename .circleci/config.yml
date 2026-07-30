@@ -57,26 +57,40 @@ jobs:
               echo "No .vercel/.env.*.local from vercel pull"
               exit 1
             fi
-            # Use key=value split that keeps '=' inside values (secrets often contain '=')
+
+            echo "=== keys present in pulled file (names only) ==="
+            grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE" | cut -d= -f1 | sort
+
+            echo "=== CircleCI job env (may override vercel pull) lengths ==="
+            for KEY in AUTH0_DOMAIN APP_BASE_URL AUTH0_CLIENT_ID AUTH0_SECRET AUTH0_AUDIENCE; do
+              eval "V=\${$KEY-}"
+              if [ -z "$V" ]; then
+                echo "job env $KEY: UNSET"
+              else
+                echo "job env $KEY: set length=${#V} first_char=${V:0:1}"
+              fi
+            done
+
+            echo "=== redacted .vercel env file (values never printed) ==="
             while IFS= read -r line || [ -n "$line" ]; do
               case "$line" in
-                ''|\#*) continue ;;
+                ''|\#*) echo "$line"; continue ;;
               esac
               key="${line%%=*}"
               value="${line#*=}"
-              # strip CR, surrounding double/single quotes
               value="${value%$'\r'}"
               case "$value" in
                 \"*\") value="${value#\"}"; value="${value%\"}" ;;
                 \'*\') value="${value#\'}"; value="${value%\'}" ;;
               esac
-              case "$key" in
-                AUTH0_DOMAIN|APP_BASE_URL|AUTH0_CLIENT_ID|AUTH0_SECRET|AUTH0_AUDIENCE)
-                  echo "$key: present, length=${#value}"
-                  ;;
-              esac
+              if [ -n "$value" ]; then
+                echo "${key}=<redacted len=${#value} first=${value:0:1}>"
+              else
+                echo "${key}=<empty>"
+              fi
             done < "$ENV_FILE"
-            # First character only — format check without exposing secrets
+
+            echo "=== Auth0/APP_BASE first_char from file ==="
             get_val() {
               local k="$1" line key value
               while IFS= read -r line || [ -n "$line" ]; do
@@ -95,8 +109,8 @@ jobs:
             }
             D=$(get_val AUTH0_DOMAIN || true)
             B=$(get_val APP_BASE_URL || true)
-            if [ -n "$D" ]; then echo "AUTH0_DOMAIN first_char=${D:0:1}"; else echo "AUTH0_DOMAIN first_char: MISSING"; fi
-            if [ -n "$B" ]; then echo "APP_BASE_URL first_char=${B:0:1}"; else echo "APP_BASE_URL first_char: MISSING"; fi
+            if [ -n "$D" ]; then echo "AUTH0_DOMAIN first_char=${D:0:1} length=${#D}"; else echo "AUTH0_DOMAIN: MISSING from file"; fi
+            if [ -n "$B" ]; then echo "APP_BASE_URL first_char=${B:0:1} length=${#B}"; else echo "APP_BASE_URL: MISSING from file"; fi
       - run:
           name: Build project artifacts
           command: |
