@@ -1,4 +1,5 @@
 # CircleCI — lint/typecheck + Vercel deploy (replaces GitHub Actions)
+# See: https://vercel.com/guides/how-can-i-use-circleci-with-vercel
 version: 2.1
 
 orbs:
@@ -22,7 +23,10 @@ jobs:
   deploy:
     docker:
       - image: cimg/node:20.19
-    # VERCEL_* come from Project Settings → Environment Variables
+    # Official Vercel + CircleCI pattern: re-export project env into the job
+    environment:
+      VERCEL_ORG_ID: $VERCEL_ORG_ID
+      VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
     steps:
       - checkout
       - run:
@@ -33,9 +37,16 @@ jobs:
               echo "Set them in CircleCI → Project Settings → Environment Variables"
               exit 1
             fi
+            echo "ORG_ID length=${#VERCEL_ORG_ID} PROJECT_ID length=${#VERCEL_PROJECT_ID} TOKEN length=${#VERCEL_TOKEN}"
       - run:
           name: Install Vercel CLI
-          command: npm install --global vercel@latest
+          command: npm install --global vercel@latest && vercel --version
+      - run:
+          name: Link project from env
+          command: |
+            mkdir -p .vercel
+            printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
+            cat .vercel/project.json
       - run:
           name: Pull Vercel environment
           command: |
