@@ -44,6 +44,28 @@ jobs:
               vercel pull --yes --environment=preview --token="$VERCEL_TOKEN" --debug
             fi
       - run:
+          name: Verify Auth0 env keys after vercel pull
+          command: |
+            # vercel pull writes .vercel/.env.*.local — print presence/length only
+            ENV_FILE=""
+            if [ -f .vercel/.env.production.local ]; then ENV_FILE=.vercel/.env.production.local; fi
+            if [ -f .vercel/.env.preview.local ]; then ENV_FILE=.vercel/.env.preview.local; fi
+            echo "env file: ${ENV_FILE:-NONE}"
+            for KEY in AUTH0_DOMAIN APP_BASE_URL AUTH0_CLIENT_ID AUTH0_SECRET AUTH0_AUDIENCE; do
+              if [ -z "$ENV_FILE" ]; then
+                echo "$KEY: no env file from pull"
+                continue
+              fi
+              LINE=$(grep -E "^${KEY}=" "$ENV_FILE" || true)
+              if [ -z "$LINE" ]; then
+                echo "$KEY: MISSING from pulled env"
+              else
+                VAL="${LINE#*=}"
+                VAL="${VAL%\"}"; VAL="${VAL#\"}"
+                echo "$KEY: present length=${#VAL}"
+              fi
+            done
+      - run:
           name: Build project artifacts
           command: |
             if [ "$CIRCLE_BRANCH" = "main" ] && [ -z "${CIRCLE_PULL_REQUEST:-}" ]; then
