@@ -1,5 +1,5 @@
-# CircleCI — lint + typecheck
-# Production/preview deploys: Vercel Git integration (not CLI)
+# CircleCI — lint/typecheck + Vercel deploy (replaces GitHub Actions)
+# See: https://vercel.com/guides/how-can-i-use-circleci-with-vercel
 version: 2.1
 
 orbs:
@@ -20,7 +20,57 @@ jobs:
           name: Typecheck
           command: npm run typecheck
 
+  deploy:
+    docker:
+      - image: cimg/node:20.19
+    steps:
+      - checkout
+      - run:
+          name: Require Vercel credentials
+          command: |
+            set -e
+            if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+              echo "Missing VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID"
+              exit 1
+            fi
+            # Trim accidental whitespace/newlines from CircleCI paste
+            export VERCEL_TOKEN="$(printf '%s' "$VERCEL_TOKEN" | tr -d '\r\n')"
+            export VERCEL_ORG_ID="$(printf '%s' "$VERCEL_ORG_ID" | tr -d '\r\n')"
+            export VERCEL_PROJECT_ID="$(printf '%s' "$VERCEL_PROJECT_ID" | tr -d '\r\n')"
+            echo "ORG_ID prefix=$(printf '%s' "$VERCEL_ORG_ID" | cut -c1-8)… len=${#VERCEL_ORG_ID}"
+            echo "PROJECT_ID prefix=$(printf '%s' "$VERCEL_PROJECT_ID" | cut -c1-8)… len=${#VERCEL_PROJECT_ID}"
+            echo "TOKEN len=${#VERCEL_TOKEN}"
+            # Persist trimmed values for later steps
+            echo "export VERCEL_TOKEN='${VERCEL_TOKEN}'" >> "$BASH_ENV"
+            echo "export VERCEL_ORG_ID='${VERCEL_ORG_ID}'" >> "$BASH_ENV"
+            echo "export VERCEL_PROJECT_ID='${VERCEL_PROJECT_ID}'" >> "$BASH_ENV"
+      - run:
+          name: Install Vercel CLI
+          command: npm install --global vercel@latest && vercel --version
+      - run:
+          name: Link project from env
+          command: |
+            mkdir -p .vercel
+            printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
+      - run:
+          name: Deploy to Vercel
+          command: |
+            if [ "$CIRCLE_BRANCH" = "main" ] && [ -z "${CIRCLE_PULL_REQUEST:-}" ]; then
+              url=$(vercel deploy --prod --token="$VERCEL_TOKEN")
+              echo "Production deployment: $url"
+            else
+              url=$(vercel deploy --token="$VERCEL_TOKEN")
+              echo "Preview deployment: $url"
+            fi
+            echo "$url" > /tmp/deploy-url.txt
+      - store_artifacts:
+          path: /tmp/deploy-url.txt
+          destination: deploy-url.txt
+
 workflows:
-  ci:
+  ci-cd:
     jobs:
       - ci
+      - deploy:
+          requires:
+            - ci
