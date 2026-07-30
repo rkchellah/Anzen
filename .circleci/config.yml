@@ -46,25 +46,57 @@ jobs:
       - run:
           name: Verify Auth0 env keys after vercel pull
           command: |
-            # vercel pull writes .vercel/.env.*.local — print presence/length only
             ENV_FILE=""
-            if [ -f .vercel/.env.production.local ]; then ENV_FILE=.vercel/.env.production.local; fi
-            if [ -f .vercel/.env.preview.local ]; then ENV_FILE=.vercel/.env.preview.local; fi
+            if [ -f .vercel/.env.production.local ]; then
+              ENV_FILE=.vercel/.env.production.local
+            elif [ -f .vercel/.env.preview.local ]; then
+              ENV_FILE=.vercel/.env.preview.local
+            fi
             echo "env file: ${ENV_FILE:-NONE}"
-            for KEY in AUTH0_DOMAIN APP_BASE_URL AUTH0_CLIENT_ID AUTH0_SECRET AUTH0_AUDIENCE; do
-              if [ -z "$ENV_FILE" ]; then
-                echo "$KEY: no env file from pull"
-                continue
-              fi
-              LINE=$(grep -E "^${KEY}=" "$ENV_FILE" || true)
-              if [ -z "$LINE" ]; then
-                echo "$KEY: MISSING from pulled env"
-              else
-                VAL="${LINE#*=}"
-                VAL="${VAL%\"}"; VAL="${VAL#\"}"
-                echo "$KEY: present length=${#VAL}"
-              fi
-            done
+            if [ -z "$ENV_FILE" ]; then
+              echo "No .vercel/.env.*.local from vercel pull"
+              exit 1
+            fi
+            # Use key=value split that keeps '=' inside values (secrets often contain '=')
+            while IFS= read -r line || [ -n "$line" ]; do
+              case "$line" in
+                ''|\#*) continue ;;
+              esac
+              key="${line%%=*}"
+              value="${line#*=}"
+              # strip CR, surrounding double/single quotes
+              value="${value%$'\r'}"
+              case "$value" in
+                \"*\") value="${value#\"}"; value="${value%\"}" ;;
+                \'*\') value="${value#\'}"; value="${value%\'}" ;;
+              esac
+              case "$key" in
+                AUTH0_DOMAIN|APP_BASE_URL|AUTH0_CLIENT_ID|AUTH0_SECRET|AUTH0_AUDIENCE)
+                  echo "$key: present, length=${#value}"
+                  ;;
+              esac
+            done < "$ENV_FILE"
+            # First character only — format check without exposing secrets
+            get_val() {
+              local k="$1" line key value
+              while IFS= read -r line || [ -n "$line" ]; do
+                key="${line%%=*}"
+                [ "$key" = "$k" ] || continue
+                value="${line#*=}"
+                value="${value%$'\r'}"
+                case "$value" in
+                  \"*\") value="${value#\"}"; value="${value%\"}" ;;
+                  \'*\') value="${value#\'}"; value="${value%\'}" ;;
+                esac
+                printf '%s' "$value"
+                return 0
+              done < "$ENV_FILE"
+              return 1
+            }
+            D=$(get_val AUTH0_DOMAIN || true)
+            B=$(get_val APP_BASE_URL || true)
+            if [ -n "$D" ]; then echo "AUTH0_DOMAIN first_char=${D:0:1}"; else echo "AUTH0_DOMAIN first_char: MISSING"; fi
+            if [ -n "$B" ]; then echo "APP_BASE_URL first_char=${B:0:1}"; else echo "APP_BASE_URL first_char: MISSING"; fi
       - run:
           name: Build project artifacts
           command: |
