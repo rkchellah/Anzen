@@ -1,5 +1,4 @@
-# CircleCI — lint/typecheck + Vercel deploy (replaces GitHub Actions)
-# See: https://vercel.com/guides/how-can-i-use-circleci-with-vercel
+# CircleCI — lint/typecheck + Vercel deploy
 version: 2.1
 
 orbs:
@@ -33,17 +32,16 @@ jobs:
               echo "Missing VERCEL_TOKEN, VERCEL_ORG_ID, or VERCEL_PROJECT_ID"
               exit 1
             fi
-            # Trim accidental whitespace/newlines from CircleCI paste
-            export VERCEL_TOKEN="$(printf '%s' "$VERCEL_TOKEN" | tr -d '\r\n')"
-            export VERCEL_ORG_ID="$(printf '%s' "$VERCEL_ORG_ID" | tr -d '\r\n')"
-            export VERCEL_PROJECT_ID="$(printf '%s' "$VERCEL_PROJECT_ID" | tr -d '\r\n')"
-            echo "ORG_ID prefix=$(printf '%s' "$VERCEL_ORG_ID" | cut -c1-8)… len=${#VERCEL_ORG_ID}"
-            echo "PROJECT_ID prefix=$(printf '%s' "$VERCEL_PROJECT_ID" | cut -c1-8)… len=${#VERCEL_PROJECT_ID}"
-            echo "TOKEN len=${#VERCEL_TOKEN}"
-            # Persist trimmed values for later steps
-            echo "export VERCEL_TOKEN='${VERCEL_TOKEN}'" >> "$BASH_ENV"
-            echo "export VERCEL_ORG_ID='${VERCEL_ORG_ID}'" >> "$BASH_ENV"
-            echo "export VERCEL_PROJECT_ID='${VERCEL_PROJECT_ID}'" >> "$BASH_ENV"
+            # Trim paste artifacts
+            export VERCEL_TOKEN="$(printf '%s' "$VERCEL_TOKEN" | tr -d '\r\n ')"
+            export VERCEL_ORG_ID="$(printf '%s' "$VERCEL_ORG_ID" | tr -d '\r\n ')"
+            export VERCEL_PROJECT_ID="$(printf '%s' "$VERCEL_PROJECT_ID" | tr -d '\r\n ')"
+            {
+              echo "export VERCEL_TOKEN=$(printf %q "$VERCEL_TOKEN")"
+              echo "export VERCEL_ORG_ID=$(printf %q "$VERCEL_ORG_ID")"
+              echo "export VERCEL_PROJECT_ID=$(printf %q "$VERCEL_PROJECT_ID")"
+            } >> "$BASH_ENV"
+            echo "ORG len=${#VERCEL_ORG_ID} PROJECT len=${#VERCEL_PROJECT_ID} TOKEN len=${#VERCEL_TOKEN}"
       - run:
           name: Install Vercel CLI
           command: npm install --global vercel@latest && vercel --version
@@ -52,53 +50,35 @@ jobs:
           command: |
             set -e
             echo "=== vercel whoami ==="
-            vercel whoami --token="$VERCEL_TOKEN" || true
-            echo "=== GET /v9/projects ==="
-            # teamId for team_* org IDs; omit if personal account
+            vercel whoami --token="$VERCEL_TOKEN"
+            echo "=== API project check ==="
             CODE=$(curl -sS -o /tmp/vercel-project.json -w "%{http_code}" \
               -H "Authorization: Bearer ${VERCEL_TOKEN}" \
               "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}")
             echo "HTTP $CODE"
-            head -c 500 /tmp/vercel-project.json; echo
+            cat /tmp/vercel-project.json
+            echo
             if [ "$CODE" != "200" ]; then
-              echo
-              echo "Token cannot read this project (HTTP $CODE)."
-              echo "Create a new token at https://vercel.com/account/tokens"
-              echo "while logged into the account that owns team/project anzen,"
-              echo "and select that team in the token scope if prompted."
-              echo "ORG_ID must be: team_S0fT9o0iD1hLEsUBCsYZpEsc"
-              echo "PROJECT_ID must be: prj_QAxmy9uX0zjEvBnZlw2nmUGk65Sb"
+              echo "Token cannot read project (HTTP $CODE). Wrong account/team scope on the token."
               exit 1
-            fi
-      - run:
-          name: Link project from env
-          command: |
-            mkdir -p .vercel
-            printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
-      - run:
-          name: Pull Vercel environment
-          command: |
-            if [ "$CIRCLE_BRANCH" = "main" ] && [ -z "${CIRCLE_PULL_REQUEST:-}" ]; then
-              vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-            else
-              vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
-            fi
-      - run:
-          name: Build project artifacts
-          command: |
-            if [ "$CIRCLE_BRANCH" = "main" ] && [ -z "${CIRCLE_PULL_REQUEST:-}" ]; then
-              vercel build --prod --token="$VERCEL_TOKEN"
-            else
-              vercel build --token="$VERCEL_TOKEN"
             fi
       - run:
           name: Deploy to Vercel
           command: |
+            set -e
+            # CLI deploy builds on Vercel — does not use Git "Ignored Build Step"
+            mkdir -p .vercel
+            printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
+
             if [ "$CIRCLE_BRANCH" = "main" ] && [ -z "${CIRCLE_PULL_REQUEST:-}" ]; then
-              url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+              url=$(vercel deploy --yes --prod \
+                --token="$VERCEL_TOKEN" \
+                --scope=rkchellahs-projects)
               echo "Production deployment: $url"
             else
-              url=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+              url=$(vercel deploy --yes \
+                --token="$VERCEL_TOKEN" \
+                --scope=rkchellahs-projects)
               echo "Preview deployment: $url"
             fi
             echo "$url" > /tmp/deploy-url.txt
