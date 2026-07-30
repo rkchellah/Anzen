@@ -22,9 +22,8 @@ jobs:
   deploy:
     docker:
       - image: cimg/node:20.19
-    environment:
-      VERCEL_ORG_ID: $VERCEL_ORG_ID
-      VERCEL_PROJECT_ID: $VERCEL_PROJECT_ID
+    # VERCEL_* come from Project Settings env vars — do not redeclare here
+    # (job-level environment: VERCEL_*: $VERCEL_* was passed literally unexpanded)
     steps:
       - checkout
       - run:
