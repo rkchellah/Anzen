@@ -1,35 +1,54 @@
-# One-time CI/CD setup (manual)
+# One-time CI/CD setup (CircleCI → Vercel)
 
-Repo secrets already set via `gh` (from local `.vercel/project.json`):
+Anzen deploys via **CircleCI**, not GitHub Actions. Config: [`.circleci/config.yml`](../.circleci/config.yml).
 
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+## 1. Connect the repo in CircleCI
 
-## Still required from you
+1. Open https://app.circleci.com/ → **Projects**
+2. Find `rkchellah/Anzen` (GitHub) → **Set Up Project**
+3. Use the existing config at `.circleci/config.yml` (fastest path)
 
-### 1. Create and add `VERCEL_TOKEN`
+## 2. Project environment variables
 
-1. Open https://vercel.com/account/tokens
-2. Create a token with access to the **anzen** project / team
-3. Add it as a GitHub Actions secret:
+CircleCI → Project Settings → **Environment Variables** — add:
+
+| Name | Value |
+| --- | --- |
+| `VERCEL_TOKEN` | [Create a token](https://vercel.com/account/tokens) with access to the anzen project |
+| `VERCEL_ORG_ID` | From `.vercel/project.json` after `npx vercel link` (`orgId`) |
+| `VERCEL_PROJECT_ID` | From `.vercel/project.json` (`projectId`) |
+
+Auth0 / AI keys stay in the **Vercel** project env — `vercel pull` loads them during CI builds. Do not put secrets in the repo.
+
+## 3. Disable Vercel Git auto-deploy
+
+1. Vercel → Anzen project → **Settings** → **Git**
+2. Turn off automatic deployments for **Production** and **Preview**
+3. Keep the GitHub connection so the project stays linked; only CircleCI should deploy
+
+Without this, every push triggers both Vercel’s Git deploy and the CircleCI deploy.
+
+## 4. Disable GitHub Actions (if still enabled)
+
+If an old Actions workflow remains under `.github/workflows/`, delete it or disable Actions for the repo (Settings → Actions → Disable). CircleCI owns CI/CD now.
+
+## 5. Verify
+
+1. Push a branch or open a PR → CircleCI **ci-cd** workflow runs
+2. Confirm preview URL in the `deploy` job logs / artifact `deploy-url.txt`
+3. Merge to `main` → production deploy from CircleCI only
+4. Break lint/types → `ci` fails → `deploy` does not run
+
+## Local parity
 
 ```bash
-# PowerShell — paste the token when prompted
-gh secret set VERCEL_TOKEN --repo rkchellah/Anzen
+npm run ci          # lint + typecheck
+npm run typecheck   # tsc --noEmit
 ```
 
-Or: GitHub → `rkchellah/Anzen` → Settings → Secrets and variables → Actions → New repository secret → name `VERCEL_TOKEN`.
+Optional: validate CircleCI config locally (CLI via winget `CircleCI.CLI.Preview`; requires `circleci auth login` once):
 
-### 2. Disable Vercel Git auto-deploy
-
-1. Open the Anzen project on Vercel → **Settings** → **Git**
-2. Disable automatic deployments for **Production** and **Preview**
-3. Keep the GitHub repo connected so the project stays linked; only Actions should deploy
-
-Without this, every push triggers both Vercel’s Git deploy and the Actions deploy.
-
-### 3. Verify
-
-1. Push the CI/CD branch or open a PR → Actions → **CI/CD** workflow
-2. Confirm preview URL in the job summary
-3. Merge to `main` → production deploy from Actions only
+```bash
+circleci auth login
+circleci config validate .circleci/config.yml
+```
