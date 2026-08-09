@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { UIMessage } from "ai";
+import { AlertTriangle, Ban, ShieldQuestion } from "lucide-react";
 import {
   describeWriteAction,
   getToolNameFromPart,
@@ -10,6 +11,8 @@ import {
   isWriteToolName,
   reconnectKeyForToolPart,
 } from "@/agent/action-descriptions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import { connectionKeyForToolName } from "@/lib/tool-errors";
 import type { ProviderAccessMode } from "@/lib/permissions";
@@ -39,32 +42,35 @@ export function AnzenToolApprovals({
       if (isToolErrorPart(part)) {
         const reconnectKey = reconnectKeyForToolPart(part);
         blocks.push(
-          <div
+          <Card
             key={part.toolCallId ?? `${toolName}-error`}
-            className="anzen-tool-card anzen-card border-[#f87171]/35 p-5"
+            className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-destructive/20 bg-destructive/5 shadow-lg"
           >
-            <p className="anzen-eyebrow text-[#f87171] mb-2">
-              Couldn&apos;t complete action
-            </p>
-            <p className="mb-4 text-[15px] leading-[1.6] text-foreground">{part.errorText}</p>
-            <div className="flex flex-wrap gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-destructive flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+                <AlertTriangle className="size-4" />
+                Action Failed
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm leading-relaxed text-destructive/80">{part.errorText}</CardContent>
+            <CardFooter className="flex flex-wrap gap-2 pt-2">
               {reconnectKey && (
-                <a
-                  href={buildConnectUrl(reconnectKey, "/dashboard")}
-                  className="anzen-btn anzen-btn-primary"
+                <Button 
+                  render={<a href={buildConnectUrl(reconnectKey, "/dashboard")} />}
+                  className="h-8 rounded-full bg-destructive text-[11px] font-bold text-white hover:opacity-90"
                 >
                   Reconnect {CONNECTIONS[reconnectKey].label}
-                </a>
+                </Button>
               )}
-              <button
-                type="button"
+              <Button 
+                variant="outline" 
                 onClick={onOpenConnections}
-                className="anzen-btn anzen-btn-secondary"
+                className="h-8 rounded-full border-destructive/20 bg-transparent text-[11px] font-bold text-destructive hover:bg-destructive/10"
               >
                 Open Connections
-              </button>
-            </div>
-          </div>
+              </Button>
+            </CardFooter>
+          </Card>
         );
         continue;
       }
@@ -78,56 +84,64 @@ export function AnzenToolApprovals({
 
         if (writeKey && accessModes[writeKey] === "read") {
           blocks.push(
-            <div
+            <Card
               key={part.toolCallId ?? approvalId}
-              className="anzen-tool-card anzen-card border-[#f87171]/35 p-5"
+              className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-destructive/20 bg-destructive/5 shadow-lg"
             >
-              <p className="anzen-eyebrow text-[#f87171] mb-2">
-                Write action blocked
-              </p>
-              <p className="mb-2 text-[15px] leading-[1.6] text-foreground">{summary}</p>
-              <p className="mb-4 text-[14px] leading-[1.55] text-muted-foreground">
-                {CONNECTIONS[writeKey].label} is set to read-only. Switch to Read &amp; write in
-                Connections to allow this.
-              </p>
-              <button
-                type="button"
-                onClick={onOpenConnections}
-                className="anzen-btn anzen-btn-primary"
-              >
-                Open Connections
-              </button>
-            </div>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-destructive flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+                  <Ban className="size-4" />
+                  Action Blocked
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm leading-relaxed">
+                <p className="font-medium">{summary}</p>
+                <p className="text-destructive/60 text-xs">
+                  {CONNECTIONS[writeKey].label} is set to read-only. Switch to Read &amp; write in
+                  Connections to allow this.
+                </p>
+              </CardContent>
+              <CardFooter className="pt-2">
+                <Button 
+                  onClick={onOpenConnections}
+                  className="h-8 rounded-full bg-destructive text-[11px] font-bold text-white hover:opacity-90"
+                >
+                  Open Connections
+                </Button>
+              </CardFooter>
+            </Card>
           );
           continue;
         }
 
         blocks.push(
-          <div
+          <Card
             key={part.toolCallId ?? approvalId}
-            className="anzen-tool-card anzen-card border-primary/25 p-5"
+            className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-primary/20 bg-primary/5 shadow-lg"
           >
-            <p className="anzen-eyebrow text-accent-foreground mb-2">
-              Confirm action
-            </p>
-            <p className="mb-4 text-[15px] leading-[1.6] text-foreground">{summary}</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-wider">
+                <ShieldQuestion className="size-4" />
+                Confirm Action
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm font-medium leading-relaxed">{summary}</CardContent>
+            <CardFooter className="flex flex-wrap gap-2 pt-2">
+              <Button 
                 onClick={() => onApprove(approvalId, true)}
-                className="anzen-btn anzen-btn-primary"
+                className="h-8 rounded-full bg-primary text-[11px] font-bold text-black hover:opacity-90"
               >
                 Confirm
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => onApprove(approvalId, false, "User cancelled")}
-                className="anzen-btn anzen-btn-secondary"
+                className="h-8 rounded-full border-primary/20 bg-transparent text-[11px] font-bold text-primary hover:bg-primary/10"
               >
                 Cancel
-              </button>
-            </div>
-          </div>
+              </Button>
+            </CardFooter>
+          </Card>
         );
         continue;
       }
@@ -136,9 +150,10 @@ export function AnzenToolApprovals({
         blocks.push(
           <div
             key={part.toolCallId ?? part.approval.id}
-            className="anzen-tool-card text-[13.5px] text-muted-foreground"
+            className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-full border border-border/10 bg-[#121212] px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60"
           >
-            {part.approval.approved ? "Confirmed — running action…" : "Action cancelled."}
+            <div className={cn("size-1.5 rounded-full", part.approval.approved ? "bg-primary animate-pulse" : "bg-destructive")} />
+            {part.approval.approved ? "Running Action…" : "Action Cancelled"}
           </div>
         );
         continue;
@@ -148,20 +163,23 @@ export function AnzenToolApprovals({
         const summary = describeWriteAction(toolName, part.input);
         const reason = typeof part.approval?.reason === "string" ? part.approval.reason : null;
         blocks.push(
-          <div
+          <Card
             key={part.toolCallId ?? `${toolName}-denied`}
-            className="anzen-tool-card anzen-card border-[#f87171]/35 p-5"
+            className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-destructive/20 bg-destructive/5 shadow-lg"
           >
-            <p className="anzen-eyebrow text-[#f87171] mb-2">
-              Action blocked
-            </p>
-            <p className="mb-1.5 text-[15px] leading-[1.6] text-foreground">
-              {summary}
-            </p>
-            <p className="text-[14px] leading-[1.55] text-muted-foreground">
-              {reason ?? "Action was not performed (cancelled or denied)."}
-            </p>
-          </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-destructive flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+                <Ban className="size-4" />
+                Action Blocked
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm leading-relaxed">
+              <p className="font-medium">{summary}</p>
+              <p className="text-destructive/60 text-xs italic">
+                {reason ?? "Action was not performed."}
+              </p>
+            </CardContent>
+          </Card>
         );
       }
     }

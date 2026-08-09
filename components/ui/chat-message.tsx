@@ -5,6 +5,9 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { motion } from "framer-motion"
 import { Ban, ChevronRight, Code2, Loader2, Terminal, Info, MoreHorizontal } from "lucide-react"
 import { AnzenLogo } from "@/components/AnzenLogo"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
   Collapsible,
@@ -21,12 +24,11 @@ const chatBubbleVariants = cva(
   {
     variants: {
       isUser: {
-        true:
-          "w-fit max-w-[92%] rounded-2xl rounded-tr-md border border-border bg-surface-2 px-4 py-2.5 text-left text-foreground",
-        false: "text-foreground/90",
+        true: "w-fit max-w-[92%] rounded-xl rounded-tr-sm bg-muted px-4 py-2.5 text-left text-foreground",
+        false: "text-foreground",
       },
       isSystem: {
-        true: "text-blue-500/90 italic",
+        true: "text-muted-foreground italic",
         false: "",
       },
       animation: {
@@ -125,30 +127,37 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     minute: "2-digit",
   })
 
-  const Avatar = () => {
+  const MessageAvatar = () => {
     if (isSystem) {
       return (
-        <div className="size-8 rounded-full bg-blue-500/5 border border-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
-          <Info size={14} />
-        </div>
+        <Avatar className="size-8 shrink-0">
+          <AvatarFallback className="text-muted-foreground">
+            <Info className="size-3.5" />
+          </AvatarFallback>
+        </Avatar>
       )
     }
     return (
-      <div className={cn(
-        "size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/50 transition-colors",
-        isUser ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground border-primary/20"
-      )}>
-        {isUser ? identity.initials : <AnzenLogo size={12} className="text-current" />}
+      <div className="size-8 shrink-0 flex items-center justify-center">
+        {isUser ? (
+          <Avatar className="size-8">
+            <AvatarFallback className="text-[10px] font-semibold bg-muted/40">
+              {identity.initials}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <div className="size-5 rounded-full bg-primary" />
+        )}
       </div>
     )
   }
 
   const MessageHeader = () => (
-    <div className={cn("mb-1.5 flex items-center gap-2", isUser && "flex-row-reverse")}>
-      <span className="text-[14px] font-semibold tracking-[-0.01em] text-foreground">
+    <div className={cn("mb-1.5 flex items-center gap-2")}>
+      <span className="text-sm font-medium">
         {isUser ? (identity.first ?? identity.full) : isSystem ? "System" : "Anzen"}
       </span>
-      <span className="text-[12px] tabular-nums text-muted-foreground">{formattedTime}</span>
+      <span className="text-muted-foreground text-xs tabular-nums">{formattedTime}</span>
     </div>
   )
 
@@ -167,15 +176,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     <div
       className={cn(
         "mb-7 flex w-full gap-3.5",
-        // User turns mirror to the right so the thread reads as a conversation
-        // instead of one long left-aligned column.
-        isUser && "flex-row-reverse",
         isSystem && "opacity-80"
       )}
     >
-      <Avatar />
+      <MessageAvatar />
 
-      <div className={cn("min-w-0 flex-1", isUser && "flex flex-col items-end")}>
+      <div className={cn("min-w-0 flex-1")}>
         <MessageHeader />
         
         <div className={cn(chatBubbleVariants({ isUser, isSystem, animation }))}>
@@ -226,25 +232,29 @@ const ReasoningBlock = ({ part }: { part: ReasoningPart }) => {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
-    <div className="flex flex-col items-start w-full">
-      <Collapsible
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        className="group w-full overflow-hidden rounded-lg border border-border/40 bg-card/30 transition-colors"
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className="bg-card ring-foreground/10 w-full overflow-hidden rounded-lg ring-1"
+    >
+      <CollapsibleTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground w-full justify-start rounded-none"
+          />
+        }
       >
-        <div className="flex items-center p-2">
-          <CollapsibleTrigger render={<button className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 hover:text-foreground/60 transition-colors" />}>
-            <ChevronRight className="h-2.5 w-2.5 transition-transform group-data-[state=open]:rotate-90" />
-            <span>Thought Process</span>
-          </CollapsibleTrigger>
+        <ChevronRight className={cn("transition-transform", isOpen && "rotate-90")} />
+        Thought process
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="text-muted-foreground border-t px-3 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
+          {part.reasoning}
         </div>
-        <CollapsibleContent>
-          <div className="border-t border-border/20 p-3 text-[12px] text-muted-foreground/70 whitespace-pre-wrap leading-relaxed">
-            {part.reasoning}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -262,15 +272,10 @@ function ToolCall({
 
         if (isCancelled) {
           return (
-            <div
-              key={index}
-              className="flex items-center gap-2 rounded-lg border border-border bg-muted/10 px-3 py-1.5 font-mono text-[11px] text-muted-foreground/50"
-            >
-              <Ban className="h-3 w-3" />
-              <span>
-                CANCELLED <code className="font-mono">{invocation.toolName}</code>
-              </span>
-            </div>
+            <Badge key={index} variant="outline" className="text-muted-foreground gap-1.5 font-normal">
+              <Ban className="size-3" />
+              Cancelled <code className="font-mono">{invocation.toolName}</code>
+            </Badge>
           )
         }
 
@@ -278,30 +283,23 @@ function ToolCall({
           case "partial-call":
           case "call":
             return (
-              <div
-                key={index}
-                className="flex items-center gap-2 rounded-lg border border-border bg-muted/10 px-3 py-1.5 font-mono text-[11px] text-muted-foreground/50"
-              >
-                <Terminal className="h-3 w-3" />
-                <span>
-                  RUNNING <code className="font-mono">{invocation.toolName}</code>
-                </span>
-                <Loader2 className="h-3 w-3 animate-spin" />
-              </div>
+              <Badge key={index} variant="outline" className="text-muted-foreground gap-1.5 font-normal">
+                <Terminal className="size-3" />
+                Running <code className="font-mono">{invocation.toolName}</code>
+                <Loader2 className="size-3 animate-spin" />
+              </Badge>
             )
           case "result":
             return (
               <div
                 key={index}
-                className="flex flex-col gap-1.5 rounded-lg border border-border bg-card/40 px-3 py-2 text-[12px] w-full"
+                className="bg-card ring-foreground/10 w-full overflow-hidden rounded-lg ring-1"
               >
-                <div className="flex items-center gap-2 text-muted-foreground/40 border-b border-border/10 pb-1 mb-1">
-                  <Code2 className="h-3 w-3" />
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest">
-                    {invocation.toolName} Output
-                  </span>
+                <div className="text-muted-foreground flex items-center gap-2 border-b px-3 py-2 text-xs font-medium">
+                  <Code2 className="size-3.5" />
+                  {invocation.toolName} output
                 </div>
-                <pre className="overflow-x-auto whitespace-pre-wrap text-foreground/70 font-mono text-[11px] leading-relaxed">
+                <pre className="text-muted-foreground overflow-x-auto px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap">
                   {JSON.stringify(invocation.result, null, 2)}
                 </pre>
               </div>

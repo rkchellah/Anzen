@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw,
+  Shield,
+  ShieldQuestion,
+  XCircle,
+} from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { findPendingManualApprovals, hasPendingManualApprovals } from "@/agent/pending-approvals";
@@ -18,10 +26,15 @@ import { PRIVACY_SECTIONS } from "@/lib/privacy-content";
 import { useAnzenTheme } from "@/components/AnzenThemeProvider";
 import { AnzenChatPanel } from "@/components/AnzenChatPanel";
 import { AnzenConnectionsView } from "@/components/AnzenConnectionsView";
-import { AnzenSidebar, AnzenMobileMenuButton, type DashboardPage } from "@/components/AnzenSidebar";
+import { AnzenSidebar, type DashboardPage } from "@/components/AnzenSidebar";
 import { AnzenModelPicker, type AnzenModelOption } from "@/components/AnzenModelPicker";
 import { AnzenToolApprovals } from "@/components/AnzenToolApprovals";
-import { AI_PROVIDER_SHORT_LABEL } from "@/lib/ai-display";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { resolveDisplayName } from "@/lib/display-name";
 import { cn } from "@/lib/utils";
 
@@ -64,12 +77,12 @@ function PageIntro({
 }) {
   const copy = PAGE_COPY[page];
   return (
-    <div className="mb-6 flex flex-col items-center gap-3 text-center">
-      <div>
-        <h1 className="text-[26px] font-bold tracking-[-0.025em] text-foreground">{copy.title}</h1>
-        <p className="mt-1.5 text-[15px] leading-[1.55] text-muted-foreground">{copy.subtitle}</p>
+    <div className="flex flex-col items-center gap-4 text-center">
+      <div className="flex flex-col items-center">
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{copy.title}</h1>
+        <p className="text-muted-foreground/60 mt-3 max-w-md text-sm leading-relaxed">{copy.subtitle}</p>
       </div>
-      {trailing}
+      {trailing && <div className="mt-2">{trailing}</div>}
     </div>
   );
 }
@@ -101,7 +114,6 @@ export default function DashboardClient({
   const [inputValue, setInputValue] = useState("");
   const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<DashboardPage>("chat");
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [chats, setChats] = useState<StoredChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [models, setModels] = useState<AnzenModelOption[]>([]);
@@ -364,15 +376,7 @@ export default function DashboardClient({
     : "Ready when you are.";
 
   return (
-    <div suppressHydrationWarning className="anzen-page flex h-screen overflow-hidden">
-      <style>{`
-        input::placeholder { color: var(--anzen-muted) !important; opacity: 1; }
-        .anzen-scrollbar::-webkit-scrollbar { width: 8px; }
-        .anzen-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .anzen-scrollbar::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--anzen-accent) 30%, transparent); border-radius: 4px; }
-        .anzen-scrollbar::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--anzen-accent) 50%, transparent); }
-      `}</style>
-
+    <SidebarProvider suppressHydrationWarning className="h-screen overflow-hidden" style={{ "--sidebar-width": "60px" } as React.CSSProperties}>
       <AnzenSidebar
         activePage={activePage}
         onNavigate={setActivePage}
@@ -386,25 +390,36 @@ export default function DashboardClient({
         isDark={d}
         onToggleDarkMode={toggleDarkMode}
         signOutHref={buildLogoutUrl("/")}
-        mobileOpen={mobileSidebarOpen}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
         userName={identity.full}
         userEmail={userEmail}
       />
 
-      <main className="anzen-dash-main flex min-w-0 flex-1 flex-col bg-background">
-        {/* No top nav bar: the sidebar is the only navigation. On mobile the
-            sidebar is off-canvas, so keep a single menu affordance. */}
-        <div className="flex shrink-0 items-center px-4 pt-4 md:hidden">
-          <AnzenMobileMenuButton onClick={() => setMobileSidebarOpen(true)} />
-        </div>
-
-        <div className="flex-1 min-h-0 flex flex-col">
-          {!tokenVaultScopesEnabled && (
-            <div className="mx-4 mt-4 -mb-1 flex shrink-0 items-center justify-center gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-[13.5px] font-medium text-red-400 md:mx-8">
-              <span className="size-1.5 shrink-0 rounded-full bg-red-500" />
-              Connections disabled — set <code className="font-mono">AUTH0_TOKEN_VAULT_SCOPES=true</code> to enable them.
+      <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#080808]">
+        {/* Top Header */}
+        <header className="flex h-14 shrink-0 items-center justify-center border-b border-border/5 px-6">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-foreground/80 tracking-tight">{userEmail}</span>
+            <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase tracking-widest">
+              gmail email
             </div>
+            <Avatar className="size-5 ml-1">
+              <AvatarFallback className="text-[8px] bg-muted/40 text-muted-foreground">
+                {identity.initials}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col">
+          {!tokenVaultScopesEnabled && (
+            <Alert variant="destructive" className="mx-4 mt-4 w-auto md:mx-8">
+              <AlertTriangle />
+              <AlertTitle>Connections disabled</AlertTitle>
+              <AlertDescription>
+                Set <code className="font-mono">AUTH0_TOKEN_VAULT_SCOPES=true</code> to enable
+                account connections.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* CHAT */}
@@ -422,36 +437,10 @@ export default function DashboardClient({
                 isGenerating={isLoading}
                 suggestions={SUGGESTIONS}
                 inputDisabled={pendingApprovals.length > 0}
-                placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Message Anzen…"}
+                placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Plan, Build, / for skills, @ for context"}
                 userName={identity.full}
                 userEmail={userEmail}
-                emptyState={
-                  <div className="flex flex-col items-center">
-                    <h1 className="text-[clamp(28px,5vw,38px)] font-bold leading-[1.15] tracking-[-0.03em] text-foreground">
-                      {greeting}
-                    </h1>
-                    <p className="mx-auto mt-4 max-w-[520px] text-[16px] leading-[1.6] text-muted-foreground">
-                      An assistant that acts on your behalf. Securely connected to GitHub, Gmail, and
-                      Slack using{" "}
-                      <span className="font-semibold text-accent-foreground">Auth0 Token Vault</span>.
-                    </p>
-                    {tokenVaultScopesEnabled && connectedCount === 0 && !statusLoading && (
-                      <div className="mt-9 flex flex-wrap items-center justify-center gap-2.5 rounded-full border border-primary/25 bg-accent px-5 py-2.5">
-                        <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-                        <span className="text-[13.5px] font-medium text-accent-foreground">
-                          No accounts connected yet —{" "}
-                          <button
-                            type="button"
-                            onClick={() => setActivePage("connections")}
-                            className="font-semibold underline underline-offset-2 hover:no-underline"
-                          >
-                            open Connections
-                          </button>
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                }
+                emptyState={null}
                 toolApprovals={
                   <AnzenToolApprovals
                     messages={messages}
@@ -477,27 +466,25 @@ export default function DashboardClient({
                 composerNotice={
                   <>
                     {pendingApprovals.length > 0 && (
-                      <div className="anzen-notice anzen-notice-accent mb-3">
-                        <p className="mb-1 text-[14px] font-semibold text-accent-foreground">
+                      <Alert className="mb-3">
+                        <ShieldQuestion />
+                        <AlertTitle>
                           {pendingApprovals.length === 1
                             ? "1 action waiting for your confirmation"
                             : `${pendingApprovals.length} actions waiting for your confirmation`}
-                        </p>
-                        <p className="text-[13.5px] leading-[1.5] text-muted-foreground">
-                          Review the Confirm / Cancel cards above. New messages are paused until you respond.
-                        </p>
-                      </div>
+                        </AlertTitle>
+                        <AlertDescription>
+                          Review the Confirm / Cancel cards above. New messages are paused until you
+                          respond.
+                        </AlertDescription>
+                      </Alert>
                     )}
                     {approvalGateError && (
-                      <p className="mb-2 text-[13.5px] leading-[1.5] text-red-400">{approvalGateError}</p>
+                      <Alert variant="destructive" className="mb-3">
+                        <AlertDescription>{approvalGateError}</AlertDescription>
+                      </Alert>
                     )}
                   </>
-                }
-                footer={
-                  <p className="text-[12.5px] leading-normal text-muted-foreground">
-                    Processed by {AI_PROVIDER_SHORT_LABEL}.{" "}
-                    <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy</a>
-                  </p>
                 }
               />
             </div>
@@ -522,33 +509,57 @@ export default function DashboardClient({
 
           {/* ACTIVITY */}
           {activePage === "activity" && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-[800px] px-4 pb-16 pt-6 md:px-8">
+            <div className="flex-1 overflow-y-auto bg-[#080808]">
+              <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
                 <PageIntro
                   page="activity"
                   trailing={
-                    <button
-                      type="button"
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={fetchAuditLogs}
                       disabled={auditLoading}
-                      className="anzen-btn anzen-btn-secondary anzen-btn-sm"
+                      className="h-9 rounded-full border-border/10 bg-[#121212] px-5 text-[11px] font-bold uppercase tracking-wider hover:bg-muted/50"
                     >
+                      <RefreshCw className={cn("size-3.5 mr-2", auditLoading && "animate-spin")} />
                       {auditLoading ? "Loading…" : "Refresh"}
-                    </button>
+                    </Button>
                   }
                 />
-                <p className="mb-5 text-center text-[14px] text-muted-foreground">
-                  {auditLoading && auditEntries.length === 0
-                    ? "Loading…"
-                    : `${auditEntries.length} actions · ${auditEntries.filter((e) => e.outcome === "success").length} succeeded · ${auditEntries.filter((e) => e.outcome === "failure").length} failed`}
-                </p>
 
-                {auditLoading && auditEntries.length === 0 ? null : auditEntries.length === 0 ? (
-                  <p className="py-14 text-center text-[15px] text-muted-foreground">
-                    No recent activity yet.
-                  </p>
+                <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-3">
+                  <Badge variant="outline" className="rounded-full border-border/10 bg-[#121212] px-3.5 py-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                    {auditLoading && auditEntries.length === 0
+                      ? "Loading audit history…"
+                      : `${auditEntries.length} total actions`}
+                  </Badge>
+                  {auditEntries.length > 0 && (
+                    <>
+                      <Badge className="rounded-full bg-primary/10 px-3.5 py-1 text-[10px] font-bold text-primary uppercase tracking-widest border-none">
+                        {auditEntries.filter((e) => e.outcome === "success").length} succeeded
+                      </Badge>
+                      {auditEntries.some((e) => e.outcome === "failure") && (
+                        <Badge variant="destructive" className="rounded-full bg-destructive/10 px-3.5 py-1 text-[10px] font-bold text-destructive uppercase tracking-widest border-none">
+                          {auditEntries.filter((e) => e.outcome === "failure").length} failed
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {auditLoading && auditEntries.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
+                ) : auditEntries.length === 0 ? (
+                  <div className="rounded-3xl border border-border/20 bg-[#121212]/50 p-12 text-center">
+                    <p className="text-sm font-semibold tracking-tight">No recent audit activity recorded yet.</p>
+                    <p className="text-muted-foreground/60 mt-2 text-sm leading-relaxed max-w-xs mx-auto">
+                      Actions requiring your confirmation are logged here automatically.
+                    </p>
+                  </div>
                 ) : (
-                  <div className="border-t border-border">
+                  <div className="flex flex-col gap-4">
                     {auditEntries.map((entry) => {
                       const ok = entry.outcome === "success";
                       const time = new Date(entry.timestamp).toLocaleString([], {
@@ -558,33 +569,37 @@ export default function DashboardClient({
                         minute: "2-digit",
                       });
                       return (
-                        <div
-                          key={entry.id}
-                          className="flex flex-col gap-1.5 border-b border-border py-5 md:flex-row md:items-start md:gap-8"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[15px] leading-[1.6] text-foreground">
-                              {entry.message}
-                            </p>
-                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                              <code className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-mono text-[12px] text-muted-foreground">
-                                {entry.toolName}
-                              </code>
-                              <span className="anzen-meta">{time}</span>
+                        <Card key={entry.id} className="overflow-hidden rounded-2xl border-border/50 bg-[#121212] shadow-sm transition-all hover:border-primary/20">
+                          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex min-w-0 flex-1 items-start gap-4">
+                              <div className={cn(
+                                "flex size-8 shrink-0 items-center justify-center rounded-lg border",
+                                ok ? "border-primary/20 bg-primary/5 text-primary" : "border-destructive/20 bg-destructive/5 text-destructive"
+                              )}>
+                                {ok ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold tracking-tight leading-tight">{entry.message}</p>
+                                <div className="text-muted-foreground/50 mt-2 flex flex-wrap items-center gap-2.5 text-[10px] font-bold uppercase tracking-wider">
+                                  <span className="bg-[#1A1C1E] text-muted-foreground rounded-md px-2 py-0.5 border border-border/5">
+                                    {entry.toolName}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{time}</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="flex shrink-0 items-center md:w-32 md:justify-end">
-                            <span
+                            <Badge
                               className={cn(
-                                "anzen-tag",
-                                ok ? "anzen-tag-accent" : "anzen-tag-danger"
+                                "shrink-0 self-start sm:self-auto rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest border-none",
+                                ok ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
                               )}
                             >
                               {ok ? "Succeeded" : "Failed"}
-                            </span>
-                          </div>
-                        </div>
+                            </Badge>
+                          </CardContent>
+                        </Card>
                       );
                     })}
                   </div>
@@ -595,38 +610,45 @@ export default function DashboardClient({
 
           {/* PRIVACY */}
           {activePage === "privacy" && (
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto w-full max-w-[720px] px-4 pb-16 pt-6 md:px-8">
+            <div className="flex-1 overflow-y-auto bg-[#080808]">
+              <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
                 <PageIntro page="privacy" />
-                <div className="flex flex-col">
+                <div className="mt-12 flex flex-col gap-6">
                   {PRIVACY_SECTIONS.map((section) => (
-                    <section key={section.id} className="border-b border-border py-7 first:pt-0">
-                      <h2 className="mb-2 text-[17px] font-semibold tracking-[-0.015em] text-foreground">
-                        {section.title}
-                      </h2>
-                      <div className="text-[15px] leading-[1.65] text-muted-foreground">
+                    <Card key={section.id} className="overflow-hidden rounded-2xl border-border/50 bg-[#121212] shadow-sm">
+                      <CardHeader className="border-b border-border/5 bg-[#1A1C1E]/30 p-5">
+                        <CardTitle className="flex items-center gap-3 text-base font-bold tracking-tight">
+                          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Shield className="size-4" />
+                          </div>
+                          {section.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-muted-foreground/80 p-6 text-sm leading-relaxed">
                         {section.body}
-                      </div>
-                    </section>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
 
-                <p className="mt-8 text-center text-[14px] text-muted-foreground">
-                  Full{" "}
-                  <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
-                    Privacy Policy
-                  </a>{" "}
-                  and{" "}
-                  <a href="/terms" className="underline underline-offset-2 hover:text-foreground">
-                    Terms of Service
-                  </a>
-                  .
-                </p>
+                <div className="mt-16 border-t border-border/5 pt-10 text-center">
+                  <p className="text-muted-foreground/50 text-[11px] font-bold uppercase tracking-[0.1em]">
+                    Read full legal details
+                  </p>
+                  <div className="mt-4 flex items-center justify-center gap-6">
+                    <a href="/privacy" className="text-muted-foreground text-sm font-medium hover:text-primary underline-offset-4 hover:underline transition-colors">
+                      Privacy Policy
+                    </a>
+                    <a href="/terms" className="text-muted-foreground text-sm font-medium hover:text-primary underline-offset-4 hover:underline transition-colors">
+                      Terms of Service
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

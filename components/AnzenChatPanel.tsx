@@ -6,8 +6,11 @@ import {
   ChatForm,
   ChatMessages,
 } from "@/components/ui/chat";
+import { Card, CardContent } from "@/components/ui/card";
 import { MessageInput } from "@/components/ui/message-input";
 import { MessageList } from "@/components/ui/message-list";
+import { Plus, Mic, Paperclip, Circle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toKitMessages } from "@/lib/chat-message-adapter";
 import { transcribeAudio } from "@/lib/transcribe-audio";
 import { cn } from "@/lib/utils";
@@ -69,7 +72,8 @@ export function AnzenChatPanel({
     onSubmit();
   };
 
-  const columnWidth = "w-full max-w-[720px] mx-auto";
+  // Same measure as the Connections / Activity pages so the app reads as one grid.
+  const columnWidth = "w-full max-w-4xl";
 
   const suggestionRow = isEmpty && !inputDisabled && !isGenerating && suggestions.length > 0 && (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -78,78 +82,111 @@ export function AnzenChatPanel({
           key={suggestion.prompt}
           type="button"
           onClick={() => onSuggestion?.(suggestion.prompt)}
-          className="anzen-card anzen-card-interactive group p-4 text-left"
+          className="group cursor-pointer text-left"
         >
-          <span className="anzen-eyebrow mb-2 block text-accent-foreground">
-            {suggestion.label}
-          </span>
-          <p className="text-[14px] leading-[1.55] text-muted-foreground transition-colors group-hover:text-foreground">
-            {suggestion.prompt}
-          </p>
+          <Card size="sm" className="hover:bg-muted/40 h-full transition-colors">
+            <CardContent>
+              <span className="text-primary mb-1.5 block text-xs font-medium tracking-wide uppercase">
+                {suggestion.label}
+              </span>
+              <p className="text-muted-foreground group-hover:text-foreground text-sm transition-colors">
+                {suggestion.prompt}
+              </p>
+            </CardContent>
+          </Card>
         </button>
       ))}
     </div>
   );
 
   const composer = (
-    <div className={cn("mx-auto shrink-0", columnWidth)}>
+    <div className="mx-auto w-full max-w-3xl shrink-0 px-4">
       {composerNotice}
       <ChatForm
         isPending={isGenerating || inputDisabled}
         handleSubmit={handleSubmit}
-        className="overflow-hidden rounded-2xl border border-border bg-surface-2 shadow-[0_12px_40px_rgba(0,0,0,0.25)] transition-all focus-within:border-primary/40"
+        className="overflow-hidden rounded-xl border border-border/10 bg-[#121212] shadow-2xl transition-all"
       >
         {() => (
-          <MessageInput
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            allowAttachments={false}
-            stop={stop}
-            isGenerating={isGenerating}
-            disabled={inputDisabled}
-            placeholder={placeholder}
-            transcribeAudio={transcribeAudio}
-            className="min-h-[68px] rounded-none border-none bg-transparent px-5 py-4 text-[15px] leading-[1.55] shadow-none backdrop-blur-none focus-visible:border-transparent focus-visible:bg-transparent"
-          />
+          <div className="flex flex-col">
+            <MessageInput
+              value={input}
+              onChange={(e) => onInputChange(e.target.value)}
+              allowAttachments={false}
+              stop={stop}
+              isGenerating={isGenerating}
+              disabled={inputDisabled}
+              placeholder={placeholder}
+              transcribeAudio={transcribeAudio}
+              minimalist={true}
+              className="min-h-[70px] w-full border-none bg-transparent px-8 py-6 text-[15px] leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/40"
+            />
+            <div className="flex items-center justify-between px-6 pb-4 pt-0">
+              <div className="flex items-center gap-2">
+                {modelSelector}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors"
+                >
+                  <Circle className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors"
+                >
+                  <Paperclip className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40 text-muted-foreground/80 hover:text-foreground transition-colors"
+                >
+                  <Mic className="size-4" />
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </ChatForm>
-      {modelSelector ? (
-        <div className="mt-2.5 flex justify-center">{modelSelector}</div>
-      ) : null}
+      
       {footer ? <div className="mt-3 text-center">{footer}</div> : null}
     </div>
   );
 
   return (
-    <div className={cn("flex h-full w-full min-h-0 flex-1 flex-col bg-background", className)}>
+    <div className={cn("flex h-full w-full min-h-0 flex-1 flex-col bg-[#080808]", className)}>
       <div className="flex-1 min-h-0 flex flex-col w-full overflow-hidden">
         {isEmpty ? (
           <div className="flex flex-1 flex-col items-center justify-center px-6">
-            <div className={cn(columnWidth, "flex flex-col")}>
-              <div className="mb-12 text-center">{emptyState}</div>
-              {suggestionRow}
+            <div className={cn(columnWidth, "flex flex-col items-center gap-8")}>
+              {emptyState}
+              <div className="w-full">
+                {composer}
+              </div>
             </div>
           </div>
         ) : (
-          <ChatMessages messages={kitMessages} className="items-center">
-            <div className={cn("flex w-full flex-col gap-2 px-4 pb-8 pt-10", columnWidth)}>
-              <MessageList
-                messages={kitMessages}
-                isTyping={isTyping}
-                showTimeStamps={false}
-                messageOptions={(msg) => ({
-                  userName: msg.role === "user" ? userName : undefined,
-                  userEmail: msg.role === "user" ? userEmail : undefined,
-                })}
-              />
-              {toolApprovals}
+          <>
+            <ChatMessages messages={kitMessages} className="items-start">
+              <div className="flex w-full flex-col gap-2 pl-12 pr-4 pb-8 pt-12">
+                <MessageList
+                  messages={kitMessages}
+                  isTyping={isTyping}
+                  showTimeStamps={false}
+                  messageOptions={(msg) => ({
+                    userName: msg.role === "user" ? userName : undefined,
+                    userEmail: msg.role === "user" ? userEmail : undefined,
+                  })}
+                />
+                {toolApprovals}
+              </div>
+            </ChatMessages>
+            <div className="flex w-full shrink-0 justify-center px-4 pb-6 pt-2">
+              {composer}
             </div>
-          </ChatMessages>
+          </>
         )}
-      </div>
-
-      <div className="flex w-full shrink-0 justify-center px-4 pb-6 pt-2">
-        {composer}
       </div>
     </div>
   );

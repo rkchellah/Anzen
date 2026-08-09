@@ -1,155 +1,43 @@
+import { LogOut } from "lucide-react";
+import { AnzenLogo } from "@/components/AnzenLogo";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+
 export default function SignedOutPage() {
   return (
-    <div
-      style={{
-        backgroundColor: "#0B0F14",
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Inter, -apple-system, sans-serif",
-        padding: "40px 24px",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 400,
-          backgroundColor: "#111827",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 24,
-          padding: "44px 40px 40px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 28,
-        }}
-      >
-        {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{
-              fontSize: 24,
-              fontWeight: 700,
-              letterSpacing: "-0.04em",
-              color: "#FFFFFF",
-            }}
-          >
-            Anzen
-          </span>
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase" as const,
-              color: "#A3FF12",
-              background: "rgba(163,255,18,0.12)",
-              padding: "2px 6px",
-              borderRadius: 4,
-              lineHeight: 1.8,
-            }}
-          >
-            AI
-          </span>
-        </div>
+    <div className="anzen-page flex min-h-screen flex-col items-center justify-center px-6 py-12">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="flex flex-col items-center gap-4 text-center">
+          <div className="flex items-center gap-2.5">
+            <AnzenLogo size={28} />
+            <span className="text-xl font-semibold tracking-tight">Anzen</span>
+            <Badge>AI</Badge>
+          </div>
+          <div className="bg-muted flex size-12 items-center justify-center rounded-full border">
+            <LogOut className="text-primary size-5" />
+          </div>
+        </CardHeader>
 
-        {/* Icon */}
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
-            background: "rgba(163,255,18,0.08)",
-            border: "1px solid rgba(163,255,18,0.2)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width={24}
-            height={24}
-            fill="none"
-            stroke="#A3FF12"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-        </div>
-
-        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 8 }}>
-          <p
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: "#FFFFFF",
-              margin: 0,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            You&apos;ve been signed out
+        <CardContent className="flex flex-col items-center gap-2 text-center">
+          <p className="text-lg font-medium">You&apos;ve been signed out</p>
+          <p className="text-muted-foreground text-sm">
+            Your session has ended. All tokens remain secured in Auth0 Token Vault.
           </p>
-          <p
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.42)",
-              margin: 0,
-              lineHeight: 1.6,
-            }}
-          >
-            Your session has ended. All tokens
-            <br />
-            remain secured in Auth0 Token Vault.
-          </p>
-        </div>
+        </CardContent>
 
-        <div
-          style={{
-            width: "100%",
-            height: 1,
-            background: "rgba(255,255,255,0.07)",
-          }}
-        />
+        <Separator />
 
-        <a
-          href="/auth/login"
-          style={{
-            width: "100%",
-            padding: "13px 24px",
-            borderRadius: 12,
-            background: "linear-gradient(135deg, #A3FF12, #7CFF5B)",
-            color: "#000000",
-            fontSize: 15,
-            fontWeight: 700,
-            textAlign: "center" as const,
-            textDecoration: "none",
-            letterSpacing: "-0.01em",
-            display: "block",
-            transition: "opacity 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-        >
-          Sign back in
-        </a>
-      </div>
+        <CardFooter className="pb-4">
+          <Button render={<a href="/auth/login" />} size="lg" className="w-full">
+            Sign back in
+          </Button>
+        </CardFooter>
+      </Card>
 
-      <p
-        style={{
-          marginTop: 32,
-          fontSize: 12,
-          color: "rgba(255,255,255,0.22)",
-          textAlign: "center",
-        }}
-      >
-        Anzen 安全 · Powered by Auth0 Token Vault
+      <p className="text-muted-foreground mt-8 text-center text-xs">
+        Anzen 安全 · Secured by Auth0 Token Vault
       </p>
     </div>
   );

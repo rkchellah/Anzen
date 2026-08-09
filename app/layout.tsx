@@ -3,6 +3,7 @@ import { Inter, Space_Mono } from "next/font/google";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { AnzenThemeInitScript } from "@/components/AnzenThemeInitScript";
 import { AnzenThemeProvider } from "@/components/AnzenThemeProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +49,10 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning className="antialiased">
         <Auth0Provider>
-          <AnzenThemeProvider>{children}</AnzenThemeProvider>
+          <AnzenThemeProvider>
+            {/* Required by shadcn Tooltip (sidebar rail labels use it). */}
+            <TooltipProvider>{children}</TooltipProvider>
+          </AnzenThemeProvider>
         </Auth0Provider>
       </body>
     </html>

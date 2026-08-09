@@ -12,9 +12,13 @@ import {
   TeamsIcon,
 } from "@/components/provider-icons";
 import { ConnectionAccessControl } from "@/components/ConnectionAccessControl";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import type { ProviderAccessMode } from "@/lib/permissions";
-import { cn } from "@/lib/utils";
 
 type ConnectionKey = keyof typeof CONNECTIONS;
 type ConnectionStatus = Record<ConnectionKey, boolean>;
@@ -96,111 +100,124 @@ export function AnzenConnectionsView({
   });
 
   return (
-    <div className="anzen-scrollbar flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-[800px] px-4 pb-16 pt-6 md:px-8">
-        {header}
-        {disconnectError && (
-          <div className="anzen-notice anzen-notice-danger mb-6">{disconnectError}</div>
-        )}
-
-        <div className="mb-6 flex justify-center">
-          <div className="anzen-segmented" role="group" aria-label="Filter connections">
-            {FILTERS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-pressed={filter === item.id}
-                onClick={() => setFilter(item.id)}
-                className="anzen-segmented-item"
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
+    <div className="flex-1 overflow-y-auto bg-[#080808]">
+      <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
+        <div className="mb-12">
+          {header}
         </div>
 
-        <div className="border-t border-border">
+        {disconnectError && (
+          <Alert variant="destructive" className="mb-8 rounded-2xl border-destructive/20 bg-destructive/5">
+            <AlertDescription>{disconnectError}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="mb-10 flex justify-center">
+          <Tabs value={filter} onValueChange={(next) => setFilter(next as FilterId)}>
+            <TabsList className="h-11 rounded-full border-border/10 bg-[#121212] p-1">
+              {FILTERS.map((item) => (
+                <TabsTrigger 
+                  key={item.id} 
+                  value={item.id}
+                  className="rounded-full px-6 py-2 text-xs font-medium data-[state=active]:bg-[#1A1C1E] data-[state=active]:text-primary"
+                >
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <div className="flex flex-col gap-4">
           {statusLoading && visible.length === 0 ? (
-            <p className="py-14 text-center text-[15px] text-muted-foreground">
-              Checking connections…
-            </p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="mt-4 text-sm text-muted-foreground">Checking connections…</p>
+            </div>
           ) : visible.length === 0 ? (
-            <p className="py-14 text-center text-[15px] text-muted-foreground">
-              No connections in this view.
-            </p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <p className="text-sm text-muted-foreground">No connections in this view.</p>
+            </div>
           ) : (
             visible.map((provider) => (
-              <div
-                key={provider.key}
-                className="flex flex-col gap-4 border-b border-border py-6 sm:flex-row sm:items-center sm:gap-8"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-4">
-                  <div className="anzen-icon-tile size-11 rounded-xl">
-                    {provider.icon}
+              <Card key={provider.key} className="overflow-hidden rounded-2xl border-border/50 bg-[#121212] shadow-sm transition-all hover:border-primary/20">
+                <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:gap-6">
+                  <div className="flex min-w-0 flex-1 items-center gap-5">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/10 bg-[#1A1C1E]">
+                      {provider.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <p className="text-base font-semibold tracking-tight">{provider.label}</p>
+                        {provider.connected && (
+                          <Badge className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary uppercase tracking-wider border-none">
+                            Connected
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-muted-foreground mt-1 text-sm leading-relaxed">{provider.desc}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[16px] font-semibold tracking-[-0.015em] text-foreground">
-                        {provider.label}
-                      </p>
-                      {provider.connected && (
-                        <span className="anzen-tag anzen-tag-accent">Connected</span>
+
+                  <div className="flex items-center gap-3 shrink-0 sm:ml-auto">
+                    <Badge variant="outline" className="rounded-full border-border/10 bg-muted/5 px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      {provider.type.toLowerCase()}
+                    </Badge>
+
+                    <div className="sm:min-w-40 sm:text-right">
+                      {provider.connected ? (
+                        <ConnectionAccessControl
+                          providerLabel={provider.label}
+                          mode={accessModes[provider.key]}
+                          onModeChange={(mode) => onAccessModeChange(provider.key, mode)}
+                          onDisconnect={() => onDisconnect(provider.key)}
+                          disabled={permissionsLoading}
+                          saving={permissionsSaving === provider.key}
+                          disconnecting={disconnectingKey === provider.key}
+                        />
+                      ) : (
+                        tokenVaultScopesEnabled ? (
+                          <Button 
+                            render={<a href={provider.connectHref} />} 
+                            size="sm"
+                            className="h-9 rounded-full bg-primary px-5 text-xs font-bold text-black hover:opacity-90"
+                          >
+                            Connect
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled
+                            title="Set AUTH0_TOKEN_VAULT_SCOPES=true to enable connections"
+                            className="h-9 rounded-full border-border/10 bg-muted/20 px-5 text-xs font-medium text-muted-foreground"
+                          >
+                            Connect
+                          </Button>
+                        )
                       )}
                     </div>
-                    <p className="mt-1 text-[14px] leading-[1.55] text-muted-foreground">
-                      {provider.desc}
-                    </p>
                   </div>
-                </div>
-
-                <p className="anzen-meta w-20 shrink-0 capitalize">
-                  {provider.type.toLowerCase()}
-                </p>
-
-                <div className="sm:min-w-[280px] sm:text-right">
-                  {provider.connected ? (
-                    <ConnectionAccessControl
-                      providerLabel={provider.label}
-                      mode={accessModes[provider.key]}
-                      onModeChange={(mode) => onAccessModeChange(provider.key, mode)}
-                      onDisconnect={() => onDisconnect(provider.key)}
-                      disabled={permissionsLoading}
-                      saving={permissionsSaving === provider.key}
-                      disconnecting={disconnectingKey === provider.key}
-                    />
-                  ) : (
-                    <a
-                      href={tokenVaultScopesEnabled ? provider.connectHref : "#"}
-                      aria-disabled={!tokenVaultScopesEnabled}
-                      onClick={(event) => {
-                        if (!tokenVaultScopesEnabled) event.preventDefault();
-                      }}
-                      className={cn(
-                        "anzen-btn anzen-btn-secondary anzen-btn-sm",
-                        !tokenVaultScopesEnabled && "pointer-events-none opacity-50"
-                      )}
-                    >
-                      Connect
-                    </a>
-                  )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))
           )}
         </div>
 
         {filter !== "connected" && (
-          <div className="mt-12 text-center">
-            <p className="anzen-eyebrow mb-4">Coming later</p>
-            <div className="flex flex-wrap justify-center gap-2">
+          <div className="mt-20 border-t border-border/5 pt-12 text-center">
+            <p className="mb-6 text-[10px] font-bold tracking-[0.2em] text-muted-foreground/40 uppercase">
+              Coming later
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
               {COMING_SOON.map((app) => (
-                <span
+                <Badge
                   key={app.label}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-[14px] text-muted-foreground"
+                  variant="outline"
+                  className="rounded-full border-border/10 bg-[#121212] px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/20 hover:text-foreground"
                 >
-                  {app.icon}
+                  <span className="mr-2.5 opacity-60">{app.icon}</span>
                   {app.label}
-                </span>
+                </Badge>
               ))}
             </div>
           </div>

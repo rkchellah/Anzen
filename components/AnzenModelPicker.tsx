@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Cpu } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type AnzenModelOption = {
   id: string;
@@ -26,89 +34,87 @@ export function AnzenModelPicker({
   onChange: (id: string) => void;
   disabled?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
   if (models.length === 0) return null;
 
   const active = models.find((model) => model.id === value) ?? models[0];
-  const single = models.length === 1;
 
-  if (single) {
+  if (models.length === 1) {
     return (
-      <span className="anzen-model-chip anzen-model-chip-static">
-        <Cpu size={14} />
-        <span className="anzen-model-chip-label">
-          {active.providerLabel} · {active.label}
-        </span>
-      </span>
+      <Badge variant="outline" className="text-muted-foreground gap-1.5 font-normal">
+        <Cpu className="size-3.5" />
+        Model - {active.label}
+      </Badge>
     );
   }
 
   return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
-        className="anzen-model-chip"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        title="Change model"
-      >
-        <Cpu size={14} />
-        <span className="anzen-model-chip-label">
-          {active.providerLabel} · {active.label}
-        </span>
-        <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
-      </button>
+    <div className="flex items-center gap-1.5">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              className="h-7 gap-1.5 rounded-full bg-[#1A1C1E] px-3 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted/10 hover:text-foreground data-[popup-open]:bg-muted/10 data-[popup-open]:text-foreground"
+            />
+          }
+        >
+          <span className="text-[12px] font-bold">∞</span>
+          <span>Agent</span>
+          <ChevronDown className="size-3 opacity-60" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="top" className="min-w-48">
+          <DropdownMenuItem className="gap-2 text-xs">
+            <span>Agentic Mode</span>
+            <Check className="ml-auto size-3 text-primary" />
+          </DropdownMenuItem>
+          <DropdownMenuItem className="gap-2 text-xs opacity-50">
+            <span>Standard Mode</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-      {open && (
-        <div className="anzen-model-menu" role="listbox" aria-label="Select model">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={disabled}
+              className="h-7 gap-1.5 rounded-full bg-transparent px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground data-[popup-open]:text-foreground"
+            />
+          }
+        >
+          <span className="truncate">{active.label}</span>
+          <ChevronDown className="size-3 opacity-60" />
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="start" side="top" className="min-w-64">
+          <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            Select Model
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           {models.map((model) => {
             const selected = model.id === active.id;
             return (
-              <button
+              <DropdownMenuItem
                 key={model.id}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                onClick={() => {
-                  onChange(model.id);
-                  setOpen(false);
-                }}
-                className="anzen-model-menu-item"
+                onClick={() => onChange(model.id)}
+                className="gap-3"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] font-medium text-foreground">
-                    {model.label}
-                  </span>
-                  <span className="block truncate text-[12.5px] text-muted-foreground">
+                  <span className="block truncate text-sm font-medium">{model.label}</span>
+                  <span className="text-muted-foreground block truncate text-xs">
                     {model.providerLabel} · {model.modelId}
                   </span>
                 </span>
-                {selected && <Check size={16} className="shrink-0 text-accent-foreground" />}
-              </button>
+                {selected && <Check className="text-primary size-4 shrink-0" />}
+              </DropdownMenuItem>
             );
           })}
-        </div>
-      )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

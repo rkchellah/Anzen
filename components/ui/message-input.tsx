@@ -21,6 +21,7 @@ interface MessageInputBaseProps
   isGenerating: boolean
   enableInterrupt?: boolean
   transcribeAudio?: (blob: Blob) => Promise<string>
+  minimalist?: boolean
 }
 
 interface MessageInputWithoutAttachmentProps extends MessageInputBaseProps {
@@ -46,6 +47,7 @@ export function MessageInput({
   isGenerating,
   enableInterrupt = true,
   transcribeAudio,
+  minimalist = false,
   ...props
 }: MessageInputProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -206,10 +208,11 @@ export function MessageInput({
             onPaste={onPaste}
             onKeyDown={onKeyDown}
             className={cn(
-              "z-10 w-full grow resize-none rounded-xl border border-input bg-background/50 backdrop-blur-sm p-4 pr-24 text-[13.5px] leading-relaxed ring-offset-background transition-[border,background-color] placeholder:text-muted-foreground focus-visible:border-primary/50 focus-visible:bg-background/90 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+              // Mirrors the shadcn Input/Textarea field styling.
+              "border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 z-10 w-full grow resize-none rounded-xl border p-4 pr-24 text-sm leading-relaxed transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
               showFileList && "pb-16",
               className?.includes("border-none") && "border-none",
-              className?.includes("bg-transparent") && "bg-transparent backdrop-blur-none shadow-none",
+              className?.includes("bg-transparent") && "bg-transparent shadow-none",
               className
             )}
             {...(props.allowAttachments
@@ -247,56 +250,56 @@ export function MessageInput({
         </div>
       </div>
 
-      <div className="absolute right-3.5 top-3.5 z-20 flex gap-2">
-        {props.allowAttachments && (
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="h-8 w-8"
-            aria-label="Attach a file"
-            onClick={async () => {
-              const files = await showFileUploadDialog()
-              addFiles(files)
-            }}
-          >
-            <Paperclip className="h-4 w-4" />
-          </Button>
-        )}
-        {isSpeechSupported && (
-          <Button
-            type="button"
-            variant="outline"
-            className={cn("h-8 w-8 rounded-lg border-border bg-background hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors", isListening && "text-primary border-primary")}
-            aria-label="Voice input"
-            size="icon"
-            onClick={toggleListening}
-          >
-            <Mic className="h-4 w-4" />
-          </Button>
-        )}
-        {isGenerating && stop ? (
-          <Button
-            type="button"
-            size="icon"
-            className="h-8 w-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20"
-            aria-label="Stop generating"
-            onClick={stop}
-          >
-            <Square className="h-2.5 w-2.5" fill="currentColor" />
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            size="icon"
-            className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground transition-all hover:scale-105 active:scale-95"
-            aria-label="Send message"
-            disabled={props.value === "" || isGenerating}
-          >
-            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-          </Button>
-        )}
-      </div>
+      {!minimalist && (
+        <div className="absolute right-3.5 top-3.5 z-20 flex gap-2">
+          {props.allowAttachments && (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Attach a file"
+              onClick={async () => {
+                const files = await showFileUploadDialog()
+                addFiles(files)
+              }}
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+          )}
+          {isSpeechSupported && (
+            <Button
+              type="button"
+              variant="ghost"
+              className={cn("text-muted-foreground", isListening && "text-primary")}
+              aria-label="Voice input"
+              size="icon"
+              onClick={toggleListening}
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+          )}
+          {isGenerating && stop ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="destructive"
+              aria-label="Stop generating"
+              onClick={stop}
+            >
+              <Square className="h-2.5 w-2.5" fill="currentColor" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Send message"
+              disabled={props.value === "" || isGenerating}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      )}
 
       {props.allowAttachments && <FileUploadOverlay isDragging={isDragging} />}
 
