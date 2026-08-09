@@ -1,6 +1,6 @@
 # Anzen 安全
 
-> The production demo has an Auth0 callback issue post-hackathon. Full breakdown: [Medium Post](https://medium.com/@chellakamina/anzen-what-i-built-what-broke-and-what-i-learned-about-ai-agents-and-credentials-5dee0ff88d30)
+> [Medium Post](https://medium.com/@chellakamina/anzen-what-i-built-what-broke-and-what-i-learned-about-ai-agents-and-credentials-5dee0ff88d30)
 
 ---
 
@@ -14,7 +14,7 @@ Anzen holds none of it. You connect GitHub, Gmail, and Slack through **Auth0 Tok
 
 ## Live Demo
 
-🔗 [anzen-eight.vercel.app](https://anzen-eight.vercel.app/)
+🔗 [Anzen](https://anzen-eight.vercel.app/)
 
 ---
 
