@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { anzenPageStyle } from "@/components/anzen-theme";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader, type InitialAuthState } from "@/components/SiteHeader";
-import { useAnzenTheme } from "@/components/AnzenThemeProvider";
 
 export type LegalSection = {
   id: string;
@@ -28,99 +26,39 @@ export function LegalPageShell({
   relatedLink?: { href: string; label: string };
   initialAuth?: InitialAuthState;
 }) {
-  const { theme: t } = useAnzenTheme();
-
   return (
-    <div
-      suppressHydrationWarning
-      className="anzen-page"
-      style={{
-        ...anzenPageStyle(t),
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div suppressHydrationWarning className="anzen-page flex flex-col">
       <SiteHeader initialAuth={initialAuth} />
 
-      <main style={{ flex: 1, width: "100%" }}>
-        <div
-          style={{
-            width: "100%",
-            borderBottom: `1px solid ${t.border}`,
-            background: t.surface,
-          }}
-        >
-          <div className="anzen-site-x" style={{ maxWidth: 800, margin: "0 auto", paddingTop: 32, paddingBottom: 28 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: t.accentText,
-                  background: t.accentBg,
-                  border: `1px solid ${t.accent}40`,
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                }}
-              >
-                Legal
-              </span>
-              <span style={{ fontSize: 12, color: t.muted }}>{kind}</span>
+      <main className="flex-1 w-full">
+        <div className="w-full border-b border-border bg-card">
+          <div className="anzen-site-x mx-auto flex w-full max-w-[800px] flex-col items-center pb-10 pt-24 md:pt-28 text-center">
+            <div className="mb-6 flex items-center gap-2">
+              <span className="anzen-tag anzen-tag-accent">Legal</span>
+              <span className="text-[13px] text-muted-foreground">{kind}</span>
             </div>
-            <h1
-              style={{
-                fontSize: "clamp(1.75rem, 4vw, 2.5rem)",
-                fontWeight: 700,
-                letterSpacing: "-0.03em",
-                lineHeight: 1.12,
-                margin: "0 0 12px",
-                color: t.text,
-              }}
-            >
+            <h1 className="mb-3 text-3xl font-bold leading-tight tracking-[-0.025em] text-foreground md:text-4xl">
               {title}
             </h1>
-            <p style={{ fontSize: 15, color: t.muted, margin: 0, maxWidth: 560, lineHeight: 1.65 }}>{subtitle}</p>
+            <p className="max-w-[600px] text-[16px] leading-[1.65] text-muted-foreground">
+              {subtitle}
+            </p>
           </div>
         </div>
 
-        <div className="anzen-site-x" style={{ maxWidth: 800, margin: "0 auto", paddingTop: 28, paddingBottom: 56 }}>
+        <div className="anzen-site-x mx-auto w-full max-w-[800px] pt-8 pb-16">
           <nav
             aria-label="On this page"
-            style={{
-              marginBottom: 28,
-              padding: "14px 18px",
-              borderRadius: 12,
-              border: `1px solid ${t.border}`,
-              background: t.surface,
-            }}
+            className="mb-8 p-4 md:p-5 rounded-lg border border-border bg-card"
           >
-            <p
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.12em",
-                textTransform: "uppercase",
-                color: t.muted,
-                margin: "0 0 10px",
-              }}
-            >
-              On this page
-            </p>
-            <ul
-              style={{
-                listStyle: "none",
-                margin: 0,
-                padding: 0,
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "8px 20px",
-              }}
-            >
+            <p className="anzen-eyebrow mb-3">On this page</p>
+            <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0">
               {sections.map((s) => (
                 <li key={s.id}>
-                  <a href={`#${s.id}`} style={{ fontSize: 13, color: t.muted, textDecoration: "none" }}>
+                  <a
+                    href={`#${s.id}`}
+                    className="text-[14.5px] text-muted-foreground no-underline transition-colors hover:text-foreground"
+                  >
                     {s.title}
                   </a>
                 </li>
@@ -128,53 +66,27 @@ export function LegalPageShell({
             </ul>
           </nav>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="flex flex-col gap-4">
             {sections.map((section, index) => (
               <section
                 key={section.id}
                 id={section.id}
-                className="anzen-legal-section"
-                style={{
-                  padding: "24px 24px 22px",
-                  borderRadius: 14,
-                  border: `1px solid ${t.border}`,
-                  background: t.surface,
-                  scrollMarginTop: 80,
-                }}
+                className="anzen-legal-section anzen-card p-6 md:p-8 scroll-mt-20"
               >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                <div className="flex items-start gap-4">
                   <span
                     aria-hidden
-                    style={{
-                      flexShrink: 0,
-                      width: 28,
-                      height: 28,
-                      borderRadius: 8,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: t.accentText,
-                      background: t.accentBg,
-                      border: `1px solid ${t.accent}33`,
-                    }}
+                    className="flex size-8 flex-shrink-0 items-center justify-center rounded-full border border-primary/20 bg-accent text-[13px] font-bold text-accent-foreground"
                   >
                     {String(index + 1).padStart(2, "0")}
                   </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h2
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 600,
-                        letterSpacing: "-0.02em",
-                        margin: "0 0 10px",
-                        color: t.text,
-                      }}
-                    >
+                  <div className="min-w-0 flex-1">
+                    <h2 className="mb-3 text-[19px] font-semibold tracking-[-0.02em] text-foreground">
                       {section.title}
                     </h2>
-                    <div style={{ fontSize: 15, lineHeight: 1.75, color: t.muted }}>{section.body}</div>
+                    <div className="text-[15px] leading-[1.7] text-muted-foreground">
+                      {section.body}
+                    </div>
                   </div>
                 </div>
               </section>
@@ -182,9 +94,12 @@ export function LegalPageShell({
           </div>
 
           {relatedLink && (
-            <p style={{ marginTop: 28, fontSize: 14, color: t.muted }}>
+            <p className="mt-8 text-center text-[15px] text-muted-foreground">
               See also{" "}
-              <Link href={relatedLink.href} style={{ color: t.accentText, textDecoration: "none", fontWeight: 500 }}>
+              <Link
+                href={relatedLink.href}
+                className="text-accent-foreground no-underline font-medium hover:underline"
+              >
                 {relatedLink.label}
               </Link>
             </p>

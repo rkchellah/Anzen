@@ -102,21 +102,24 @@ export function SiteHeader({
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Light mode" : "Dark mode"}
       style={{
-        width: 28,
-        height: 28,
+        width: 32,
+        height: 32,
         borderRadius: 6,
-        border: `1px solid ${t.border}`,
-        background: t.surface2,
+        border: "none",
+        background: "transparent",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         cursor: "pointer",
-        color: t.muted,
+        color: t.text,
         flexShrink: 0,
         padding: 0,
+        transition: "opacity 0.15s",
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.7")}
+      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
     >
-      {isDark ? <Sun size={13} /> : <Moon size={13} />}
+      {isDark ? <Sun size={17} /> : <Moon size={17} />}
     </button>
   );
 
@@ -129,18 +132,16 @@ export function SiteHeader({
         alignItems: "center",
         justifyContent: "center",
         gap: 5,
-        fontSize: 13,
-        fontWeight: session.status === "authenticated" ? 600 : 500,
-        color: session.status === "authenticated" ? t.accentText : t.muted,
+        fontSize: 13.5,
+        fontWeight: 600,
+        color: t.text,
         textDecoration: "none",
         padding: "5px 10px",
-        borderRadius: 6,
-        border: `1px solid ${session.status === "authenticated" ? `${t.accent}55` : t.border}`,
-        background: session.status === "authenticated" ? t.accentBg : t.surface2,
-        lineHeight: 1.3,
+        transition: "opacity 0.15s",
         visibility: session.status === "loading" ? "hidden" : "visible",
-        minWidth: session.status === "loading" ? 72 : undefined,
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.7")}
+      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
       aria-hidden={session.status === "loading"}
       tabIndex={session.status === "loading" ? -1 : undefined}
     >
@@ -151,8 +152,8 @@ export function SiteHeader({
   return (
     <header
       style={{
-        backgroundColor: t.bg,
-        borderBottom: `1px solid ${t.border}`,
+        backgroundColor: "transparent",
+        borderBottom: "none",
         position: "sticky",
         top: 0,
         zIndex: 50,

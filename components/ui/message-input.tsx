@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client"
 
 import React, { useEffect, useRef, useState } from "react"
@@ -207,8 +206,10 @@ export function MessageInput({
             onPaste={onPaste}
             onKeyDown={onKeyDown}
             className={cn(
-              "z-10 w-full grow resize-none rounded-xl border border-input bg-background p-3 pr-24 text-sm ring-offset-background transition-[border] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+              "z-10 w-full grow resize-none rounded-xl border border-input bg-background/50 backdrop-blur-sm p-4 pr-24 text-[13.5px] leading-relaxed ring-offset-background transition-[border,background-color] placeholder:text-muted-foreground focus-visible:border-primary/50 focus-visible:bg-background/90 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
               showFileList && "pb-16",
+              className?.includes("border-none") && "border-none",
+              className?.includes("bg-transparent") && "bg-transparent backdrop-blur-none shadow-none",
               className
             )}
             {...(props.allowAttachments
@@ -246,7 +247,7 @@ export function MessageInput({
         </div>
       </div>
 
-      <div className="absolute right-3 top-3 z-20 flex gap-2">
+      <div className="absolute right-3.5 top-3.5 z-20 flex gap-2">
         {props.allowAttachments && (
           <Button
             type="button"
@@ -266,7 +267,7 @@ export function MessageInput({
           <Button
             type="button"
             variant="outline"
-            className={cn("h-8 w-8", isListening && "text-primary")}
+            className={cn("h-8 w-8 rounded-lg border-border bg-background hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors", isListening && "text-primary border-primary")}
             aria-label="Voice input"
             size="icon"
             onClick={toggleListening}
@@ -278,21 +279,21 @@ export function MessageInput({
           <Button
             type="button"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20"
             aria-label="Stop generating"
             onClick={stop}
           >
-            <Square className="h-3 w-3 animate-pulse" fill="currentColor" />
+            <Square className="h-2.5 w-2.5" fill="currentColor" />
           </Button>
         ) : (
           <Button
             type="submit"
             size="icon"
-            className="h-8 w-8 transition-opacity"
+            className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground transition-all hover:scale-105 active:scale-95"
             aria-label="Send message"
             disabled={props.value === "" || isGenerating}
           >
-            <ArrowUp className="h-5 w-5" />
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
           </Button>
         )}
       </div>

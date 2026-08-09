@@ -13,7 +13,6 @@ import {
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import { connectionKeyForToolName } from "@/lib/tool-errors";
 import type { ProviderAccessMode } from "@/lib/permissions";
-import { useAnzenTheme } from "@/components/AnzenThemeProvider";
 
 type ConnectionKey = "github" | "gmail" | "slack";
 
@@ -30,13 +29,6 @@ export function AnzenToolApprovals({
   onOpenConnections,
   onApprove,
 }: AnzenToolApprovalsProps) {
-  const { theme } = useAnzenTheme();
-  const card = {
-    backgroundColor: theme.surface,
-    border: `1px solid ${theme.border}`,
-    borderRadius: 14,
-  } as const;
-
   const blocks: ReactNode[] = [];
 
   for (const m of messages) {
@@ -49,18 +41,17 @@ export function AnzenToolApprovals({
         blocks.push(
           <div
             key={part.toolCallId ?? `${toolName}-error`}
-            className="anzen-tool-card"
-            style={{ ...card, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)" }}
+            className="anzen-tool-card anzen-card border-[#f87171]/35 p-5"
           >
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#f87171", margin: "0 0 8px" }}>
+            <p className="anzen-eyebrow text-[#f87171] mb-2">
               Couldn&apos;t complete action
             </p>
-            <p style={{ fontSize: 14, color: theme.text, margin: "0 0 14px", lineHeight: 1.6 }}>{part.errorText}</p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <p className="mb-4 text-[15px] leading-[1.6] text-foreground">{part.errorText}</p>
+            <div className="flex flex-wrap gap-2">
               {reconnectKey && (
                 <a
                   href={buildConnectUrl(reconnectKey, "/dashboard")}
-                  style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: theme.accent, color: "#000", textDecoration: "none", fontFamily: "inherit" }}
+                  className="anzen-btn anzen-btn-primary"
                 >
                   Reconnect {CONNECTIONS[reconnectKey].label}
                 </a>
@@ -68,7 +59,7 @@ export function AnzenToolApprovals({
               <button
                 type="button"
                 onClick={onOpenConnections}
-                style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: theme.muted, border: `1px solid ${theme.border}`, cursor: "pointer", fontFamily: "inherit" }}
+                className="anzen-btn anzen-btn-secondary"
               >
                 Open Connections
               </button>
@@ -89,20 +80,20 @@ export function AnzenToolApprovals({
           blocks.push(
             <div
               key={part.toolCallId ?? approvalId}
-              className="anzen-tool-card"
-              style={{ ...card, padding: "16px 18px", borderColor: "rgba(248,113,113,0.35)" }}
+              className="anzen-tool-card anzen-card border-[#f87171]/35 p-5"
             >
-              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#f87171", margin: "0 0 8px" }}>
+              <p className="anzen-eyebrow text-[#f87171] mb-2">
                 Write action blocked
               </p>
-              <p style={{ fontSize: 14, color: theme.text, margin: "0 0 8px", lineHeight: 1.6 }}>{summary}</p>
-              <p style={{ fontSize: 13, color: theme.muted, margin: "0 0 14px", lineHeight: 1.5 }}>
-                {CONNECTIONS[writeKey].label} is set to read-only. Switch to Read &amp; write in Connections to allow this.
+              <p className="mb-2 text-[15px] leading-[1.6] text-foreground">{summary}</p>
+              <p className="mb-4 text-[14px] leading-[1.55] text-muted-foreground">
+                {CONNECTIONS[writeKey].label} is set to read-only. Switch to Read &amp; write in
+                Connections to allow this.
               </p>
               <button
                 type="button"
                 onClick={onOpenConnections}
-                style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: theme.accent, color: "#000", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                className="anzen-btn anzen-btn-primary"
               >
                 Open Connections
               </button>
@@ -114,25 +105,24 @@ export function AnzenToolApprovals({
         blocks.push(
           <div
             key={part.toolCallId ?? approvalId}
-            className="anzen-tool-card"
-            style={{ ...card, padding: "16px 18px", borderColor: `${theme.accent}35` }}
+            className="anzen-tool-card anzen-card border-primary/25 p-5"
           >
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: theme.accentText, margin: "0 0 8px" }}>
+            <p className="anzen-eyebrow text-accent-foreground mb-2">
               Confirm action
             </p>
-            <p style={{ fontSize: 14, color: theme.text, margin: "0 0 14px", lineHeight: 1.6 }}>{summary}</p>
-            <div style={{ display: "flex", gap: 8 }}>
+            <p className="mb-4 text-[15px] leading-[1.6] text-foreground">{summary}</p>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => onApprove(approvalId, true)}
-                style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, borderRadius: 8, background: theme.accent, color: "#000", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+                className="anzen-btn anzen-btn-primary"
               >
                 Confirm
               </button>
               <button
                 type="button"
                 onClick={() => onApprove(approvalId, false, "User cancelled")}
-                style={{ padding: "8px 16px", fontSize: 13, fontWeight: 500, borderRadius: 8, background: "transparent", color: theme.muted, border: `1px solid ${theme.border}`, cursor: "pointer", fontFamily: "inherit" }}
+                className="anzen-btn anzen-btn-secondary"
               >
                 Cancel
               </button>
@@ -144,7 +134,10 @@ export function AnzenToolApprovals({
 
       if (part.state === "approval-responded" && part.approval) {
         blocks.push(
-          <div key={part.toolCallId ?? part.approval.id} className="anzen-tool-card" style={{ fontSize: 12, color: theme.muted }}>
+          <div
+            key={part.toolCallId ?? part.approval.id}
+            className="anzen-tool-card text-[13.5px] text-muted-foreground"
+          >
             {part.approval.approved ? "Confirmed — running action…" : "Action cancelled."}
           </div>
         );
@@ -157,14 +150,15 @@ export function AnzenToolApprovals({
         blocks.push(
           <div
             key={part.toolCallId ?? `${toolName}-denied`}
-            className="anzen-tool-card"
-            style={{ ...card, padding: "14px 16px", borderColor: "rgba(248,113,113,0.35)" }}
+            className="anzen-tool-card anzen-card border-[#f87171]/35 p-5"
           >
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#f87171", margin: "0 0 6px" }}>
+            <p className="anzen-eyebrow text-[#f87171] mb-2">
               Action blocked
             </p>
-            <p style={{ fontSize: 13, color: theme.text, margin: "0 0 6px", lineHeight: 1.55 }}>{summary}</p>
-            <p style={{ fontSize: 12, color: theme.muted, margin: 0, lineHeight: 1.5 }}>
+            <p className="mb-1.5 text-[15px] leading-[1.6] text-foreground">
+              {summary}
+            </p>
+            <p className="text-[14px] leading-[1.55] text-muted-foreground">
               {reason ?? "Action was not performed (cancelled or denied)."}
             </p>
           </div>

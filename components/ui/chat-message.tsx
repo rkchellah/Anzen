@@ -1,11 +1,10 @@
-// @ts-nocheck
 "use client"
 
 import React, { useMemo, useState } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { motion } from "framer-motion"
-import { Ban, ChevronRight, Code2, Loader2, Terminal } from "lucide-react"
-
+import { Ban, ChevronRight, Code2, Loader2, Terminal, Info, MoreHorizontal } from "lucide-react"
+import { AnzenLogo } from "@/components/AnzenLogo"
 import { cn } from "@/lib/utils"
 import {
   Collapsible,
@@ -15,13 +14,20 @@ import {
 import { FilePreview } from "@/components/ui/file-preview"
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer"
 
+import { resolveDisplayName } from "@/lib/display-name"
+
 const chatBubbleVariants = cva(
-  "group/message relative break-words rounded-lg p-3 text-sm sm:max-w-[70%]",
+  "group/message relative w-full break-words text-[15px] leading-[1.65]",
   {
     variants: {
       isUser: {
-        true: "bg-primary text-primary-foreground",
-        false: "bg-muted text-foreground",
+        true:
+          "w-fit max-w-[92%] rounded-2xl rounded-tr-md border border-border bg-surface-2 px-4 py-2.5 text-left text-foreground",
+        false: "text-foreground/90",
+      },
+      isSystem: {
+        true: "text-blue-500/90 italic",
+        false: "",
       },
       animation: {
         none: "",
@@ -30,102 +36,47 @@ const chatBubbleVariants = cva(
         fade: "duration-500 animate-in fade-in-0",
       },
     },
-    compoundVariants: [
-      {
-        isUser: true,
-        animation: "slide",
-        class: "slide-in-from-right",
-      },
-      {
-        isUser: false,
-        animation: "slide",
-        class: "slide-in-from-left",
-      },
-      {
-        isUser: true,
-        animation: "scale",
-        class: "origin-bottom-right",
-      },
-      {
-        isUser: false,
-        animation: "scale",
-        class: "origin-bottom-left",
-      },
-    ],
+    defaultVariants: {
+      animation: "fade",
+    }
   }
 )
 
 type Animation = VariantProps<typeof chatBubbleVariants>["animation"]
 
-interface Attachment {
+/**
+ * Structural shapes for the parts this component renders. The AI SDK no longer
+ * exports these as standalone types, so they're declared locally.
+ */
+export type Attachment = {
   name?: string
   contentType?: string
   url: string
 }
 
-interface PartialToolCall {
-  state: "partial-call"
+export type ToolInvocation = {
+  state: string
   toolName: string
+  args?: Record<string, unknown>
+  result?: Record<string, unknown> & { __cancelled?: boolean }
 }
 
-interface ToolCall {
-  state: "call"
-  toolName: string
+export type ReasoningPart = {
+  type: string
+  text?: string
+  reasoning?: string
 }
 
-interface ToolResult {
-  state: "result"
-  toolName: string
-  result: {
-    __cancelled?: boolean
-    [key: string]: any
-  }
+export type MessagePart = {
+  type: string
+  text?: string
+  reasoning?: string
+  toolInvocation?: ToolInvocation
 }
-
-type ToolInvocation = PartialToolCall | ToolCall | ToolResult
-
-interface ReasoningPart {
-  type: "reasoning"
-  reasoning: string
-}
-
-interface ToolInvocationPart {
-  type: "tool-invocation"
-  toolInvocation: ToolInvocation
-}
-
-interface TextPart {
-  type: "text"
-  text: string
-}
-
-// For compatibility with AI SDK types, not used
-interface SourcePart {
-  type: "source"
-  source?: any
-}
-
-interface FilePart {
-  type: "file"
-  mimeType: string
-  data: string
-}
-
-interface StepStartPart {
-  type: "step-start"
-}
-
-type MessagePart =
-  | TextPart
-  | ReasoningPart
-  | ToolInvocationPart
-  | SourcePart
-  | FilePart
-  | StepStartPart
 
 export interface Message {
   id: string
-  role: "user" | "assistant" | (string & {})
+  role: "user" | "assistant" | "system" | (string & {})
   content: string
   createdAt?: Date
   experimental_attachments?: Attachment[]
@@ -137,6 +88,8 @@ export interface ChatMessageProps extends Message {
   showTimeStamp?: boolean
   animation?: Animation
   actions?: React.ReactNode
+  userName?: string
+  userEmail?: string
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -144,11 +97,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   content,
   createdAt,
   showTimeStamp = false,
-  animation = "scale",
+  animation = "fade",
   actions,
   experimental_attachments,
   toolInvocations,
   parts,
+  userName,
+  userEmail,
 }) => {
   const files = useMemo(() => {
     return experimental_attachments?.map((attachment) => {
@@ -161,117 +116,102 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   }, [experimental_attachments])
 
   const isUser = role === "user"
+  const isSystem = role === "system"
+
+  const identity = resolveDisplayName(isUser ? userName : "Anzen", isUser ? userEmail : undefined)
 
   const formattedTime = createdAt?.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
   })
 
-  if (isUser) {
-    return (
-      <div
-        className={cn("flex flex-col", isUser ? "items-end" : "items-start")}
-      >
-        {files ? (
-          <div className="mb-1 flex flex-wrap gap-2">
-            {files.map((file, index) => {
-              return <FilePreview file={file} key={index} />
-            })}
-          </div>
-        ) : null}
-
-        <div className={cn(chatBubbleVariants({ isUser, animation }))}>
-          <MarkdownRenderer>{content}</MarkdownRenderer>
+  const Avatar = () => {
+    if (isSystem) {
+      return (
+        <div className="size-8 rounded-full bg-blue-500/5 border border-blue-500/10 flex items-center justify-center text-blue-500 shrink-0">
+          <Info size={14} />
         </div>
-
-        {showTimeStamp && createdAt ? (
-          <time
-            dateTime={createdAt.toISOString()}
-            className={cn(
-              "mt-1 block px-1 text-xs opacity-50",
-              animation !== "none" && "duration-500 animate-in fade-in-0"
-            )}
-          >
-            {formattedTime}
-          </time>
-        ) : null}
+      )
+    }
+    return (
+      <div className={cn(
+        "size-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border border-border/50 transition-colors",
+        isUser ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground border-primary/20"
+      )}>
+        {isUser ? identity.initials : <AnzenLogo size={12} className="text-current" />}
       </div>
     )
   }
 
-  if (parts && parts.length > 0) {
-    return parts.map((part, index) => {
-      if (part.type === "text") {
-        return (
-          <div
-            className={cn(
-              "flex flex-col",
-              isUser ? "items-end" : "items-start"
-            )}
-            key={`text-${index}`}
-          >
-            <div className={cn(chatBubbleVariants({ isUser, animation }))}>
-              <MarkdownRenderer>{part.text}</MarkdownRenderer>
-              {actions ? (
-                <div className="absolute -bottom-4 right-2 flex space-x-1 rounded-lg border bg-background p-1 text-foreground opacity-0 transition-opacity group-hover/message:opacity-100">
-                  {actions}
-                </div>
-              ) : null}
-            </div>
+  const MessageHeader = () => (
+    <div className={cn("mb-1.5 flex items-center gap-2", isUser && "flex-row-reverse")}>
+      <span className="text-[14px] font-semibold tracking-[-0.01em] text-foreground">
+        {isUser ? (identity.first ?? identity.full) : isSystem ? "System" : "Anzen"}
+      </span>
+      <span className="text-[12px] tabular-nums text-muted-foreground">{formattedTime}</span>
+    </div>
+  )
 
-            {showTimeStamp && createdAt ? (
-              <time
-                dateTime={createdAt.toISOString()}
-                className={cn(
-                  "mt-1 block px-1 text-xs opacity-50",
-                  animation !== "none" && "duration-500 animate-in fade-in-0"
-                )}
-              >
-                {formattedTime}
-              </time>
-            ) : null}
-          </div>
-        )
-      } else if (part.type === "reasoning") {
-        return <ReasoningBlock key={`reasoning-${index}`} part={part} />
-      } else if (part.type === "tool-invocation") {
-        return (
-          <ToolCall
-            key={`tool-${index}`}
-            toolInvocations={[part.toolInvocation]}
-          />
-        )
-      }
-      return null
-    })
-  }
-
-  if (toolInvocations && toolInvocations.length > 0) {
-    return <ToolCall toolInvocations={toolInvocations} />
-  }
+  const renderContent = (text: string) => (
+    <div className="relative group/content">
+      <MarkdownRenderer>{text}</MarkdownRenderer>
+      {actions && (
+        <div className="absolute -right-2 top-0 flex space-x-1 rounded-lg border border-border/50 bg-background p-1 text-foreground opacity-0 transition-opacity group-hover/content:opacity-100 shadow-sm">
+          {actions}
+        </div>
+      )}
+    </div>
+  )
 
   return (
-    <div className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
-      <div className={cn(chatBubbleVariants({ isUser, animation }))}>
-        <MarkdownRenderer>{content}</MarkdownRenderer>
-        {actions ? (
-          <div className="absolute -bottom-4 right-2 flex space-x-1 rounded-lg border bg-background p-1 text-foreground opacity-0 transition-opacity group-hover/message:opacity-100">
-            {actions}
-          </div>
-        ) : null}
-      </div>
+    <div
+      className={cn(
+        "mb-7 flex w-full gap-3.5",
+        // User turns mirror to the right so the thread reads as a conversation
+        // instead of one long left-aligned column.
+        isUser && "flex-row-reverse",
+        isSystem && "opacity-80"
+      )}
+    >
+      <Avatar />
 
-      {showTimeStamp && createdAt ? (
-        <time
-          dateTime={createdAt.toISOString()}
-          className={cn(
-            "mt-1 block px-1 text-xs opacity-50",
-            animation !== "none" && "duration-500 animate-in fade-in-0"
+      <div className={cn("min-w-0 flex-1", isUser && "flex flex-col items-end")}>
+        <MessageHeader />
+        
+        <div className={cn(chatBubbleVariants({ isUser, isSystem, animation }))}>
+          {files && files.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {files.map((file, index) => (
+                <FilePreview file={file} key={index} />
+              ))}
+            </div>
           )}
-        >
-          {formattedTime}
-        </time>
-      ) : null}
+
+          {parts && parts.length > 0 ? (
+            <div className="space-y-4">
+              {parts.map((part, index) => {
+                if (part.type === "text") {
+                  return <div key={`text-${index}`}>{renderContent(part.text ?? "")}</div>
+                } else if (part.type === "reasoning") {
+                  return <ReasoningBlock key={`reasoning-${index}`} part={part} />
+                } else if (part.type === "tool-invocation" && part.toolInvocation) {
+                  return (
+                    <ToolCall
+                      key={`tool-${index}`}
+                      toolInvocations={[part.toolInvocation]}
+                    />
+                  )
+                }
+                return null
+              })}
+            </div>
+          ) : toolInvocations && toolInvocations.length > 0 ? (
+            <ToolCall toolInvocations={toolInvocations} />
+          ) : (
+            renderContent(content)
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -286,32 +226,22 @@ const ReasoningBlock = ({ part }: { part: ReasoningPart }) => {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
-    <div className="mb-2 flex flex-col items-start sm:max-w-[70%]">
+    <div className="flex flex-col items-start w-full">
       <Collapsible
         open={isOpen}
         onOpenChange={setIsOpen}
-        className="group w-full overflow-hidden rounded-lg border bg-muted/50"
+        className="group w-full overflow-hidden rounded-lg border border-border/40 bg-card/30 transition-colors"
       >
         <div className="flex items-center p-2">
-          <CollapsibleTrigger render={<button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground" />}><ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]:rotate-90" /><span>Thinking</span></CollapsibleTrigger>
+          <CollapsibleTrigger render={<button className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40 hover:text-foreground/60 transition-colors" />}>
+            <ChevronRight className="h-2.5 w-2.5 transition-transform group-data-[state=open]:rotate-90" />
+            <span>Thought Process</span>
+          </CollapsibleTrigger>
         </div>
-        <CollapsibleContent forceMount>
-          <motion.div
-            initial={false}
-            animate={isOpen ? "open" : "closed"}
-            variants={{
-              open: { height: "auto", opacity: 1 },
-              closed: { height: 0, opacity: 0 },
-            }}
-            transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
-            className="border-t"
-          >
-            <div className="p-2">
-              <div className="whitespace-pre-wrap text-xs">
-                {part.reasoning}
-              </div>
-            </div>
-          </motion.div>
+        <CollapsibleContent>
+          <div className="border-t border-border/20 p-3 text-[12px] text-muted-foreground/70 whitespace-pre-wrap leading-relaxed">
+            {part.reasoning}
+          </div>
         </CollapsibleContent>
       </Collapsible>
     </div>
@@ -324,26 +254,21 @@ function ToolCall({
   if (!toolInvocations?.length) return null
 
   return (
-    <div className="flex flex-col items-start gap-2">
+    <div className="flex flex-col items-start gap-2 mt-2">
       {toolInvocations.map((invocation, index) => {
         const isCancelled =
           invocation.state === "result" &&
-          invocation.result.__cancelled === true
+          invocation.result?.__cancelled === true
 
         if (isCancelled) {
           return (
             <div
               key={index}
-              className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted/10 px-3 py-1.5 font-mono text-[11px] text-muted-foreground/50"
             >
-              <Ban className="h-4 w-4" />
+              <Ban className="h-3 w-3" />
               <span>
-                Cancelled{" "}
-                <span className="font-mono">
-                  {"`"}
-                  {invocation.toolName}
-                  {"`"}
-                </span>
+                CANCELLED <code className="font-mono">{invocation.toolName}</code>
               </span>
             </div>
           )
@@ -355,17 +280,11 @@ function ToolCall({
             return (
               <div
                 key={index}
-                className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm text-muted-foreground"
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/10 px-3 py-1.5 font-mono text-[11px] text-muted-foreground/50"
               >
-                <Terminal className="h-4 w-4" />
+                <Terminal className="h-3 w-3" />
                 <span>
-                  Calling{" "}
-                  <span className="font-mono">
-                    {"`"}
-                    {invocation.toolName}
-                    {"`"}
-                  </span>
-                  ...
+                  RUNNING <code className="font-mono">{invocation.toolName}</code>
                 </span>
                 <Loader2 className="h-3 w-3 animate-spin" />
               </div>
@@ -374,20 +293,15 @@ function ToolCall({
             return (
               <div
                 key={index}
-                className="flex flex-col gap-1.5 rounded-lg border bg-muted/50 px-3 py-2 text-sm"
+                className="flex flex-col gap-1.5 rounded-lg border border-border bg-card/40 px-3 py-2 text-[12px] w-full"
               >
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Code2 className="h-4 w-4" />
-                  <span>
-                    Result from{" "}
-                    <span className="font-mono">
-                      {"`"}
-                      {invocation.toolName}
-                      {"`"}
-                    </span>
+                <div className="flex items-center gap-2 text-muted-foreground/40 border-b border-border/10 pb-1 mb-1">
+                  <Code2 className="h-3 w-3" />
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest">
+                    {invocation.toolName} Output
                   </span>
                 </div>
-                <pre className="overflow-x-auto whitespace-pre-wrap text-foreground">
+                <pre className="overflow-x-auto whitespace-pre-wrap text-foreground/70 font-mono text-[11px] leading-relaxed">
                   {JSON.stringify(invocation.result, null, 2)}
                 </pre>
               </div>

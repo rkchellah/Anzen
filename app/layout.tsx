@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
-import { Inter, DM_Sans, Space_Mono, Plus_Jakarta_Sans, Manrope, Geist } from "next/font/google";
+import { Inter, Space_Mono } from "next/font/google";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { AnzenThemeInitScript } from "@/components/AnzenThemeInitScript";
 import { AnzenThemeProvider } from "@/components/AnzenThemeProvider";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
+/** Inter carries the whole UI; Space Mono is for code and precision metadata. */
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  display: "swap",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
   display: "swap",
 });
 
@@ -24,20 +17,6 @@ const spaceMono = Space_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
   variable: "--font-space-mono",
-  display: "swap",
-});
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-jakarta",
-  display: "swap",
-});
-
-const manrope = Manrope({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-manrope",
   display: "swap",
 });
 
@@ -60,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(inter.variable, dmSans.variable, spaceMono.variable, plusJakartaSans.variable, manrope.variable, "font-sans", geist.variable)}
+      className={cn(inter.variable, spaceMono.variable, "font-sans")}
       suppressHydrationWarning
     >
       <head>

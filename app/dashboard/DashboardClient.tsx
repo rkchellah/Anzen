@@ -1,19 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { LogOut, Moon, Sun, RotateCw, CheckCircle2 } from "lucide-react";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { findPendingManualApprovals, hasPendingManualApprovals } from "@/agent/pending-approvals";
-import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import { buildLogoutUrl } from "@/lib/auth-routes";
+import {
+  deriveChatTitle,
+  loadChats,
+  newChatId,
+  saveChats,
+  upsertChat,
+  type StoredChat,
+} from "@/lib/chat-history";
 import { defaultUserPermissions, type ProviderAccessMode } from "@/lib/permissions";
-import { ConnectionAccessControl } from "@/components/ConnectionAccessControl";
+import { PRIVACY_SECTIONS } from "@/lib/privacy-content";
 import { useAnzenTheme } from "@/components/AnzenThemeProvider";
 import { AnzenChatPanel } from "@/components/AnzenChatPanel";
+import { AnzenConnectionsView } from "@/components/AnzenConnectionsView";
+import { AnzenSidebar, AnzenMobileMenuButton, type DashboardPage } from "@/components/AnzenSidebar";
+import { AnzenModelPicker, type AnzenModelOption } from "@/components/AnzenModelPicker";
 import { AnzenToolApprovals } from "@/components/AnzenToolApprovals";
-import { anzenPageStyle } from "@/components/anzen-theme";
 import { AI_PROVIDER_SHORT_LABEL } from "@/lib/ai-display";
+import { resolveDisplayName } from "@/lib/display-name";
+import { cn } from "@/lib/utils";
 
 type ConnectionStatus = { github: boolean; gmail: boolean; slack: boolean };
 type ConnectionKey = keyof ConnectionStatus;
@@ -28,102 +38,51 @@ type AuditEntry = {
   message: string;
 };
 
-const GitHubIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
-  </svg>
-);
+const MODEL_STORAGE_KEY = "anzen.model.v1";
 
-const SlackIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24">
-    <path fill="#E01E5A" d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313z" />
-    <path fill="#36C5F0" d="M8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312z" />
-    <path fill="#2EB67D" d="M18.956 8.834a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.271 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.162 0a2.528 2.528 0 012.523 2.522v6.312z" />
-    <path fill="#ECB22E" d="M15.165 18.956a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.271a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.162a2.528 2.528 0 01-2.522 2.523h-6.313z" />
-  </svg>
-);
+const PAGE_COPY: Record<Exclude<DashboardPage, "chat">, { title: string; subtitle: string }> = {
+  connections: {
+    title: "Connections",
+    subtitle: "Accounts Anzen can read. Writes still need your confirmation.",
+  },
+  activity: {
+    title: "Activity",
+    subtitle: "Write actions you confirmed.",
+  },
+  privacy: {
+    title: "Privacy",
+    subtitle: "How Anzen handles your data.",
+  },
+};
 
-const GmailIcon = ({ size = 24 }: { size?: number }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size}>
-    <path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" />
-  </svg>
-);
-
-const TeamsIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
-    <path fill="#5059C9" d="M10.765 6.875h3.616c.342 0 .619.276.619.617v3.288a2.272 2.272 0 01-2.274 2.27h-.01a2.272 2.272 0 01-2.274-2.27V7.199c0-.179.145-.323.323-.323zM13.21 6.225c.808 0 1.464-.655 1.464-1.462 0-.808-.656-1.463-1.465-1.463s-1.465.655-1.465 1.463c0 .807.656 1.462 1.465 1.462z" />
-    <path fill="#7B83EB" d="M8.651 6.225a2.114 2.114 0 002.117-2.112A2.114 2.114 0 008.65 2a2.114 2.114 0 00-2.116 2.112c0 1.167.947 2.113 2.116 2.113zM11.473 6.875h-5.97a.611.611 0 00-.596.625v3.75A3.669 3.669 0 008.488 15a3.669 3.669 0 003.582-3.75V7.5a.611.611 0 00-.597-.625z" />
-    <path fill="#000000" d="M8.814 6.875v5.255a.598.598 0 01-.596.595H5.193a3.951 3.951 0 01-.287-1.476V7.5a.61.61 0 01.597-.624h3.31z" opacity="0.1" />
-    <path fill="#ffffff" d="M6.152 7.193H4.959v3.243h-.76V7.193H3.01v-.63h3.141v.63z" />
-  </svg>
-);
-
-const LinkedInIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
-    <path fill="#0A66C2" d="M12.225 12.225h-1.778V9.44c0-.664-.012-1.519-.925-1.519-.926 0-1.068.724-1.068 1.47v2.834H6.676V6.498h1.707v.783h.024c.348-.594.996-.95 1.684-.925 1.802 0 2.135 1.185 2.135 2.728l-.001 3.14zM4.67 5.715a1.037 1.037 0 01-1.032-1.031c0-.566.466-1.032 1.032-1.032.566 0 1.031.466 1.032 1.032 0 .566-.466 1.032-1.032 1.032zm.889 6.51h-1.78V6.498h1.78v5.727zM13.11 2H2.885A.88.88 0 002 2.866v10.268a.88.88 0 00.885.866h10.226a.882.882 0 00.889-.866V2.865a.88.88 0 00-.889-.864z" />
-  </svg>
-);
-
-const GitLabIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
-    <path fill="#FC6D26" d="M14.975 8.904L14.19 6.55l-1.552-4.67a.268.268 0 00-.255-.18.268.268 0 00-.254.18l-1.552 4.667H5.422L3.87 1.879a.267.267 0 00-.254-.179.267.267 0 00-.254.18l-1.55 4.667-.784 2.357a.515.515 0 00.193.583l6.78 4.812 6.778-4.812a.516.516 0 00.196-.583z" />
-    <path fill="#E24329" d="M8 14.296l2.578-7.75H5.423L8 14.296z" />
-    <path fill="#FC6D26" d="M8 14.296l-2.579-7.75H1.813L8 14.296z" />
-    <path fill="#FCA326" d="M1.81 6.549l-.784 2.354a.515.515 0 00.193.583L8 14.3 1.81 6.55z" />
-    <path fill="#E24329" d="M1.812 6.549h3.612L3.87 1.882a.268.268 0 00-.254-.18.268.268 0 00-.255.18L1.812 6.549z" />
-    <path fill="#FC6D26" d="M8 14.296l2.578-7.75h3.614L8 14.296z" />
-    <path fill="#FCA326" d="M14.19 6.549l.783 2.354a.514.514 0 01-.193.583L8 14.296l6.188-7.747h.001z" />
-    <path fill="#E24329" d="M14.19 6.549H10.58l1.551-4.667a.267.267 0 01.255-.18c.115 0 .217.073.254.18l1.552 4.667z" />
-  </svg>
-);
-
-const NotionIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="currentColor">
-    <path d="M5.948 5.609c0.99 0.807 1.365 0.75 3.234 0.625l17.62-1.057c0.375 0 0.063-0.375-0.063-0.438l-2.927-2.115c-0.557-0.438-1.307-0.932-2.74-0.813l-17.057 1.25c-0.625 0.057-0.75 0.37-0.5 0.62zM7.005 9.719v18.536c0 0.995 0.495 1.37 1.615 1.307l19.365-1.12c1.12-0.063 1.25-0.745 1.25-1.557v-18.411c0-0.813-0.313-1.245-1-1.182l-20.234 1.182c-0.75 0.063-0.995 0.432-0.995 1.24zM26.12 10.708c0.125 0.563 0 1.12-0.563 1.188l-0.932 0.188v13.682c-0.813 0.438-1.557 0.688-2.177 0.688-1 0-1.25-0.313-1.995-1.245l-6.104-9.583v9.271l1.932 0.438c0 0 0 1.12-1.557 1.12l-4.297 0.25c-0.125-0.25 0-0.875 0.438-0.995l1.12-0.313v-12.255l-1.557-0.125c-0.125-0.563 0.188-1.37 1.057-1.432l4.609-0.313 6.354 9.708v-8.589l-1.62-0.188c-0.125-0.682 0.37-1.182 0.995-1.24zM2.583 1.38l17.745-1.307c2.177-0.188 2.74-0.063 4.109 0.932l5.667 3.984c0.932 0.682 1.245 0.87 1.245 1.615v21.839c0 1.37-0.5 2.177-2.24 2.302l-20.615 1.245c-1.302 0.063-1.927-0.125-2.615-0.995l-4.172-5.417c-0.745-0.995-1.057-1.74-1.057-2.609v-19.411c0-1.12 0.5-2.052 1.932-2.177z" />
-  </svg>
-);
-
-const LinearIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="#5E6AD2">
-    <line x1="2" y1="22" x2="22" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <circle cx="7" cy="17" r="2" fill="currentColor" />
-    <circle cx="17" cy="7" r="2" fill="currentColor" />
-  </svg>
-);
+function PageIntro({
+  page,
+  trailing,
+}: {
+  page: Exclude<DashboardPage, "chat">;
+  trailing?: React.ReactNode;
+}) {
+  const copy = PAGE_COPY[page];
+  return (
+    <div className="mb-6 flex flex-col items-center gap-3 text-center">
+      <div>
+        <h1 className="text-[26px] font-bold tracking-[-0.025em] text-foreground">{copy.title}</h1>
+        <p className="mt-1.5 text-[15px] leading-[1.55] text-muted-foreground">{copy.subtitle}</p>
+      </div>
+      {trailing}
+    </div>
+  );
+}
 
 const SUGGESTIONS = [
-  "What GitHub issues are assigned to me?",
-  "Summarize my unread emails",
-  "List my Slack channels",
+  { label: "Assigned issues", prompt: "What GitHub issues are assigned to me?" },
+  { label: "Unread email", prompt: "Summarize my unread emails" },
+  { label: "Slack channels", prompt: "List my Slack channels" },
 ];
 
-const AnzenLogo = () => (
-  <svg width="35" height="35" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <path id="petalFlat" d="M -30, -100 C -70,-220 -30,-310 0,-320 C 30,-310 70,-220 30,-100 Z" />
-    </defs>
-    <g transform="translate(512, 512)">
-      <g fill="#D8F601">
-        <use href="#petalFlat" transform="rotate(0)" />
-        <use href="#petalFlat" transform="rotate(30)" />
-        <use href="#petalFlat" transform="rotate(60)" />
-        <use href="#petalFlat" transform="rotate(90)" />
-        <use href="#petalFlat" transform="rotate(120)" />
-        <use href="#petalFlat" transform="rotate(150)" />
-        <use href="#petalFlat" transform="rotate(180)" />
-        <use href="#petalFlat" transform="rotate(210)" />
-        <use href="#petalFlat" transform="rotate(240)" />
-        <use href="#petalFlat" transform="rotate(270)" />
-        <use href="#petalFlat" transform="rotate(300)" />
-        <use href="#petalFlat" transform="rotate(330)" />
-      </g>
-      <circle cx="0" cy="0" r="85" fill="#A8D102" />
-      <circle cx="0" cy="0" r="10" fill="#88A901" />
-    </g>
-  </svg>
-);
-
 export default function DashboardClient({
+  userName,
+  userEmail,
   tokenVaultScopesEnabled,
 }: {
   userName: string;
@@ -141,10 +100,32 @@ export default function DashboardClient({
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
-  const [activePage, setActivePage] = useState("dashboard");
-  const { theme, isDark: dark, toggleDarkMode } = useAnzenTheme();
+  const [activePage, setActivePage] = useState<DashboardPage>("chat");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [chats, setChats] = useState<StoredChat[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [models, setModels] = useState<AnzenModelOption[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const { isDark: d, toggleDarkMode } = useAnzenTheme();
+
+  // Read by the transport at request time so approval auto-sends use the same
+  // model the user picked, without rebuilding the transport on every change.
+  const selectedModelRef = useRef<string | null>(null);
+  selectedModelRef.current = selectedModelId;
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest: ({ messages, body }) => ({
+          body: { messages, model: selectedModelRef.current, ...body },
+        }),
+      }),
+    []
+  );
 
   const { messages, sendMessage, status: chatStatus, setMessages, addToolApprovalResponse } = useChat({
+    transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const isLoading = chatStatus === "streaming" || chatStatus === "submitted";
@@ -209,10 +190,100 @@ export default function DashboardClient({
   }, []);
 
   useEffect(() => {
-    if (activePage === "history") {
+    if (activePage === "activity") {
       void fetchAuditLogs();
     }
   }, [activePage]);
+
+  // Chat history lives in the browser (lib/chat-history).
+  useEffect(() => {
+    setChats(loadChats());
+  }, []);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const id = activeChatId ?? newChatId();
+    if (!activeChatId) setActiveChatId(id);
+    setChats((previous) => {
+      const next = upsertChat(previous, {
+        id,
+        title: deriveChatTitle(messages),
+        updatedAt: Date.now(),
+        messages,
+      });
+      saveChats(next);
+      return next;
+    });
+  }, [messages, activeChatId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadModels() {
+      try {
+        const res = await fetch("/api/models", { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          models?: AnzenModelOption[];
+          defaultModelId?: string | null;
+        };
+        if (cancelled) return;
+        const available = data.models ?? [];
+        setModels(available);
+        const stored = window.localStorage.getItem(MODEL_STORAGE_KEY);
+        const preferred =
+          (stored && available.some((model) => model.id === stored) && stored) ||
+          data.defaultModelId ||
+          available[0]?.id ||
+          null;
+        setSelectedModelId(preferred);
+      } catch {
+        // Picker stays hidden when the model list can't be loaded.
+      }
+    }
+    void loadModels();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSelectModel = (id: string) => {
+    setSelectedModelId(id);
+    try {
+      window.localStorage.setItem(MODEL_STORAGE_KEY, id);
+    } catch {
+      // Ignore storage failures (private mode / quota).
+    }
+  };
+
+  const handleNewChat = () => {
+    setActivePage("chat");
+    setActiveChatId(null);
+    setMessages([]);
+    setInputValue("");
+    setApprovalGateError(null);
+  };
+
+  const handleSelectChat = (id: string) => {
+    const chat = chats.find((entry) => entry.id === id);
+    if (!chat) return;
+    setActivePage("chat");
+    setActiveChatId(id);
+    setMessages(chat.messages);
+    setInputValue("");
+    setApprovalGateError(null);
+  };
+
+  const handleDeleteChat = (id: string) => {
+    setChats((previous) => {
+      const next = previous.filter((chat) => chat.id !== id);
+      saveChats(next);
+      return next;
+    });
+    if (id === activeChatId) {
+      setActiveChatId(null);
+      setMessages([]);
+    }
+  };
 
   const handleSend = () => {
     if (!inputValue.trim() || isLoading) return;
@@ -287,455 +358,275 @@ export default function DashboardClient({
   };
 
   const connectedCount = Object.values(connStatus).filter(Boolean).length;
-  const d = dark;
-
-  const bg = theme.bg;
-  const surface = theme.surface;
-  const surface2 = theme.surface2;
-  const border = theme.border;
-  const tx = theme.text;
-  const muted = theme.muted;
-  const subtle = theme.subtle;
-  const accent = theme.accent;
-  const accentBg = theme.accentBg;
-  const accentTx = theme.accentText;
-  const caption = theme.caption;
-
-  const card: React.CSSProperties = {
-    backgroundColor: surface,
-    border: `1px solid ${border}`,
-    borderRadius: 14,
-  };
-
-  const headerIconBtn: React.CSSProperties = {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    border: `1px solid ${border}`,
-    background: surface2,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    color: muted,
-    padding: 0,
-    flexShrink: 0,
-  };
-
-  const activeProviders = (["github", "gmail", "slack"] as const).map((key) => ({
-    key,
-    label: CONNECTIONS[key].label,
-    desc: CONNECTIONS[key].desc,
-    connectHref: buildConnectUrl(key, "/dashboard"),
-    icon:
-      key === "github" ? <GitHubIcon size={40} /> :
-      key === "gmail" ? <GmailIcon size={40} /> :
-      <SlackIcon size={40} />,
-  }));
-
-  const comingSoon = [
-    { label: "Teams",    icon: <TeamsIcon size={32} /> },
-    { label: "LinkedIn", icon: <LinkedInIcon size={32} /> },
-    { label: "GitLab",   icon: <GitLabIcon size={32} /> },
-    { label: "Notion",   icon: <NotionIcon size={32} /> },
-    { label: "Linear",   icon: <LinearIcon size={32} /> },
-  ];
+  const identity = resolveDisplayName(userName, userEmail);
+  const greeting = identity.first
+    ? `Ready when you are, ${identity.first}.`
+    : "Ready when you are.";
 
   return (
-    <div
-      suppressHydrationWarning
-      className="anzen-page"
-      style={{
-        ...anzenPageStyle(theme),
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div suppressHydrationWarning className="anzen-page flex h-screen overflow-hidden">
       <style>{`
-        input::placeholder { color: ${d ? "rgba(240,240,238,0.50)" : "rgba(0,0,0,0.38)"} !important; opacity: 1; }
+        input::placeholder { color: var(--anzen-muted) !important; opacity: 1; }
         .anzen-scrollbar::-webkit-scrollbar { width: 8px; }
         .anzen-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .anzen-scrollbar::-webkit-scrollbar-thumb { background: ${d ? "rgba(163,255,18,0.25)" : "rgba(100,180,0,0.20)"}; border-radius: 4px; }
-        .anzen-scrollbar::-webkit-scrollbar-thumb:hover { background: ${d ? "rgba(163,255,18,0.40)" : "rgba(100,180,0,0.35)"}; }
+        .anzen-scrollbar::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--anzen-accent) 30%, transparent); border-radius: 4px; }
+        .anzen-scrollbar::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--anzen-accent) 50%, transparent); }
       `}</style>
 
-      {!tokenVaultScopesEnabled && (
-        <div className="anzen-site-x anzen-break-anywhere" style={{ background: "#451a03", borderBottom: "1px solid #92400e", color: "#fef3c7", paddingTop: 10, paddingBottom: 10, fontSize: 13, lineHeight: 1.5 }}>
-          Connect is disabled: set <code style={{ background: "rgba(0,0,0,0.25)", padding: "1px 6px", borderRadius: 4 }}>AUTH0_TOKEN_VAULT_SCOPES=true</code> in{" "}
-          <code style={{ background: "rgba(0,0,0,0.25)", padding: "1px 6px", borderRadius: 4 }}>.env.local</code>, restart the dev server, then sign out and sign in again.
+      <AnzenSidebar
+        activePage={activePage}
+        onNavigate={setActivePage}
+        onNewChat={handleNewChat}
+        chats={chats}
+        activeChatId={activeChatId}
+        onSelectChat={handleSelectChat}
+        onDeleteChat={handleDeleteChat}
+        connectedCount={connectedCount}
+        statusLoading={statusLoading}
+        isDark={d}
+        onToggleDarkMode={toggleDarkMode}
+        signOutHref={buildLogoutUrl("/")}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+        userName={identity.full}
+        userEmail={userEmail}
+      />
+
+      <main className="anzen-dash-main flex min-w-0 flex-1 flex-col bg-background">
+        {/* No top nav bar: the sidebar is the only navigation. On mobile the
+            sidebar is off-canvas, so keep a single menu affordance. */}
+        <div className="flex shrink-0 items-center px-4 pt-4 md:hidden">
+          <AnzenMobileMenuButton onClick={() => setMobileSidebarOpen(true)} />
         </div>
-      )}
 
-      {tokenVaultScopesEnabled && connectedCount === 0 && !statusLoading && (
-        <div className="anzen-site-x anzen-break-anywhere" style={{ background: accentBg, borderBottom: `1px solid ${accent}40`, color: accentTx, paddingTop: 10, paddingBottom: 10, fontSize: 13, lineHeight: 1.5 }}>
-          To connect GitHub, Gmail, or Slack: use the Connections tab, click Connect once per provider, and complete the provider consent screen. If you just enabled Token Vault scopes,{" "}
-          <a href={buildLogoutUrl("/")} style={{ color: accentTx, fontWeight: 600 }}>sign out and sign in again</a> first.
-        </div>
-      )}
-
-      {/* NAVBAR */}
-      <header style={{ backgroundColor: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 0, zIndex: 50, height: 56 }}>
-        <div className="anzen-site-x" style={{ maxWidth: 1080, margin: "0 auto", height: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <button onClick={() => { setActivePage("dashboard"); setMessages([]); setInputValue(""); }}
-            style={{ display: "flex", alignItems: "center", gap: 7, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>
-            <AnzenLogo />
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em", color: tx }}>Anzen</span>
-            <span style={{ fontSize: 11, color: muted, letterSpacing: "0.02em", fontWeight: 400 }}>安全</span>
-          </button>
-
-          <nav className="anzen-dash-header-nav" aria-label="Dashboard sections">
-            {[{ id: "dashboard", label: "Dashboard" }, { id: "connections", label: "Connections" }, { id: "history", label: "History" }].map(({ id, label }) => {
-              const active = activePage === id;
-              return (
-                <button key={id} onClick={() => setActivePage(id)}
-                  style={{ padding: "10px 15px", borderRadius: 7, fontSize: 13.5, fontWeight: active ? 600 : 400, color: active ? tx : muted, background: active ? (d ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)") : "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s", minHeight: 44 }}>
-                  {label}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="anzen-dash-header-actions" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: muted, minWidth: 34 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: connectedCount > 0 ? accent : subtle, display: "inline-block", boxShadow: connectedCount > 0 ? `0 0 5px ${accent}` : "none", opacity: statusLoading ? 0.45 : 1 }} />
-              {statusLoading ? "…/3" : `${connectedCount}/3`}
+        <div className="flex-1 min-h-0 flex flex-col">
+          {!tokenVaultScopesEnabled && (
+            <div className="mx-4 mt-4 -mb-1 flex shrink-0 items-center justify-center gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-[13.5px] font-medium text-red-400 md:mx-8">
+              <span className="size-1.5 shrink-0 rounded-full bg-red-500" />
+              Connections disabled — set <code className="font-mono">AUTH0_TOKEN_VAULT_SCOPES=true</code> to enable them.
             </div>
-            <button
-              type="button"
-              onClick={() => void fetchConnectionStatus()}
-              disabled={statusLoading}
-              style={{ ...headerIconBtn, opacity: statusLoading ? 0.55 : 1, cursor: statusLoading ? "default" : "pointer" }}
-              title="Refresh connection status"
-              aria-label="Refresh connection status"
-            >
-              <RotateCw size={13} />
-            </button>
-            <button type="button" onClick={toggleDarkMode} aria-label={d ? "Switch to light mode" : "Switch to dark mode"} style={headerIconBtn}>
-              {d ? <Sun size={13} /> : <Moon size={13} />}
-            </button>
-            <a href={buildLogoutUrl("/")}
-              style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, fontWeight: 500, color: muted, textDecoration: "none", transition: "color 0.15s", padding: "10px 8px", minHeight: 44 }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = muted)}>
-              <LogOut size={14} />
-              <span className="anzen-dash-signout-label">Sign out</span>
-            </a>
-          </div>
-        </div>
-      </header>
+          )}
 
-      <nav className="anzen-dash-bottom-nav" aria-label="Dashboard navigation" style={{ backgroundColor: bg, borderTopColor: border }}>
-        {[{ id: "dashboard", label: "Chat" }, { id: "connections", label: "Connections" }, { id: "history", label: "History" }].map(({ id, label }) => {
-          const active = activePage === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setActivePage(id)}
-              style={{ color: active ? tx : muted, fontWeight: active ? 600 : 500 }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? accent : "transparent", boxShadow: active ? `0 0 6px ${accent}` : "none" }} />
-              {label}
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="anzen-dash-has-bottom-nav" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {/* DASHBOARD */}
-        {activePage === "dashboard" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)", overflow: "hidden" }}>
-            <AnzenChatPanel
-              messages={messages}
-              input={inputValue}
-              onInputChange={(value) => {
-                setInputValue(value);
-                if (approvalGateError) setApprovalGateError(null);
-              }}
-              onSubmit={handleSend}
-              onSuggestion={handleSuggestion}
-              isGenerating={isLoading}
-              suggestions={SUGGESTIONS}
-              inputDisabled={pendingApprovals.length > 0}
-              placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Ask Anzen anything…"}
-              emptyState={
-                <div className="anzen-site-x" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 32, paddingBottom: 16, gap: 28 }}>
-                  <div style={{ textAlign: "center", maxWidth: 520, width: "100%" }}>
-                    <h1 className="anzen-dash-hero-title" style={{ fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1.08, margin: "0 0 12px", color: tx }}>
-                      What can I<br />help with?
+          {/* CHAT */}
+          {activePage === "chat" && (
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+              <AnzenChatPanel
+                messages={messages}
+                input={inputValue}
+                onInputChange={(value) => {
+                  setInputValue(value);
+                  if (approvalGateError) setApprovalGateError(null);
+                }}
+                onSubmit={handleSend}
+                onSuggestion={handleSuggestion}
+                isGenerating={isLoading}
+                suggestions={SUGGESTIONS}
+                inputDisabled={pendingApprovals.length > 0}
+                placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Message Anzen…"}
+                userName={identity.full}
+                userEmail={userEmail}
+                emptyState={
+                  <div className="flex flex-col items-center">
+                    <h1 className="text-[clamp(28px,5vw,38px)] font-bold leading-[1.15] tracking-[-0.03em] text-foreground">
+                      {greeting}
                     </h1>
-                    <p style={{ fontSize: 15, color: muted, margin: 0, lineHeight: 1.65 }}>
-                      Your AI Chief of Staff — secured by Auth0 Token Vault.
+                    <p className="mx-auto mt-4 max-w-[520px] text-[16px] leading-[1.6] text-muted-foreground">
+                      An assistant that acts on your behalf. Securely connected to GitHub, Gmail, and
+                      Slack using{" "}
+                      <span className="font-semibold text-accent-foreground">Auth0 Token Vault</span>.
                     </p>
+                    {tokenVaultScopesEnabled && connectedCount === 0 && !statusLoading && (
+                      <div className="mt-9 flex flex-wrap items-center justify-center gap-2.5 rounded-full border border-primary/25 bg-accent px-5 py-2.5">
+                        <span className="size-1.5 shrink-0 rounded-full bg-primary" />
+                        <span className="text-[13.5px] font-medium text-accent-foreground">
+                          No accounts connected yet —{" "}
+                          <button
+                            type="button"
+                            onClick={() => setActivePage("connections")}
+                            className="font-semibold underline underline-offset-2 hover:no-underline"
+                          >
+                            open Connections
+                          </button>
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="anzen-grid-3" style={{ width: "100%", maxWidth: 500 }}>
-                    {activeProviders.map((p) => {
-                      const connected = connStatus[p.key as keyof ConnectionStatus];
+                }
+                toolApprovals={
+                  <AnzenToolApprovals
+                    messages={messages}
+                    accessModes={accessModes}
+                    onOpenConnections={() => setActivePage("connections")}
+                    onApprove={(id, approved, reason) =>
+                      addToolApprovalResponse(
+                        approved
+                          ? { id, approved: true }
+                          : { id, approved: false, reason: reason ?? "User cancelled" }
+                      )
+                    }
+                  />
+                }
+                modelSelector={
+                  <AnzenModelPicker
+                    models={models}
+                    value={selectedModelId}
+                    onChange={handleSelectModel}
+                    disabled={isLoading}
+                  />
+                }
+                composerNotice={
+                  <>
+                    {pendingApprovals.length > 0 && (
+                      <div className="anzen-notice anzen-notice-accent mb-3">
+                        <p className="mb-1 text-[14px] font-semibold text-accent-foreground">
+                          {pendingApprovals.length === 1
+                            ? "1 action waiting for your confirmation"
+                            : `${pendingApprovals.length} actions waiting for your confirmation`}
+                        </p>
+                        <p className="text-[13.5px] leading-[1.5] text-muted-foreground">
+                          Review the Confirm / Cancel cards above. New messages are paused until you respond.
+                        </p>
+                      </div>
+                    )}
+                    {approvalGateError && (
+                      <p className="mb-2 text-[13.5px] leading-[1.5] text-red-400">{approvalGateError}</p>
+                    )}
+                  </>
+                }
+                footer={
+                  <p className="text-[12.5px] leading-normal text-muted-foreground">
+                    Processed by {AI_PROVIDER_SHORT_LABEL}.{" "}
+                    <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy</a>
+                  </p>
+                }
+              />
+            </div>
+          )}
+
+          {activePage === "connections" && (
+            <AnzenConnectionsView
+              header={<PageIntro page="connections" />}
+              connStatus={connStatus}
+              accessModes={accessModes}
+              statusLoading={statusLoading}
+              permissionsLoading={permissionsLoading}
+              permissionsSaving={permissionsSaving}
+              disconnectingKey={disconnectingKey}
+              disconnectError={disconnectError}
+              tokenVaultScopesEnabled={tokenVaultScopesEnabled}
+              isDark={d}
+              onAccessModeChange={handleAccessModeChange}
+              onDisconnect={handleDisconnect}
+            />
+          )}
+
+          {/* ACTIVITY */}
+          {activePage === "activity" && (
+            <div className="flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-[800px] px-4 pb-16 pt-6 md:px-8">
+                <PageIntro
+                  page="activity"
+                  trailing={
+                    <button
+                      type="button"
+                      onClick={fetchAuditLogs}
+                      disabled={auditLoading}
+                      className="anzen-btn anzen-btn-secondary anzen-btn-sm"
+                    >
+                      {auditLoading ? "Loading…" : "Refresh"}
+                    </button>
+                  }
+                />
+                <p className="mb-5 text-center text-[14px] text-muted-foreground">
+                  {auditLoading && auditEntries.length === 0
+                    ? "Loading…"
+                    : `${auditEntries.length} actions · ${auditEntries.filter((e) => e.outcome === "success").length} succeeded · ${auditEntries.filter((e) => e.outcome === "failure").length} failed`}
+                </p>
+
+                {auditLoading && auditEntries.length === 0 ? null : auditEntries.length === 0 ? (
+                  <p className="py-14 text-center text-[15px] text-muted-foreground">
+                    No recent activity yet.
+                  </p>
+                ) : (
+                  <div className="border-t border-border">
+                    {auditEntries.map((entry) => {
+                      const ok = entry.outcome === "success";
+                      const time = new Date(entry.timestamp).toLocaleString([], {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
                       return (
-                        <a
-                          key={p.key}
-                          href={connected || !tokenVaultScopesEnabled ? "#" : p.connectHref}
-                          onClick={(e) => {
-                            if (connected || !tokenVaultScopesEnabled) e.preventDefault();
-                          }}
-                          style={{ ...card, padding: "20px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textDecoration: "none", cursor: connected || !tokenVaultScopesEnabled ? "default" : "pointer", transition: "all 0.18s", ...(connected ? { borderColor: `${accent}30` } : { opacity: tokenVaultScopesEnabled ? 0.52 : 0.35 }) }}
+                        <div
+                          key={entry.id}
+                          className="flex flex-col gap-1.5 border-b border-border py-5 md:flex-row md:items-start md:gap-8"
                         >
-                          <div style={{ width: 52, height: 52, background: surface2, borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${border}` }}>{p.icon}</div>
-                          <div style={{ textAlign: "center" }}>
-                            <p style={{ fontSize: 13, fontWeight: 600, color: tx, margin: "0 0 2px" }}>{p.label}</p>
-                            <p style={{ fontSize: 11, color: muted, margin: 0 }}>{p.desc}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[15px] leading-[1.6] text-foreground">
+                              {entry.message}
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <code className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-mono text-[12px] text-muted-foreground">
+                                {entry.toolName}
+                              </code>
+                              <span className="anzen-meta">{time}</span>
+                            </div>
                           </div>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: connected ? accent : subtle, display: "block", boxShadow: connected ? `0 0 6px ${accent}` : "none" }} />
-                        </a>
+
+                          <div className="flex shrink-0 items-center md:w-32 md:justify-end">
+                            <span
+                              className={cn(
+                                "anzen-tag",
+                                ok ? "anzen-tag-accent" : "anzen-tag-danger"
+                              )}
+                            >
+                              {ok ? "Succeeded" : "Failed"}
+                            </span>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* PRIVACY */}
+          {activePage === "privacy" && (
+            <div className="flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-[720px] px-4 pb-16 pt-6 md:px-8">
+                <PageIntro page="privacy" />
+                <div className="flex flex-col">
+                  {PRIVACY_SECTIONS.map((section) => (
+                    <section key={section.id} className="border-b border-border py-7 first:pt-0">
+                      <h2 className="mb-2 text-[17px] font-semibold tracking-[-0.015em] text-foreground">
+                        {section.title}
+                      </h2>
+                      <div className="text-[15px] leading-[1.65] text-muted-foreground">
+                        {section.body}
+                      </div>
+                    </section>
+                  ))}
                 </div>
-              }
-              toolApprovals={
-                <AnzenToolApprovals
-                  messages={messages}
-                  accessModes={accessModes}
-                  onOpenConnections={() => setActivePage("connections")}
-                  onApprove={(id, approved, reason) =>
-                    addToolApprovalResponse(
-                      approved
-                        ? { id, approved: true }
-                        : { id, approved: false, reason: reason ?? "User cancelled" }
-                    )
-                  }
-                />
-              }
-              composerNotice={
-                <>
-                  {pendingApprovals.length > 0 && (
-                    <div style={{ ...card, padding: "12px 14px", marginBottom: 10, borderColor: `${accent}40`, background: accentBg }}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: accentTx, margin: "0 0 4px" }}>
-                        {pendingApprovals.length === 1
-                          ? "1 action waiting for your confirmation"
-                          : `${pendingApprovals.length} actions waiting for your confirmation`}
-                      </p>
-                      <p style={{ fontSize: 12, color: muted, margin: 0, lineHeight: 1.45 }}>
-                        Review the Confirm / Cancel cards above. New messages are paused until you respond.
-                      </p>
-                    </div>
-                  )}
-                  {approvalGateError && (
-                    <p style={{ fontSize: 12, color: "#f87171", margin: "0 0 8px", lineHeight: 1.45 }}>{approvalGateError}</p>
-                  )}
-                </>
-              }
-              footer={
-                <p className="mt-2 text-center text-[11px] leading-[1.45] text-muted-foreground">
-                  Chat and content from your connected accounts are processed by {AI_PROVIDER_SHORT_LABEL} to generate responses.{" "}
-                  <a href="/privacy" className="underline underline-offset-2">Privacy</a>
+
+                <p className="mt-8 text-center text-[14px] text-muted-foreground">
+                  Full{" "}
+                  <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                    Privacy Policy
+                  </a>{" "}
+                  and{" "}
+                  <a href="/terms" className="underline underline-offset-2 hover:text-foreground">
+                    Terms of Service
+                  </a>
+                  .
                 </p>
-              }
-            />
-          </div>
-        )}
-
-        {/* CONNECTIONS */}
-        {activePage === "connections" && (
-          <div className="anzen-site-x" style={{ maxWidth: 1080, margin: "0 auto", width: "100%", paddingTop: 32, paddingBottom: 32 }}>
-            <div style={{ marginBottom: 36 }}>
-              <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Connections</h1>
-              <p style={{ fontSize: 14, color: muted, margin: 0 }}>Credentials stored in Auth0 Token Vault — Anzen never sees them. Set each connection to read-only or read &amp; write to control what the agent can change.</p>
-            </div>
-
-            {disconnectError && (
-              <div style={{ background: "rgba(248,113,113,0.10)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", padding: "10px 14px", borderRadius: 8, fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
-                {disconnectError}
               </div>
-            )}
-
-            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: muted, margin: "0 0 12px" }}>
-              Active · {statusLoading ? "…" : `${connectedCount} of 3 connected`}
-            </p>
-            <div className="anzen-grid-3" style={{ marginBottom: 36, gap: 12 }}>
-              {activeProviders.map((p) => {
-                const connected = connStatus[p.key as keyof ConnectionStatus];
-                return (
-                  <div key={p.key} style={{ ...card, padding: "28px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, ...(connected ? { borderColor: `${accent}25` } : {}) }}>
-                    <div style={{ width: 80, height: 80, background: surface2, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${border}` }}>
-                      {p.icon}
-                    </div>
-                    <div style={{ textAlign: "center" }}>
-                      <p style={{ fontSize: 15, fontWeight: 600, color: tx, margin: "0 0 3px" }}>{p.label}</p>
-                      <p style={{ fontSize: 12, color: muted, margin: 0 }}>{p.desc}</p>
-                    </div>
-                    {connected ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: accentTx, display: "flex", alignItems: "center", gap: 5 }}>
-                          <CheckCircle2 size={14} style={{ color: accent }} />
-                          Connected
-                        </span>
-                        <ConnectionAccessControl
-                          providerLabel={p.label}
-                          mode={accessModes[p.key]}
-                          onModeChange={(mode) => handleAccessModeChange(p.key, mode)}
-                          onDisconnect={() => handleDisconnect(p.key)}
-                          disabled={permissionsLoading}
-                          saving={permissionsSaving === p.key}
-                          disconnecting={disconnectingKey === p.key}
-                          isDark={d}
-                          colors={{
-                            border,
-                            surface,
-                            surface2,
-                            tx,
-                            muted,
-                            caption,
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <a
-                        href={tokenVaultScopesEnabled ? p.connectHref : "#"}
-                        aria-disabled={!tokenVaultScopesEnabled}
-                        onClick={(e) => {
-                          if (!tokenVaultScopesEnabled) e.preventDefault();
-                        }}
-                        style={{
-                          display: "inline-block",
-                          padding: "8px 20px",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          borderRadius: 8,
-                          background: tokenVaultScopesEnabled ? accent : surface2,
-                          color: tokenVaultScopesEnabled ? "#000" : muted,
-                          textDecoration: "none",
-                          transition: "opacity 0.2s",
-                          pointerEvents: tokenVaultScopesEnabled ? "auto" : "none",
-                          opacity: tokenVaultScopesEnabled ? 1 : 0.5,
-                        }}
-                        onMouseEnter={(e) => {
-                          if (tokenVaultScopesEnabled) e.currentTarget.style.opacity = "0.85";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (tokenVaultScopesEnabled) e.currentTarget.style.opacity = "1";
-                        }}>
-                        Connect
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
             </div>
-
-            <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" as const, color: muted, margin: "0 0 12px" }}>Coming soon</p>
-            <div className="anzen-grid-5">
-              {comingSoon.map((app) => (
-                <div key={app.label} style={{ ...card, padding: "20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, opacity: 0.38 }}>
-                  <div style={{ width: 56, height: 56, background: surface2, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{app.icon}</div>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: tx, margin: 0 }}>{app.label}</p>
-                  <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: muted, background: surface2, padding: "2px 7px", borderRadius: 4 }}>Soon</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* HISTORY */}
-        {activePage === "history" && (
-          <div className="anzen-site-x" style={{ maxWidth: 1080, margin: "0 auto", width: "100%", paddingTop: 32, paddingBottom: 32 }}>
-            <div className="anzen-history-header" style={{ marginBottom: 28 }}>
-              <div>
-                <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.03em", color: tx, margin: "0 0 6px" }}>Audit Logs</h1>
-                <p style={{ fontSize: 14, color: muted, margin: 0 }}>Confirmed write actions Anzen performed on your behalf.</p>
-              </div>
-              <button
-                type="button"
-                onClick={fetchAuditLogs}
-                disabled={auditLoading}
-                style={{ padding: "8px 14px", fontSize: 13, borderRadius: 8, border: `1px solid ${border}`, background: surface2, color: muted, cursor: "pointer", fontFamily: "inherit" }}>
-                {auditLoading ? "Loading…" : "Refresh"}
-              </button>
-            </div>
-
-            <div className="anzen-stats-3" style={{ marginBottom: 24 }}>
-              {[
-                { label: "Total actions", value: auditEntries.length, color: accentTx },
-                { label: "Succeeded", value: auditEntries.filter((e) => e.outcome === "success").length, color: accentTx },
-                { label: "Failed", value: auditEntries.filter((e) => e.outcome === "failure").length, color: "#f87171" },
-              ].map((s) => (
-                <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
-                  <p style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase" as const, color: muted, margin: "0 0 8px" }}>{s.label}</p>
-                  <p style={{ fontSize: 26, fontWeight: 700, color: s.color, margin: 0, letterSpacing: "-0.02em" }}>{s.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {auditLoading && auditEntries.length === 0 ? (
-              <div style={{ ...card, padding: "52px 20px", textAlign: "center" }}>
-                <p style={{ color: muted, fontSize: 14, margin: 0 }}>Loading audit logs…</p>
-              </div>
-            ) : auditEntries.length === 0 ? (
-              <div style={{ ...card, padding: "52px 20px", textAlign: "center" }}>
-                <p style={{ color: muted, fontSize: 14, margin: 0 }}>No write actions yet. Confirm a close, email, or Slack post to see entries here.</p>
-              </div>
-            ) : (
-              <div style={{ ...card, overflow: "hidden" }}>
-                <div className="anzen-audit-table">
-                  <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "10px 18px", borderBottom: `1px solid ${border}`, background: surface2 }}>
-                    {["Tool", "Details", "Time", "Outcome"].map((h) => (
-                      <span key={h} style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: muted }}>{h}</span>
-                    ))}
-                  </div>
-                  {auditEntries.map((entry, i) => {
-                    const ok = entry.outcome === "success";
-                    const time = new Date(entry.timestamp).toLocaleString([], {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
-                    return (
-                      <div key={entry.id}
-                        style={{ display: "grid", gridTemplateColumns: "120px 1fr 140px 90px", gap: 16, padding: "13px 18px", borderBottom: i < auditEntries.length - 1 ? `1px solid ${border}` : "none" }}>
-                        <code style={{ fontSize: 11, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const }}>{entry.toolName}</code>
-                        <span style={{ fontSize: 13, color: tx, alignSelf: "center" }}>{entry.message}</span>
-                        <span style={{ fontSize: 12, color: muted, alignSelf: "center" }}>{time}</span>
-                        <span style={{
-                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, alignSelf: "center", whiteSpace: "nowrap" as const,
-                          color: ok ? accentTx : "#f87171",
-                          background: ok ? accentBg : "rgba(248,113,113,0.12)",
-                        }}>{ok ? "Success" : "Failed"}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="anzen-audit-cards">
-                  {auditEntries.map((entry) => {
-                    const ok = entry.outcome === "success";
-                    const time = new Date(entry.timestamp).toLocaleString([], {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    });
-                    return (
-                      <div key={entry.id} className="anzen-audit-card" style={{ borderBottomColor: border }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
-                          <code style={{ fontSize: 11, color: accentTx, background: accentBg, padding: "2px 8px", borderRadius: 5 }}>{entry.toolName}</code>
-                          <span style={{
-                            fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5, whiteSpace: "nowrap" as const, flexShrink: 0,
-                            color: ok ? accentTx : "#f87171",
-                            background: ok ? accentBg : "rgba(248,113,113,0.12)",
-                          }}>{ok ? "Success" : "Failed"}</span>
-                        </div>
-                        <p style={{ fontSize: 13, color: tx, margin: "0 0 6px", lineHeight: 1.5 }}>{entry.message}</p>
-                        <p style={{ fontSize: 12, color: muted, margin: 0 }}>{time}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

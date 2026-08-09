@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef, useState } from "react"
 
 import { recordAudio } from "@/lib/audio-utils"

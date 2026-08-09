@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { Suspense } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -139,14 +138,13 @@ function childrenTakeAllStringContents(element: any): string {
 }
 
 const COMPONENTS = {
-  h1: withClass("h1", "text-2xl font-semibold"),
-  h2: withClass("h2", "font-semibold text-xl"),
-  h3: withClass("h3", "font-semibold text-lg"),
-  h4: withClass("h4", "font-semibold text-base"),
-  h5: withClass("h5", "font-medium"),
-  strong: withClass("strong", "font-semibold"),
-  a: withClass("a", "text-primary underline underline-offset-2"),
-  blockquote: withClass("blockquote", "border-l-2 border-primary pl-4"),
+  h1: withClass("h1", "text-2xl font-bold tracking-[-0.04em] mt-6 mb-2"),
+  h2: withClass("h2", "font-bold text-xl tracking-[-0.04em] mt-5 mb-2"),
+  h3: withClass("h3", "font-bold text-lg tracking-[-0.03em] mt-4 mb-1"),
+  h4: withClass("h4", "font-bold text-base tracking-[-0.03em] mt-4 mb-1"),
+  strong: withClass("strong", "font-semibold text-foreground"),
+  a: withClass("a", "text-primary hover:underline underline-offset-4 decoration-primary/30 transition-colors"),
+  blockquote: withClass("blockquote", "border-l-2 border-border/50 pl-4 italic text-muted-foreground"),
   code: ({ children, className, node, ...rest }: any) => {
     const match = /language-(\w+)/.exec(className || "")
     return match ? (
@@ -156,7 +154,7 @@ const COMPONENTS = {
     ) : (
       <code
         className={cn(
-          "font-mono [:not(pre)>&]:rounded-md [:not(pre)>&]:bg-background/50 [:not(pre)>&]:px-1 [:not(pre)>&]:py-0.5"
+          "font-mono text-[12px] [:not(pre)>&]:rounded-md [:not(pre)>&]:bg-muted/50 [:not(pre)>&]:px-1.5 [:not(pre)>&]:py-0.5"
         )}
         {...rest}
       >
@@ -165,31 +163,31 @@ const COMPONENTS = {
     )
   },
   pre: ({ children }: any) => children,
-  ol: withClass("ol", "list-decimal space-y-2 pl-6"),
-  ul: withClass("ul", "list-disc space-y-2 pl-6"),
-  li: withClass("li", "my-1.5"),
+  ol: withClass("ol", "list-decimal space-y-2.5 pl-6 my-4"),
+  ul: withClass("ul", "list-disc space-y-2.5 pl-6 my-4"),
+  li: withClass("li", "text-[14px] leading-relaxed"),
   table: withClass(
     "table",
-    "w-full border-collapse overflow-y-auto rounded-md border border-foreground/20"
+    "w-full border-collapse overflow-y-auto rounded-lg border border-border/50 my-4"
   ),
   th: withClass(
     "th",
-    "border border-foreground/20 px-4 py-2 text-left font-bold [&[align=center]]:text-center [&[align=right]]:text-right"
+    "border border-border/50 bg-muted/30 px-4 py-2 text-left text-[12px] font-bold uppercase tracking-wider text-muted-foreground [&[align=center]]:text-center [&[align=right]]:text-right"
   ),
   td: withClass(
     "td",
-    "border border-foreground/20 px-4 py-2 text-left [&[align=center]]:text-center [&[align=right]]:text-right"
+    "border border-border/50 px-4 py-2 text-[13px] [&[align=center]]:text-center [&[align=right]]:text-right"
   ),
-  tr: withClass("tr", "m-0 border-t p-0 even:bg-muted"),
-  p: withClass("p", "whitespace-pre-wrap"),
-  hr: withClass("hr", "border-foreground/20"),
+  tr: withClass("tr", "m-0 border-t border-border/50 p-0 even:bg-muted/10"),
+  p: withClass("p", "text-[14px] leading-relaxed mb-4 last:mb-0"),
+  hr: withClass("hr", "border-border/50 my-8"),
 }
 
-function withClass(Tag: keyof JSX.IntrinsicElements, classes: string) {
+function withClass(Tag: keyof React.JSX.IntrinsicElements, classes: string) {
   const Component = ({ node, ...props }: any) => (
     <Tag className={classes} {...props} />
   )
-  Component.displayName = Tag
+  Component.displayName = String(Tag)
   return Component
 }
 

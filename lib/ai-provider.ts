@@ -84,9 +84,89 @@ export function getAiProviderConfig(): AiProviderConfig {
   };
 }
 
-export function getChatModel(): LanguageModel {
-  const config = getAiProviderConfig();
+/** One selectable entry in the chat model picker. */
+export type AiModelOption = {
+  /** Stable `provider:modelId` key sent by the client. */
+  id: string;
+  provider: AiProviderId;
+  modelId: string;
+  label: string;
+  providerLabel: string;
+};
 
+function envList(name: string): string[] {
+  return (process.env[name] ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function prettyModelName(modelId: string): string {
+  const known: Record<string, string> = {
+    "deepseek-v4-flash": "DeepSeek V4 Flash",
+    "deepseek-chat": "DeepSeek Chat",
+    "deepseek-reasoner": "DeepSeek Reasoner",
+    "llama-3.3-70b-versatile": "Llama 3.3 70B",
+  };
+  return known[modelId] ?? modelId;
+}
+
+export function modelOptionId(provider: AiProviderId, modelId: string): string {
+  return `${provider}:${modelId}`;
+}
+
+/**
+ * Models the server can actually serve right now — i.e. those whose provider
+ * key is configured. Extra ids can be offered via GROQ_MODELS / DEEPSEEK_MODELS
+ * (comma-separated).
+ */
+export function listAvailableModels(): AiModelOption[] {
+  const options: AiModelOption[] = [];
+
+  const add = (provider: AiProviderId, modelId: string) => {
+    const id = modelOptionId(provider, modelId);
+    if (options.some((option) => option.id === id)) return;
+    options.push({
+      id,
+      provider,
+      modelId,
+      label: prettyModelName(modelId),
+      providerLabel: provider === "groq" ? "Groq" : "DeepSeek",
+    });
+  };
+
+  if (hasKey(process.env.DEEPSEEK_API_KEY)) {
+    add("deepseek", process.env.DEEPSEEK_MODEL?.trim() || DEEPSEEK_DEFAULT_MODEL);
+    envList("DEEPSEEK_MODELS").forEach((modelId) => add("deepseek", modelId));
+  }
+
+  if (hasKey(process.env.GROQ_API_KEY)) {
+    add("groq", GROQ_MODEL);
+    envList("GROQ_MODELS").forEach((modelId) => add("groq", modelId));
+  }
+
+  return options;
+}
+
+/**
+ * Turn a requested model id into a usable config. Unknown or unavailable ids
+ * fall back to the configured default rather than failing the request.
+ */
+export function resolveRequestedModel(requestedId?: string | null): AiProviderConfig {
+  const fallback = getAiProviderConfig();
+  if (!requestedId) return fallback;
+
+  const match = listAvailableModels().find((option) => option.id === requestedId);
+  if (!match) return fallback;
+
+  return {
+    provider: match.provider,
+    modelId: match.modelId,
+    displayName: `${match.providerLabel} (${match.modelId})`,
+  };
+}
+
+export function getChatModel(config: AiProviderConfig = getAiProviderConfig()): LanguageModel {
   if (config.provider === "groq") {
     return createGroq({ apiKey: process.env.GROQ_API_KEY })(config.modelId);
   }

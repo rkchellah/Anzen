@@ -170,13 +170,13 @@ html {
 }
 
 .anzen-page-y {
-  padding-top: 32px;
+  padding-top: 88px;
   padding-bottom: 32px;
 }
 
 @media (min-width: 768px) {
   .anzen-page-y {
-    padding-top: 48px;
+    padding-top: 104px;
     padding-bottom: 40px;
   }
 }

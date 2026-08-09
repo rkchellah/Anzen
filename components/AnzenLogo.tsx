@@ -1,6 +1,19 @@
-export function AnzenLogo({ size = 35 }: { size?: number }) {
+export function AnzenLogo({
+  size = 32,
+  className,
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
-    <svg width={size} height={size} viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 1024 1024"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden
+    >
       <defs>
         <path id="petalFlat" d="M -30, -100 C -70,-220 -30,-310 0,-320 C 30,-310 70,-220 30,-100 Z" />
       </defs>

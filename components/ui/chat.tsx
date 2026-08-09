@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client"
 
 import {
@@ -196,7 +195,7 @@ export function Chat({
     <ChatContainer className={className}>
       {isEmpty && append && suggestions ? (
         <PromptSuggestions
-          label="Try these prompts ✨"
+          label="Try these prompts"
           append={append}
           suggestions={suggestions}
         />
@@ -217,13 +216,11 @@ export function Chat({
         isPending={isGenerating || isTyping}
         handleSubmit={handleSubmit}
       >
-        {({ files, setFiles }) => (
+        {() => (
           <MessageInput
             value={input}
             onChange={handleInputChange}
-            allowAttachments
-            files={files}
-            setFiles={setFiles}
+            allowAttachments={false}
             stop={handleStop}
             isGenerating={isGenerating}
             transcribeAudio={transcribeAudio}
@@ -238,8 +235,10 @@ Chat.displayName = "Chat"
 export function ChatMessages({
   messages,
   children,
+  className,
 }: React.PropsWithChildren<{
   messages: Message[]
+  className?: string
 }>) {
   const {
     containerRef,
@@ -251,12 +250,12 @@ export function ChatMessages({
 
   return (
     <div
-      className="grid grid-cols-1 overflow-y-auto pb-4"
+      className={cn("flex flex-col overflow-y-auto pb-4 flex-1 w-full min-h-0", className)}
       ref={containerRef}
       onScroll={handleScroll}
       onTouchStart={handleTouchStart}
     >
-      <div className="max-w-full [grid-column:1/1] [grid-row:1/1]">
+      <div className="w-full flex-1">
         {children}
       </div>
 

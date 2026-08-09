@@ -15,7 +15,7 @@ import {
   prepareReadOnlyFollowUpStep,
   repairMalformedToolCall,
 } from "@/lib/ai-chat";
-import { getAiProviderConfig, getChatModel } from "@/lib/ai-provider";
+import { getChatModel, resolveRequestedModel } from "@/lib/ai-provider";
 
 export async function POST(req: Request) {
   const session = await auth0.getSession();
@@ -28,9 +28,15 @@ export async function POST(req: Request) {
     return new Response("Could not get access token", { status: 401 });
   }
 
+  const { messages, model: requestedModel } = (await req.json()) as {
+    messages: UIMessage[];
+    model?: string;
+  };
+
   let aiConfig;
   try {
-    aiConfig = getAiProviderConfig();
+    // An unknown or unavailable id falls back to the configured default.
+    aiConfig = resolveRequestedModel(requestedModel);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "AI provider is not configured.";
@@ -41,7 +47,6 @@ export async function POST(req: Request) {
     `[chat] Using provider: ${aiConfig.provider} (${aiConfig.modelId})`
   );
 
-  const { messages } = (await req.json()) as { messages: UIMessage[] };
   const modelMessages = await convertToModelMessages(messages, {
     ignoreIncompleteToolCalls: true,
   });
@@ -67,7 +72,7 @@ export async function POST(req: Request) {
   const useGroqWorkarounds = aiConfig.provider === "groq";
 
   const result = streamText({
-    model: getChatModel(),
+    model: getChatModel(aiConfig),
     system: `You are Anzen, an AI agent that acts on behalf of the user using Auth0 Token Vault. You help users manage their GitHub issues, emails, and Slack messages — securely, without ever storing their credentials.
 
 Current user: ${session.user.name} (${session.user.email})
