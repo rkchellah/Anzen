@@ -49,3 +49,6 @@ GOALS.md
 
 # local permission store fallback (Phase 4)
 .data/
+
+# external vendored repos (not part of this project)
+/blazity/
