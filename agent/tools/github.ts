@@ -6,13 +6,20 @@ import { throwToolError } from "@/lib/tool-errors";
 import { assertWriteAllowed } from "@/lib/tool-permissions";
 import { assertWriteMatchesLatestUserIntent } from "@/lib/write-execute-guard";
 import { wrapUntrustedExternalContent } from "@/agent/wrap-untrusted-content";
+import {
+  requirePositiveInt,
+  requireRepoSegment,
+  requireString,
+} from "@/agent/tool-input";
 
 const GITHUB_PROVIDER = "github" as const;
 
 const GITHUB_AFFILIATION =
   "owner,collaborator,organization_member,organization_owner" as const;
 
-type IssueState = "open" | "closed" | "all";
+const ISSUE_STATES = ["open", "closed", "all"] as const;
+
+type IssueState = (typeof ISSUE_STATES)[number];
 
 type MappedIssue = {
   issueNumber: number;
@@ -101,16 +108,17 @@ export function getGithubTools(auth0Token: string, userId: string) {
       }),
       execute: async ({ state = "open" }) => {
         try {
+          const issueState = ISSUE_STATES.includes(state) ? state : "open";
           const token = await exchangeTokenForProvider(auth0Token, GITHUB_PROVIDER);
           const octokit = new Octokit({ auth: token });
           const { data: user } = await octokit.rest.users.getAuthenticated();
           const githubLogin = user.login;
 
-          const assignedIssues = await fetchUserIssues(octokit, githubLogin, "assigned", state);
+          const assignedIssues = await fetchUserIssues(octokit, githubLogin, "assigned", issueState);
 
           let createdButNotAssigned: MappedIssue[] = [];
           if (assignedIssues.length === 0) {
-            const created = await fetchUserIssues(octokit, githubLogin, "created", state);
+            const created = await fetchUserIssues(octokit, githubLogin, "created", issueState);
             createdButNotAssigned = created.filter((issue) => !issue.assignedToMe);
           }
 
@@ -145,19 +153,21 @@ export function getGithubTools(auth0Token: string, userId: string) {
       }),
       execute: async ({ owner, repo, state = "open" }) => {
         try {
+          const ownerName = requireRepoSegment("listRepoIssues", "owner", owner);
+          const repoName = requireRepoSegment("listRepoIssues", "repo", repo);
           const token = await exchangeTokenForProvider(auth0Token, GITHUB_PROVIDER);
           const octokit = new Octokit({ auth: token });
           const { data: user } = await octokit.rest.users.getAuthenticated();
           const { data } = await octokit.rest.issues.listForRepo({
-            owner,
-            repo,
-            state,
+            owner: ownerName,
+            repo: repoName,
+            state: ISSUE_STATES.includes(state) ? state : "open",
             per_page: 30,
           });
           return wrapUntrustedExternalContent({
             connectedGitHubLogin: user.login,
-            owner,
-            repo,
+            owner: ownerName,
+            repo: repoName,
             issues: data
               .filter((issue) => !issue.pull_request)
               .map((issue) => mapIssue(issue, user.login)),
@@ -183,28 +193,27 @@ export function getGithubTools(auth0Token: string, userId: string) {
       }),
       execute: async ({ owner, repo, issueNumber }, { messages }) => {
         try {
-          assertWriteMatchesLatestUserIntent(
-            "closeIssue",
-            { owner, repo, issueNumber },
-            messages
-          );
-          return await runAuditedWrite(
-            userId,
-            "closeIssue",
-            { owner, repo, issueNumber },
-            async () => {
-              await assertWriteAllowed(userId, "github");
-              const token = await exchangeTokenForProvider(auth0Token, GITHUB_PROVIDER);
-              const octokit = new Octokit({ auth: token });
-              await octokit.rest.issues.update({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                state: "closed",
-              });
-              return { success: true, message: `Issue #${issueNumber} in ${owner}/${repo} closed` };
-            }
-          );
+          const ownerName = requireRepoSegment("closeIssue", "owner", owner);
+          const repoName = requireRepoSegment("closeIssue", "repo", repo);
+          const number = requirePositiveInt("closeIssue", "issueNumber", issueNumber);
+          const args = { owner: ownerName, repo: repoName, issueNumber: number };
+
+          assertWriteMatchesLatestUserIntent("closeIssue", args, messages);
+          return await runAuditedWrite(userId, "closeIssue", args, async () => {
+            await assertWriteAllowed(userId, "github");
+            const token = await exchangeTokenForProvider(auth0Token, GITHUB_PROVIDER);
+            const octokit = new Octokit({ auth: token });
+            await octokit.rest.issues.update({
+              owner: ownerName,
+              repo: repoName,
+              issue_number: number,
+              state: "closed",
+            });
+            return {
+              success: true,
+              message: `Issue #${number} in ${ownerName}/${repoName} closed`,
+            };
+          });
         } catch (error) {
           throwToolError("closeIssue", error, GITHUB_PROVIDER);
         }
@@ -226,28 +235,31 @@ export function getGithubTools(auth0Token: string, userId: string) {
       }),
       execute: async ({ owner, repo, issueNumber, comment }, { messages }) => {
         try {
-          assertWriteMatchesLatestUserIntent(
-            "commentOnIssue",
-            { owner, repo, issueNumber, comment },
-            messages
-          );
-          return await runAuditedWrite(
-            userId,
-            "commentOnIssue",
-            { owner, repo, issueNumber, comment },
-            async () => {
-              await assertWriteAllowed(userId, "github");
-              const token = await exchangeTokenForProvider(auth0Token, GITHUB_PROVIDER);
-              const octokit = new Octokit({ auth: token });
-              const { data } = await octokit.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: issueNumber,
-                body: comment,
-              });
-              return { success: true, message: `Comment added`, commentUrl: data.html_url };
-            }
-          );
+          const ownerName = requireRepoSegment("commentOnIssue", "owner", owner);
+          const repoName = requireRepoSegment("commentOnIssue", "repo", repo);
+          const number = requirePositiveInt("commentOnIssue", "issueNumber", issueNumber);
+          // GitHub rejects comment bodies over 65536 characters.
+          const body = requireString("commentOnIssue", "comment", comment, 65_000);
+          const args = {
+            owner: ownerName,
+            repo: repoName,
+            issueNumber: number,
+            comment: body,
+          };
+
+          assertWriteMatchesLatestUserIntent("commentOnIssue", args, messages);
+          return await runAuditedWrite(userId, "commentOnIssue", args, async () => {
+            await assertWriteAllowed(userId, "github");
+            const token = await exchangeTokenForProvider(auth0Token, GITHUB_PROVIDER);
+            const octokit = new Octokit({ auth: token });
+            const { data } = await octokit.rest.issues.createComment({
+              owner: ownerName,
+              repo: repoName,
+              issue_number: number,
+              body,
+            });
+            return { success: true, message: "Comment added", commentUrl: data.html_url };
+          });
         } catch (error) {
           throwToolError("commentOnIssue", error, GITHUB_PROVIDER);
         }

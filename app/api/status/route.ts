@@ -1,39 +1,47 @@
+import { NextResponse } from "next/server";
 import { auth0, exchangeTokenForProvider, type Provider } from "@/lib/auth0";
+import { apiError, unauthorized } from "@/lib/api-response";
 import { isTokenVaultScopesEnabled } from "@/lib/auth0-scopes";
 import { getConnectedProvidersFromMyAccount } from "@/lib/my-account-api";
-import { NextResponse } from "next/server";
 
 const PROVIDERS: Provider[] = ["github", "google-oauth2", "sign-in-with-slack"];
 
+/**
+ * Probe every provider concurrently. A failed exchange just means "not
+ * connected" here — the reason is logged, not returned, since raw Auth0 error
+ * text can carry connection and tenant details.
+ */
 async function probeTokenExchange(
   auth0Token: string
-): Promise<Record<Provider, { success: boolean; error?: string }>> {
-  const results = {} as Record<Provider, { success: boolean; error?: string }>;
+): Promise<Record<Provider, { success: boolean }>> {
+  const entries = await Promise.all(
+    PROVIDERS.map(async (provider) => {
+      try {
+        await exchangeTokenForProvider(auth0Token, provider);
+        return [provider, { success: true }] as const;
+      } catch (error) {
+        console.warn(`[status] Token exchange failed for ${provider}:`, error);
+        return [provider, { success: false }] as const;
+      }
+    })
+  );
 
-  for (const provider of PROVIDERS) {
-    try {
-      await exchangeTokenForProvider(auth0Token, provider);
-      results[provider] = { success: true };
-    } catch (error) {
-      results[provider] = { success: false, error: String(error) };
-    }
-  }
-
-  return results;
+  return Object.fromEntries(entries) as Record<Provider, { success: boolean }>;
 }
 
 export async function GET() {
   const session = await auth0.getSession();
+  if (!session) return unauthorized();
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let tokenResult;
+  try {
+    tokenResult = await auth0.getAccessToken();
+  } catch (error) {
+    console.error("[status] Could not get access token:", error);
+    return unauthorized("Your session expired. Sign in again to continue.");
   }
-
-  const tokenResult = await auth0.getAccessToken();
-  const auth0Token = tokenResult?.token;
-
-  if (!auth0Token) {
-    return NextResponse.json({ error: "Could not get access token" }, { status: 401 });
+  if (!tokenResult?.token) {
+    return unauthorized("Your session expired. Sign in again to continue.");
   }
 
   // Prefer My Account API — matches what disconnect uses. Token exchange alone can
@@ -42,18 +50,23 @@ export async function GET() {
     try {
       const linked = await getConnectedProvidersFromMyAccount();
       const results = Object.fromEntries(
-        PROVIDERS.map((provider) => [
-          provider,
-          { success: linked[provider] },
-        ])
+        PROVIDERS.map((provider) => [provider, { success: linked[provider] }])
       );
 
       return NextResponse.json({ results, source: "my_account_api" });
     } catch (error) {
-      console.warn("My Account status check failed, falling back to token probe:", error);
+      console.warn(
+        "[status] My Account check failed, falling back to token probe:",
+        error
+      );
     }
   }
 
-  const results = await probeTokenExchange(auth0Token);
-  return NextResponse.json({ results, source: "token_exchange_probe" });
+  try {
+    const results = await probeTokenExchange(tokenResult.token);
+    return NextResponse.json({ results, source: "token_exchange_probe" });
+  } catch (error) {
+    console.error("[status] Connection probe failed:", error);
+    return apiError("Couldn't check your connections. Try again.", 502);
+  }
 }

@@ -1,4 +1,5 @@
 import { auth0 } from "@/lib/auth0";
+import { apiError, badRequest, readJsonObject, unauthorized } from "@/lib/api-response";
 import { checkChatRateLimit } from "@/lib/rate-limit";
 import {
   streamText,
@@ -17,65 +18,13 @@ import {
 } from "@/lib/ai-chat";
 import { getChatModel, resolveRequestedModel } from "@/lib/ai-provider";
 
-export async function POST(req: Request) {
-  const session = await auth0.getSession();
-  if (!session) return new Response("Unauthorized", { status: 401 });
+/** Guards against an oversized history pinning the model context (and our bill). */
+const MAX_MESSAGES_PER_REQUEST = 200;
 
-  const tokenResult = await auth0.getAccessToken();
-  const auth0Token = tokenResult?.token;
+const SYSTEM_PROMPT = (name: string, email: string) =>
+  `You are Anzen, an AI agent that acts on behalf of the user using Auth0 Token Vault. You help users manage their GitHub issues, emails, and Slack messages — securely, without ever storing their credentials.
 
-  if (!auth0Token) {
-    return new Response("Could not get access token", { status: 401 });
-  }
-
-  const { messages, model: requestedModel } = (await req.json()) as {
-    messages: UIMessage[];
-    model?: string;
-  };
-
-  let aiConfig;
-  try {
-    // An unknown or unavailable id falls back to the configured default.
-    aiConfig = resolveRequestedModel(requestedModel);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "AI provider is not configured.";
-    return Response.json({ error: message }, { status: 503 });
-  }
-
-  console.log(
-    `[chat] Using provider: ${aiConfig.provider} (${aiConfig.modelId})`
-  );
-
-  const modelMessages = await convertToModelMessages(messages, {
-    ignoreIncompleteToolCalls: true,
-  });
-  const userId = session.user.sub;
-  if (!userId) {
-    return new Response("User ID missing from session", { status: 401 });
-  }
-
-  const rateLimit = await checkChatRateLimit(userId);
-  if (!rateLimit.allowed) {
-    return Response.json(
-      {
-        error: "You're sending requests too fast. Try again shortly.",
-        retryAfterSeconds: rateLimit.retryAfterSeconds,
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
-      }
-    );
-  }
-
-  const useGroqWorkarounds = aiConfig.provider === "groq";
-
-  const result = streamText({
-    model: getChatModel(aiConfig),
-    system: `You are Anzen, an AI agent that acts on behalf of the user using Auth0 Token Vault. You help users manage their GitHub issues, emails, and Slack messages — securely, without ever storing their credentials.
-
-Current user: ${session.user.name} (${session.user.email})
+Current user: ${name} (${email})
 
 Use your tools when the user asks about their accounts. Be concise and helpful. Prefer calling read tools yourself instead of asking the user for IDs or repo names you can look up.
 
@@ -91,33 +40,134 @@ Write actions (closeIssue, commentOnIssue, sendEmail, postMessage) require expli
 
 When a tool fails, it returns a plain-language error message (not raw provider or stack trace text). Relay that message to the user clearly and suggest the next step when appropriate (e.g. reconnecting a provider in Connections). Do not invent technical details or quote raw API errors.
 
-Each provider can be set to read-only or read & write on the Connections page. If a write tool fails because of read-only mode, tell the user to switch that provider to Read & write in Connections.`,
-    messages: modelMessages,
-    tools: {
-      ...getGithubTools(auth0Token, userId),
-      ...getGmailTools(auth0Token, userId),
-      ...getSlackTools(auth0Token, userId),
-    },
-    stopWhen: [
-      hasToolCall("closeIssue"),
-      hasToolCall("commentOnIssue"),
-      hasToolCall("sendEmail"),
-      hasToolCall("postMessage"),
-      stepCountIs(6),
-    ],
-    ...(useGroqWorkarounds
-      ? {
-          experimental_repairToolCall: repairMalformedToolCall,
-          prepareStep: prepareReadOnlyFollowUpStep,
-        }
-      : {}),
-    onError: ({ error }) => {
-      chatStreamErrorMessage(error, aiConfig.provider);
-    },
-  });
+Each provider can be set to read-only or read & write on the Connections page. If a write tool fails because of read-only mode, tell the user to switch that provider to Read & write in Connections.`;
+
+export async function POST(req: Request) {
+  const session = await auth0.getSession();
+  if (!session) return unauthorized("Sign in to use Anzen chat.");
+
+  const userId = session.user.sub;
+  if (!userId) {
+    return unauthorized("Your session is missing a user id. Sign in again.");
+  }
+
+  // Rate-limit before doing any expensive work, so a hot loop can't drive
+  // token exchanges or provider calls.
+  const rateLimit = await checkChatRateLimit(userId);
+  if (!rateLimit.allowed) {
+    return apiError("You're sending requests too fast. Try again shortly.", 429, {
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+      headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+    });
+  }
+
+  const body = await readJsonObject(req);
+  if (!body) {
+    return badRequest("Request body must be a JSON object.");
+  }
+
+  const { messages, model: requestedModel } = body as {
+    messages?: unknown;
+    model?: unknown;
+  };
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return badRequest("`messages` must be a non-empty array.");
+  }
+  if (messages.length > MAX_MESSAGES_PER_REQUEST) {
+    return badRequest(
+      `Conversation is too long (${messages.length} messages). Start a new chat.`
+    );
+  }
+  if (requestedModel !== undefined && typeof requestedModel !== "string") {
+    return badRequest("`model` must be a string when provided.");
+  }
+
+  const uiMessages = messages as UIMessage[];
+
+  let tokenResult;
+  try {
+    tokenResult = await auth0.getAccessToken();
+  } catch (error) {
+    console.error("[chat] Failed to get Auth0 access token:", error);
+    return unauthorized("Your session expired. Sign in again to continue.");
+  }
+  if (!tokenResult?.token) {
+    return unauthorized("Your session expired. Sign in again to continue.");
+  }
+  const auth0Token = tokenResult.token;
+
+  let aiConfig;
+  try {
+    // An unknown or unavailable id falls back to the configured default.
+    aiConfig = resolveRequestedModel(requestedModel);
+  } catch (error) {
+    console.error("[chat] No AI provider configured:", error);
+    return apiError(
+      "No AI model is configured on the server. Set GROQ_API_KEY or DEEPSEEK_API_KEY.",
+      503
+    );
+  }
+
+  let modelMessages;
+  try {
+    modelMessages = await convertToModelMessages(uiMessages, {
+      ignoreIncompleteToolCalls: true,
+    });
+  } catch (error) {
+    console.error("[chat] Malformed message history:", error);
+    return badRequest(
+      "That conversation could not be read. Start a new chat and try again."
+    );
+  }
+  if (modelMessages.length === 0) {
+    return badRequest("No readable messages in the request.");
+  }
+
+  const useGroqWorkarounds = aiConfig.provider === "groq";
+
+  let result;
+  try {
+    result = streamText({
+      model: getChatModel(aiConfig),
+      system: SYSTEM_PROMPT(
+        session.user.name ?? "Unknown",
+        session.user.email ?? "unknown"
+      ),
+      messages: modelMessages,
+      tools: {
+        ...getGithubTools(auth0Token, userId),
+        ...getGmailTools(auth0Token, userId),
+        ...getSlackTools(auth0Token, userId),
+      },
+      stopWhen: [
+        hasToolCall("closeIssue"),
+        hasToolCall("commentOnIssue"),
+        hasToolCall("sendEmail"),
+        hasToolCall("postMessage"),
+        stepCountIs(6),
+      ],
+      ...(useGroqWorkarounds
+        ? {
+            experimental_repairToolCall: repairMalformedToolCall,
+            prepareStep: prepareReadOnlyFollowUpStep,
+          }
+        : {}),
+      onError: ({ error }) => {
+        chatStreamErrorMessage(error, aiConfig.provider);
+      },
+    });
+  } catch (error) {
+    // Thrown before the stream opens — e.g. a bad provider base URL or API key.
+    console.error("[chat] Failed to start stream:", error);
+    return apiError(
+      "Anzen couldn't reach the AI provider. Try again in a moment.",
+      502
+    );
+  }
 
   return result.toUIMessageStreamResponse({
-    originalMessages: messages,
+    originalMessages: uiMessages,
     onError: (error) => chatStreamErrorMessage(error, aiConfig.provider),
   });
 }

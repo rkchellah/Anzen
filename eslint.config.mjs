@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored upstream repo — gitignored, not part of this project's source.
+    "blazity/**",
     // Vendored Blazity shadcn-chatbot-kit (owned source, lint upstream style separately)
     "components/ui/chat.tsx",
     "components/ui/chat-message.tsx",

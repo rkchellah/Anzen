@@ -16,6 +16,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import { connectionKeyForToolName } from "@/lib/tool-errors";
 import type { ProviderAccessMode } from "@/lib/permissions";
+import { cn } from "@/lib/utils";
 
 type ConnectionKey = "github" | "gmail" | "slack";
 
@@ -150,7 +151,7 @@ export function AnzenToolApprovals({
         blocks.push(
           <div
             key={part.toolCallId ?? part.approval.id}
-            className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-full border border-border/10 bg-[#121212] px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60"
+            className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-full border border-border/10 bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60"
           >
             <div className={cn("size-1.5 rounded-full", part.approval.approved ? "bg-primary animate-pulse" : "bg-destructive")} />
             {part.approval.approved ? "Running Action…" : "Action Cancelled"}

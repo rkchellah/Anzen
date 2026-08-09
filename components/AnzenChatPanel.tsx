@@ -9,8 +9,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { MessageInput } from "@/components/ui/message-input";
 import { MessageList } from "@/components/ui/message-list";
-import { Plus, Mic, Paperclip, Circle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { toKitMessages } from "@/lib/chat-message-adapter";
 import { transcribeAudio } from "@/lib/transcribe-audio";
 import { cn } from "@/lib/utils";
@@ -105,7 +103,7 @@ export function AnzenChatPanel({
       <ChatForm
         isPending={isGenerating || inputDisabled}
         handleSubmit={handleSubmit}
-        className="overflow-hidden rounded-xl border border-border/10 bg-[#121212] shadow-2xl transition-all"
+        className="overflow-hidden rounded-xl border border-border/10 bg-card shadow-2xl transition-all"
       >
         {() => (
           <div className="flex flex-col">
@@ -122,29 +120,7 @@ export function AnzenChatPanel({
               className="min-h-[70px] w-full border-none bg-transparent px-8 py-6 text-[15px] leading-relaxed shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/40"
             />
             <div className="flex items-center justify-between px-6 pb-4 pt-0">
-              <div className="flex items-center gap-2">
-                {modelSelector}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors"
-                >
-                  <Circle className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground transition-colors"
-                >
-                  <Paperclip className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/40 text-muted-foreground/80 hover:text-foreground transition-colors"
-                >
-                  <Mic className="size-4" />
-                </button>
-              </div>
+              <div className="flex items-center gap-2">{modelSelector}</div>
             </div>
           </div>
         )}
@@ -155,15 +131,16 @@ export function AnzenChatPanel({
   );
 
   return (
-    <div className={cn("flex h-full w-full min-h-0 flex-1 flex-col bg-[#080808]", className)}>
+    <div className={cn("flex h-full w-full min-h-0 flex-1 flex-col bg-background", className)}>
       <div className="flex-1 min-h-0 flex flex-col w-full overflow-hidden">
         {isEmpty ? (
           <div className="flex flex-1 flex-col items-center justify-center px-6">
             <div className={cn(columnWidth, "flex flex-col items-center gap-8")}>
               {emptyState}
-              <div className="w-full">
-                {composer}
-              </div>
+              <div className="w-full">{composer}</div>
+              {suggestionRow && (
+                <div className="mx-auto w-full max-w-3xl px-4">{suggestionRow}</div>
+              )}
             </div>
           </div>
         ) : (

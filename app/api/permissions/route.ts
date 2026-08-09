@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth0 } from "@/lib/auth0";
+import {
+  badRequest,
+  readJsonObject,
+  serverError,
+  unauthorized,
+} from "@/lib/api-response";
 import { isConnectionKey, isProviderAccessMode } from "@/lib/permissions";
 import {
   getUserPermissions,
@@ -8,44 +14,38 @@ import {
 
 export async function GET() {
   const session = await auth0.getSession();
-  if (!session?.user.sub) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
+  if (!session?.user.sub) return unauthorized();
 
-  const permissions = await getUserPermissions(session.user.sub);
-  return NextResponse.json({ permissions });
+  try {
+    const permissions = await getUserPermissions(session.user.sub);
+    return NextResponse.json({ permissions });
+  } catch (error) {
+    return serverError(
+      "permissions",
+      error,
+      "Couldn't load your access settings. Try again."
+    );
+  }
 }
 
 export async function PATCH(req: Request) {
   const session = await auth0.getSession();
-  if (!session?.user.sub) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
+  if (!session?.user.sub) return unauthorized();
 
-  let body: { provider?: string; mode?: string };
-  try {
-    body = (await req.json()) as { provider?: string; mode?: string };
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const body = await readJsonObject(req);
+  if (!body) return badRequest("Request body must be a JSON object.");
 
   const { provider, mode } = body;
-  if (!provider || !mode) {
-    return NextResponse.json(
-      { error: "provider and mode are required" },
-      { status: 400 }
-    );
+  if (typeof provider !== "string" || typeof mode !== "string") {
+    return badRequest("`provider` and `mode` are required strings.");
   }
 
   if (!isConnectionKey(provider)) {
-    return NextResponse.json({ error: `Unknown provider: ${provider}` }, { status: 400 });
+    return badRequest(`Unknown provider: ${provider}`);
   }
 
   if (!isProviderAccessMode(mode)) {
-    return NextResponse.json(
-      { error: "mode must be read or read_write" },
-      { status: 400 }
-    );
+    return badRequest("`mode` must be either 'read' or 'read_write'.");
   }
 
   try {
@@ -56,10 +56,10 @@ export async function PATCH(req: Request) {
     );
     return NextResponse.json({ permissions });
   } catch (error) {
-    console.error("[permissions] PATCH failed:", error);
-    return NextResponse.json(
-      { error: "Could not save permission setting" },
-      { status: 500 }
+    return serverError(
+      "permissions",
+      error,
+      "Couldn't save that access setting. Try again."
     );
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -12,7 +12,7 @@ import {
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { findPendingManualApprovals, hasPendingManualApprovals } from "@/agent/pending-approvals";
-import { buildLogoutUrl } from "@/lib/auth-routes";
+import { errorMessage, isAbortError, requestJson } from "@/lib/client-api";
 import {
   deriveChatTitle,
   loadChats,
@@ -34,7 +34,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { resolveDisplayName } from "@/lib/display-name";
 import { cn } from "@/lib/utils";
 
@@ -109,12 +109,17 @@ export default function DashboardClient({
   const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
+  const [auditError, setAuditError] = useState<string | null>(null);
   const [disconnectingKey, setDisconnectingKey] = useState<string | null>(null);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<DashboardPage>("chat");
-  const [chats, setChats] = useState<StoredChat[]>([]);
+  // Held only so persistence can merge against previously stored chats; the
+  // 60px rail has no chat list to render, so the value itself is never read.
+  const [, setChats] = useState<StoredChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [models, setModels] = useState<AnzenModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
@@ -136,126 +141,196 @@ export default function DashboardClient({
     []
   );
 
-  const { messages, sendMessage, status: chatStatus, setMessages, addToolApprovalResponse } = useChat({
+  const { messages, sendMessage, status: chatStatus, setMessages, addToolApprovalResponse, error: chatError, clearError } = useChat({
     transport,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+    onError: (error) => {
+      // Surfaced in the composer notice below; logged for diagnosis.
+      console.error("[chat]", error);
+    },
   });
   const isLoading = chatStatus === "streaming" || chatStatus === "submitted";
   const pendingApprovals = findPendingManualApprovals(messages);
 
-  const fetchPermissions = async () => {
+  // One controller per concern so a refresh supersedes its own in-flight
+  // request and unmount cancels everything, instead of setting state on a
+  // component that is gone.
+  const statusAbort = useRef<AbortController | null>(null);
+  const permissionsAbort = useRef<AbortController | null>(null);
+  const auditAbort = useRef<AbortController | null>(null);
+
+  const fetchPermissions = useCallback(async () => {
+    permissionsAbort.current?.abort();
+    const controller = new AbortController();
+    permissionsAbort.current = controller;
+
     setPermissionsLoading(true);
+    setPermissionsError(null);
     try {
-      const response = await fetch("/api/permissions");
-      if (!response.ok) throw new Error("Failed to fetch permissions");
-      const data = (await response.json()) as { permissions?: AccessModes };
+      const data = await requestJson<{ permissions?: AccessModes }>(
+        "/api/permissions",
+        { signal: controller.signal }
+      );
       if (data.permissions) setAccessModes(data.permissions);
     } catch (error) {
-      console.error("Error fetching permissions:", error);
+      if (isAbortError(error)) return;
+      setPermissionsError(
+        errorMessage(error, "Couldn't load your access settings.")
+      );
     } finally {
-      setPermissionsLoading(false);
+      if (permissionsAbort.current === controller) setPermissionsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = useCallback(async () => {
+    auditAbort.current?.abort();
+    const controller = new AbortController();
+    auditAbort.current = controller;
+
     setAuditLoading(true);
+    setAuditError(null);
     try {
-      const response = await fetch("/api/audit");
-      if (!response.ok) throw new Error("Failed to fetch audit logs");
-      const data = (await response.json()) as { entries?: AuditEntry[] };
+      const data = await requestJson<{ entries?: AuditEntry[] }>("/api/audit", {
+        signal: controller.signal,
+      });
       setAuditEntries(data.entries ?? []);
     } catch (error) {
-      console.error("Error fetching audit logs:", error);
+      if (isAbortError(error)) return;
+      setAuditError(errorMessage(error, "Couldn't load your activity."));
     } finally {
-      setAuditLoading(false);
+      if (auditAbort.current === controller) setAuditLoading(false);
     }
-  };
+  }, []);
 
-  const fetchConnectionStatus = async () => {
+  const fetchConnectionStatus = useCallback(async () => {
+    statusAbort.current?.abort();
+    const controller = new AbortController();
+    statusAbort.current = controller;
+
     setStatusLoading(true);
+    setStatusError(null);
     try {
-      const response = await fetch("/api/status");
-      if (!response.ok) throw new Error("Failed to fetch status");
-      const data = await response.json();
-      if (data.results) {
-        setConnStatus({
-          github: data.results["github"]?.success === true,
-          gmail: data.results["google-oauth2"]?.success === true,
-          slack: data.results["sign-in-with-slack"]?.success === true,
-        });
-      }
+      const data = await requestJson<{
+        results?: Record<string, { success?: boolean }>;
+      }>("/api/status", { signal: controller.signal });
+      const results = data.results ?? {};
+      setConnStatus({
+        github: results["github"]?.success === true,
+        gmail: results["google-oauth2"]?.success === true,
+        slack: results["sign-in-with-slack"]?.success === true,
+      });
     } catch (error) {
-      console.error("Error fetching connection status:", error);
+      if (isAbortError(error)) return;
+      setStatusError(errorMessage(error, "Couldn't check your connections."));
     } finally {
-      setStatusLoading(false);
+      if (statusAbort.current === controller) setStatusLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchConnectionStatus();
-    fetchPermissions();
+    void fetchConnectionStatus();
+    void fetchPermissions();
+
+    // Re-check after the user returns from an OAuth connect flow in another tab.
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") fetchConnectionStatus();
+      if (document.visibilityState === "visible") void fetchConnectionStatus();
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      statusAbort.current?.abort();
+      permissionsAbort.current?.abort();
+      auditAbort.current?.abort();
+    };
+  }, [fetchConnectionStatus, fetchPermissions]);
 
   useEffect(() => {
     if (activePage === "activity") {
       void fetchAuditLogs();
     }
-  }, [activePage]);
+  }, [activePage, fetchAuditLogs]);
 
-  // Chat history lives in the browser (lib/chat-history).
+  // Chat history lives in the browser (lib/chat-history). Restore the most
+  // recent conversation so a reload doesn't silently drop the thread.
   useEffect(() => {
-    setChats(loadChats());
-  }, []);
+    const stored = loadChats();
+    setChats(stored);
 
+    const latest = stored[0];
+    if (!latest || latest.messages.length === 0) return;
+
+    // A confirmation gate saved mid-flight can't be answered after a reload —
+    // its run is gone server-side — so restore the thread up to that point.
+    const upToApproval = latest.messages.findIndex((message) =>
+      hasPendingManualApprovals([message])
+    );
+    const restorable =
+      upToApproval === -1
+        ? latest.messages
+        : latest.messages.slice(0, upToApproval);
+    if (restorable.length === 0) return;
+
+    setActiveChatId(latest.id);
+    setMessages(restorable);
+  }, [setMessages]);
+
+  // Persisting on every render would re-serialize the whole thread on each
+  // streamed token. Coalesce into one write once output settles.
   useEffect(() => {
     if (messages.length === 0) return;
     const id = activeChatId ?? newChatId();
     if (!activeChatId) setActiveChatId(id);
-    setChats((previous) => {
-      const next = upsertChat(previous, {
-        id,
-        title: deriveChatTitle(messages),
-        updatedAt: Date.now(),
-        messages,
+
+    const timer = window.setTimeout(() => {
+      setChats((previous) => {
+        const next = upsertChat(previous, {
+          id,
+          title: deriveChatTitle(messages),
+          updatedAt: Date.now(),
+          messages,
+        });
+        saveChats(next);
+        return next;
       });
-      saveChats(next);
-      return next;
-    });
+    }, 400);
+
+    return () => window.clearTimeout(timer);
   }, [messages, activeChatId]);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+
     async function loadModels() {
       try {
-        const res = await fetch("/api/models", { cache: "no-store" });
-        if (!res.ok || cancelled) return;
-        const data = (await res.json()) as {
+        const data = await requestJson<{
           models?: AnzenModelOption[];
           defaultModelId?: string | null;
-        };
-        if (cancelled) return;
+        }>("/api/models", { cache: "no-store", signal: controller.signal });
+
         const available = data.models ?? [];
         setModels(available);
-        const stored = window.localStorage.getItem(MODEL_STORAGE_KEY);
-        const preferred =
+
+        let stored: string | null = null;
+        try {
+          stored = window.localStorage.getItem(MODEL_STORAGE_KEY);
+        } catch {
+          // Private mode — fall through to the server default.
+        }
+        setSelectedModelId(
           (stored && available.some((model) => model.id === stored) && stored) ||
-          data.defaultModelId ||
-          available[0]?.id ||
-          null;
-        setSelectedModelId(preferred);
-      } catch {
-        // Picker stays hidden when the model list can't be loaded.
+            data.defaultModelId ||
+            available[0]?.id ||
+            null
+        );
+      } catch (error) {
+        if (isAbortError(error)) return;
+        // Picker stays hidden; chat still works on the server default model.
+        console.error("[models]", error);
       }
     }
+
     void loadModels();
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, []);
 
   const handleSelectModel = (id: string) => {
@@ -275,67 +350,52 @@ export default function DashboardClient({
     setApprovalGateError(null);
   };
 
-  const handleSelectChat = (id: string) => {
-    const chat = chats.find((entry) => entry.id === id);
-    if (!chat) return;
-    setActivePage("chat");
-    setActiveChatId(id);
-    setMessages(chat.messages);
-    setInputValue("");
+  /** Shared guard: a queued write must be resolved before the thread moves on. */
+  const blockedByPendingApproval = () => {
+    if (!hasPendingManualApprovals(messages)) return false;
+    setApprovalGateError(
+      "Confirm or cancel the pending action above before sending a new message."
+    );
+    return true;
+  };
+
+  const send = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || isLoading || blockedByPendingApproval()) return;
     setApprovalGateError(null);
-  };
-
-  const handleDeleteChat = (id: string) => {
-    setChats((previous) => {
-      const next = previous.filter((chat) => chat.id !== id);
-      saveChats(next);
-      return next;
-    });
-    if (id === activeChatId) {
-      setActiveChatId(null);
-      setMessages([]);
-    }
-  };
-
-  const handleSend = () => {
-    if (!inputValue.trim() || isLoading) return;
-    if (hasPendingManualApprovals(messages)) {
-      setApprovalGateError("Confirm or cancel the pending action above before sending a new message.");
-      return;
-    }
-    setApprovalGateError(null);
-    const text = inputValue.trim();
+    clearError();
     setInputValue("");
-    void sendMessage({ text });
+    void sendMessage({ text: trimmed });
   };
 
-  const handleSuggestion = (text: string) => {
-    if (isLoading) return;
-    if (hasPendingManualApprovals(messages)) {
-      setApprovalGateError("Confirm or cancel the pending action above before sending a new message.");
-      return;
-    }
-    setApprovalGateError(null);
-    setInputValue("");
-    void sendMessage({ text });
-  };
+  const handleSend = () => send(inputValue);
+  const handleSuggestion = (text: string) => send(text);
 
-  const handleAccessModeChange = async (providerKey: ConnectionKey, mode: ProviderAccessMode) => {
+  const handleAccessModeChange = async (
+    providerKey: ConnectionKey,
+    mode: ProviderAccessMode
+  ) => {
+    // Optimistic so the select doesn't lag; reverted below if the save fails.
+    const previous = accessModes;
+    setAccessModes({ ...previous, [providerKey]: mode });
     setPermissionsSaving(providerKey);
+    setPermissionsError(null);
     try {
-      const res = await fetch("/api/permissions", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: providerKey, mode }),
-      });
-      const data = (await res.json()) as { permissions?: AccessModes; error?: string };
-      if (!res.ok || !data.permissions) {
-        console.error("Failed to update permissions:", data.error);
-        return;
-      }
+      const data = await requestJson<{ permissions?: AccessModes }>(
+        "/api/permissions",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider: providerKey, mode }),
+        }
+      );
+      if (!data.permissions) throw new Error("Server returned no permissions.");
       setAccessModes(data.permissions);
     } catch (error) {
-      console.error("Error updating permissions:", error);
+      setAccessModes(previous);
+      setPermissionsError(
+        errorMessage(error, "Couldn't save that access setting. Try again.")
+      );
     } finally {
       setPermissionsSaving(null);
     }
@@ -347,23 +407,29 @@ export default function DashboardClient({
       gmail: "google-oauth2",
       slack: "sign-in-with-slack",
     };
+    const provider = providerMap[providerKey];
+    if (!provider) {
+      setDisconnectError(`Unknown provider: ${providerKey}`);
+      return;
+    }
+
     setDisconnectError(null);
     setDisconnectingKey(providerKey);
     try {
-      const res = await fetch("/api/auth/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: providerMap[providerKey] }),
-      });
-      const data = (await res.json()) as { success?: boolean; error?: string };
-      if (!res.ok || !data.success) {
-        setDisconnectError(data.error ?? "Failed to disconnect. Try again.");
-        return;
-      }
+      const data = await requestJson<{ success?: boolean }>(
+        "/api/auth/disconnect",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider }),
+        }
+      );
+      if (!data.success) throw new Error("Disconnect did not complete.");
       await fetchConnectionStatus();
     } catch (error) {
-      console.error("Error disconnecting:", error);
-      setDisconnectError("Network error while disconnecting. Try again.");
+      setDisconnectError(
+        errorMessage(error, "Couldn't disconnect that account. Try again.")
+      );
     } finally {
       setDisconnectingKey(null);
     }
@@ -371,9 +437,6 @@ export default function DashboardClient({
 
   const connectedCount = Object.values(connStatus).filter(Boolean).length;
   const identity = resolveDisplayName(userName, userEmail);
-  const greeting = identity.first
-    ? `Ready when you are, ${identity.first}.`
-    : "Ready when you are.";
 
   return (
     <SidebarProvider suppressHydrationWarning className="h-screen overflow-hidden" style={{ "--sidebar-width": "60px" } as React.CSSProperties}>
@@ -381,27 +444,26 @@ export default function DashboardClient({
         activePage={activePage}
         onNavigate={setActivePage}
         onNewChat={handleNewChat}
-        chats={chats}
-        activeChatId={activeChatId}
-        onSelectChat={handleSelectChat}
-        onDeleteChat={handleDeleteChat}
-        connectedCount={connectedCount}
-        statusLoading={statusLoading}
         isDark={d}
         onToggleDarkMode={toggleDarkMode}
-        signOutHref={buildLogoutUrl("/")}
         userName={identity.full}
         userEmail={userEmail}
       />
 
-      <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#080808]">
+      <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         {/* Top Header */}
         <header className="flex h-14 shrink-0 items-center justify-center border-b border-border/5 px-6">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-foreground/80 tracking-tight">{userEmail}</span>
-            <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase tracking-widest">
-              gmail email
-            </div>
+            <button
+              type="button"
+              onClick={() => setActivePage("connections")}
+              className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase tracking-widest transition-opacity hover:opacity-80"
+            >
+              {statusLoading
+                ? "checking…"
+                : `${connectedCount} of 3 connected`}
+            </button>
             <Avatar className="size-5 ml-1">
               <AvatarFallback className="text-[8px] bg-muted/40 text-muted-foreground">
                 {identity.initials}
@@ -465,6 +527,31 @@ export default function DashboardClient({
                 }
                 composerNotice={
                   <>
+                    {chatError && (
+                      <Alert variant="destructive" className="mb-3">
+                        <AlertTriangle />
+                        <AlertTitle>Anzen couldn&apos;t answer</AlertTitle>
+                        <AlertDescription className="flex flex-col items-start gap-2">
+                          <span>
+                            {chatError.message ||
+                              "Something went wrong while generating a response."}
+                          </span>
+                          <Button size="sm" variant="outline" onClick={() => clearError()}>
+                            Dismiss
+                          </Button>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {statusError && (
+                      <Alert variant="destructive" className="mb-3">
+                        <AlertDescription className="flex flex-wrap items-center gap-2">
+                          <span>{statusError}</span>
+                          <Button size="sm" variant="outline" onClick={() => void fetchConnectionStatus()}>
+                            Retry
+                          </Button>
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     {pendingApprovals.length > 0 && (
                       <Alert className="mb-3">
                         <ShieldQuestion />
@@ -499,7 +586,8 @@ export default function DashboardClient({
               permissionsLoading={permissionsLoading}
               permissionsSaving={permissionsSaving}
               disconnectingKey={disconnectingKey}
-              disconnectError={disconnectError}
+              disconnectError={disconnectError ?? permissionsError ?? statusError}
+              onRetryStatus={() => void fetchConnectionStatus()}
               tokenVaultScopesEnabled={tokenVaultScopesEnabled}
               isDark={d}
               onAccessModeChange={handleAccessModeChange}
@@ -509,7 +597,7 @@ export default function DashboardClient({
 
           {/* ACTIVITY */}
           {activePage === "activity" && (
-            <div className="flex-1 overflow-y-auto bg-[#080808]">
+            <div className="flex-1 overflow-y-auto bg-background">
               <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
                 <PageIntro
                   page="activity"
@@ -519,7 +607,7 @@ export default function DashboardClient({
                       size="sm"
                       onClick={fetchAuditLogs}
                       disabled={auditLoading}
-                      className="h-9 rounded-full border-border/10 bg-[#121212] px-5 text-[11px] font-bold uppercase tracking-wider hover:bg-muted/50"
+                      className="h-9 rounded-full border-border/10 bg-card px-5 text-[11px] font-bold uppercase tracking-wider hover:bg-muted/50"
                     >
                       <RefreshCw className={cn("size-3.5 mr-2", auditLoading && "animate-spin")} />
                       {auditLoading ? "Loading…" : "Refresh"}
@@ -528,7 +616,7 @@ export default function DashboardClient({
                 />
 
                 <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-3">
-                  <Badge variant="outline" className="rounded-full border-border/10 bg-[#121212] px-3.5 py-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                  <Badge variant="outline" className="rounded-full border-border/10 bg-card px-3.5 py-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
                     {auditLoading && auditEntries.length === 0
                       ? "Loading audit history…"
                       : `${auditEntries.length} total actions`}
@@ -547,12 +635,23 @@ export default function DashboardClient({
                   )}
                 </div>
 
+                {auditError && (
+                  <Alert variant="destructive" className="mb-8 rounded-2xl">
+                    <AlertDescription className="flex flex-wrap items-center gap-2">
+                      <span>{auditError}</span>
+                      <Button size="sm" variant="outline" onClick={() => void fetchAuditLogs()}>
+                        Retry
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {auditLoading && auditEntries.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20">
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   </div>
                 ) : auditEntries.length === 0 ? (
-                  <div className="rounded-3xl border border-border/20 bg-[#121212]/50 p-12 text-center">
+                  <div className="rounded-3xl border border-border/20 bg-card/50 p-12 text-center">
                     <p className="text-sm font-semibold tracking-tight">No recent audit activity recorded yet.</p>
                     <p className="text-muted-foreground/60 mt-2 text-sm leading-relaxed max-w-xs mx-auto">
                       Actions requiring your confirmation are logged here automatically.
@@ -569,7 +668,7 @@ export default function DashboardClient({
                         minute: "2-digit",
                       });
                       return (
-                        <Card key={entry.id} className="overflow-hidden rounded-2xl border-border/50 bg-[#121212] shadow-sm transition-all hover:border-primary/20">
+                        <Card key={entry.id} className="overflow-hidden rounded-2xl border-border/50 bg-card shadow-sm transition-all hover:border-primary/20">
                           <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex min-w-0 flex-1 items-start gap-4">
                               <div className={cn(
@@ -581,7 +680,7 @@ export default function DashboardClient({
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold tracking-tight leading-tight">{entry.message}</p>
                                 <div className="text-muted-foreground/50 mt-2 flex flex-wrap items-center gap-2.5 text-[10px] font-bold uppercase tracking-wider">
-                                  <span className="bg-[#1A1C1E] text-muted-foreground rounded-md px-2 py-0.5 border border-border/5">
+                                  <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 border border-border/5">
                                     {entry.toolName}
                                   </span>
                                   <span>•</span>
@@ -610,13 +709,13 @@ export default function DashboardClient({
 
           {/* PRIVACY */}
           {activePage === "privacy" && (
-            <div className="flex-1 overflow-y-auto bg-[#080808]">
+            <div className="flex-1 overflow-y-auto bg-background">
               <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
                 <PageIntro page="privacy" />
                 <div className="mt-12 flex flex-col gap-6">
                   {PRIVACY_SECTIONS.map((section) => (
-                    <Card key={section.id} className="overflow-hidden rounded-2xl border-border/50 bg-[#121212] shadow-sm">
-                      <CardHeader className="border-b border-border/5 bg-[#1A1C1E]/30 p-5">
+                    <Card key={section.id} className="overflow-hidden rounded-2xl border-border/50 bg-card shadow-sm">
+                      <CardHeader className="border-b border-border/5 bg-muted/30 p-5">
                         <CardTitle className="flex items-center gap-3 text-base font-bold tracking-tight">
                           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <Shield className="size-4" />

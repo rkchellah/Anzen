@@ -1,4 +1,11 @@
 import { auth0 } from "@/lib/auth0";
+import { apiError, badRequest, unauthorized } from "@/lib/api-response";
+import { fetchWithTimeout, HttpNetworkError, HttpTimeoutError } from "@/lib/http";
+import { checkChatRateLimit } from "@/lib/rate-limit";
+
+/** Groq Whisper caps uploads at 25 MB; reject earlier so we don't ship the bytes. */
+const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+const TRANSCRIBE_TIMEOUT_MS = 30_000;
 
 /**
  * Voice → text for shadcn-chatbot-kit MessageInput / useAudioRecording.
@@ -6,20 +13,44 @@ import { auth0 } from "@/lib/auth0";
  */
 export async function POST(req: Request) {
   const session = await auth0.getSession();
-  if (!session) return new Response("Unauthorized", { status: 401 });
+  if (!session) return unauthorized("Sign in to use voice input.");
+
+  const userId = session.user.sub;
+  if (!userId) return unauthorized("Your session expired. Sign in again.");
+
+  // Transcription is an outbound paid call — share the chat budget.
+  const rateLimit = await checkChatRateLimit(userId);
+  if (!rateLimit.allowed) {
+    return apiError("Too many requests. Try again shortly.", 429, {
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+      headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+    });
+  }
 
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) {
-    return Response.json(
-      { error: "Voice input requires GROQ_API_KEY for transcription." },
-      { status: 503 }
+    return apiError(
+      "Voice input isn't available — the server has no transcription key configured.",
+      503
     );
   }
 
-  const formData = await req.formData();
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return badRequest("Expected multipart form data with an audio file.");
+  }
+
   const file = formData.get("file");
-  if (!(file instanceof Blob) || file.size === 0) {
-    return Response.json({ error: "Audio file is required." }, { status: 400 });
+  if (!(file instanceof Blob)) {
+    return badRequest("Audio file is required.");
+  }
+  if (file.size === 0) {
+    return badRequest("The recording was empty. Try recording again.");
+  }
+  if (file.size > MAX_AUDIO_BYTES) {
+    return badRequest("That recording is too long. Keep it under 20 MB.");
   }
 
   const upstream = new FormData();
@@ -27,24 +58,58 @@ export async function POST(req: Request) {
   upstream.append("model", "whisper-large-v3-turbo");
   upstream.append("response_format", "json");
 
-  const response = await fetch(
-    "https://api.groq.com/openai/v1/audio/transcriptions",
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: upstream,
-    }
-  );
-
-  if (!response.ok) {
-    const detail = await response.text();
-    console.error("Transcription failed:", detail);
-    return Response.json(
-      { error: "Failed to transcribe audio." },
-      { status: 502 }
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(
+      "https://api.groq.com/openai/v1/audio/transcriptions",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: upstream,
+        timeoutMs: TRANSCRIBE_TIMEOUT_MS,
+      }
     );
+  } catch (error) {
+    console.error("[transcribe] Upstream request failed:", error);
+    if (error instanceof HttpTimeoutError) {
+      return apiError("Transcription timed out. Try a shorter recording.", 504);
+    }
+    if (error instanceof HttpNetworkError) {
+      return apiError(
+        "Couldn't reach the transcription service. Check your connection and try again.",
+        502
+      );
+    }
+    return apiError("Transcription failed. Try again.", 502);
   }
 
-  const data = (await response.json()) as { text?: string };
-  return Response.json({ text: data.text?.trim() ?? "" });
+  if (!response.ok) {
+    // Body may contain key hints — log it, never return it.
+    console.error(
+      `[transcribe] Groq responded ${response.status}:`,
+      await response.text().catch(() => "<unreadable>")
+    );
+    if (response.status === 429) {
+      return apiError("Transcription is rate limited. Try again shortly.", 429);
+    }
+    if (response.status === 401 || response.status === 403) {
+      return apiError(
+        "Voice input isn't available — the transcription key was rejected.",
+        503
+      );
+    }
+    return apiError("Failed to transcribe audio. Try again.", 502);
+  }
+
+  let data: { text?: unknown };
+  try {
+    data = (await response.json()) as { text?: unknown };
+  } catch (error) {
+    console.error("[transcribe] Unreadable Groq response:", error);
+    return apiError("Failed to transcribe audio. Try again.", 502);
+  }
+
+  return Response.json({
+    text: typeof data.text === "string" ? data.text.trim() : "",
+  });
 }

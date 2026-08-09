@@ -1,9 +1,13 @@
 import { auth0, type Provider } from "@/lib/auth0";
 import { isTokenVaultScopesEnabled } from "@/lib/auth0-scopes";
 import { matchesProviderConnection } from "@/lib/auth-connections";
+import { fetchWithRetry, fetchWithTimeout } from "@/lib/http";
 
 const MY_ACCOUNT_SCOPES =
   "read:me:connected_accounts delete:me:connected_accounts";
+
+/** Backstop against a server that keeps handing back a `next` cursor. */
+const MAX_ACCOUNT_PAGES = 20;
 
 export function getMyAccountAudience(): string {
   return `https://${process.env.AUTH0_DOMAIN}/me/`;
@@ -35,7 +39,9 @@ export async function listAllConnectedAccounts(
   accessToken: string
 ): Promise<ConnectedAccount[]> {
   const accounts: ConnectedAccount[] = [];
+  const seenCursors = new Set<string>();
   let cursor: string | undefined;
+  let page = 0;
 
   do {
     const url = new URL(
@@ -46,21 +52,34 @@ export async function listAllConnectedAccounts(
       url.searchParams.set("from", cursor);
     }
 
-    const res = await fetch(url, {
+    // Read-only and idempotent, so a retry on a transient 5xx is safe.
+    const res = await fetchWithRetry(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
     if (!res.ok) {
-      const body = await res.text();
+      const body = await res.text().catch(() => "");
       throw new Error(
         `My Account API list failed (${res.status}): ${body || res.statusText}`
       );
     }
 
-    const data = (await res.json()) as ListConnectedAccountsResponse;
-    accounts.push(...(data.accounts ?? []));
+    let data: ListConnectedAccountsResponse;
+    try {
+      data = (await res.json()) as ListConnectedAccountsResponse;
+    } catch (error) {
+      throw new Error("My Account API returned an unreadable response", {
+        cause: error,
+      });
+    }
+
+    accounts.push(...(Array.isArray(data.accounts) ? data.accounts : []));
+
+    // A repeated or self-referential cursor would otherwise loop forever.
     cursor = data.next;
-  } while (cursor);
+    if (cursor && seenCursors.has(cursor)) break;
+    if (cursor) seenCursors.add(cursor);
+  } while (cursor && ++page < MAX_ACCOUNT_PAGES);
 
   return accounts;
 }
@@ -78,7 +97,8 @@ export async function deleteConnectedAccount(
   accessToken: string,
   accountId: string
 ): Promise<void> {
-  const res = await fetch(
+  // A write — timeout but never retry, so a slow success isn't repeated.
+  const res = await fetchWithTimeout(
     `${getMyAccountBaseUrl()}/me/v1/connected-accounts/accounts/${encodeURIComponent(accountId)}`,
     {
       method: "DELETE",
@@ -87,7 +107,7 @@ export async function deleteConnectedAccount(
   );
 
   if (!res.ok) {
-    const body = await res.text();
+    const body = await res.text().catch(() => "");
     throw new Error(
       `My Account API delete failed (${res.status}): ${body || res.statusText}`
     );

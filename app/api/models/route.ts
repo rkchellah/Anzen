@@ -1,4 +1,5 @@
 import { auth0 } from "@/lib/auth0";
+import { unauthorized } from "@/lib/api-response";
 import {
   getAiProviderConfig,
   listAvailableModels,
@@ -8,7 +9,7 @@ import {
 /** Models the user may pick from in the composer, plus the current default. */
 export async function GET() {
   const session = await auth0.getSession();
-  if (!session) return new Response("Unauthorized", { status: 401 });
+  if (!session) return unauthorized();
 
   const models = listAvailableModels();
 

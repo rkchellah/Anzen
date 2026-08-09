@@ -62,6 +62,7 @@ export function AnzenConnectionsView({
   tokenVaultScopesEnabled,
   onAccessModeChange,
   onDisconnect,
+  onRetryStatus,
   header,
 }: {
   connStatus: ConnectionStatus;
@@ -75,6 +76,7 @@ export function AnzenConnectionsView({
   isDark?: boolean;
   onAccessModeChange: (key: ConnectionKey, mode: ProviderAccessMode) => void;
   onDisconnect: (key: string) => void;
+  onRetryStatus?: () => void;
   header?: ReactNode;
 }) {
   const [filter, setFilter] = useState<FilterId>("all");
@@ -100,7 +102,7 @@ export function AnzenConnectionsView({
   });
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#080808]">
+    <div className="flex-1 overflow-y-auto bg-background">
       <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
         <div className="mb-12">
           {header}
@@ -108,18 +110,25 @@ export function AnzenConnectionsView({
 
         {disconnectError && (
           <Alert variant="destructive" className="mb-8 rounded-2xl border-destructive/20 bg-destructive/5">
-            <AlertDescription>{disconnectError}</AlertDescription>
+            <AlertDescription className="flex flex-wrap items-center gap-3">
+              <span>{disconnectError}</span>
+              {onRetryStatus && (
+                <Button size="sm" variant="outline" onClick={onRetryStatus}>
+                  Retry
+                </Button>
+              )}
+            </AlertDescription>
           </Alert>
         )}
 
         <div className="mb-10 flex justify-center">
           <Tabs value={filter} onValueChange={(next) => setFilter(next as FilterId)}>
-            <TabsList className="h-11 rounded-full border-border/10 bg-[#121212] p-1">
+            <TabsList className="h-11 rounded-full border-border/10 bg-card p-1">
               {FILTERS.map((item) => (
                 <TabsTrigger 
                   key={item.id} 
                   value={item.id}
-                  className="rounded-full px-6 py-2 text-xs font-medium data-[state=active]:bg-[#1A1C1E] data-[state=active]:text-primary"
+                  className="rounded-full px-6 py-2 text-xs font-medium data-[state=active]:bg-muted data-[state=active]:text-primary"
                 >
                   {item.label}
                 </TabsTrigger>
@@ -140,10 +149,10 @@ export function AnzenConnectionsView({
             </div>
           ) : (
             visible.map((provider) => (
-              <Card key={provider.key} className="overflow-hidden rounded-2xl border-border/50 bg-[#121212] shadow-sm transition-all hover:border-primary/20">
+              <Card key={provider.key} className="overflow-hidden rounded-2xl border-border/50 bg-card shadow-sm transition-all hover:border-primary/20">
                 <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:gap-6">
                   <div className="flex min-w-0 flex-1 items-center gap-5">
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/10 bg-[#1A1C1E]">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/10 bg-muted">
                       {provider.icon}
                     </div>
                     <div className="min-w-0">
@@ -213,7 +222,7 @@ export function AnzenConnectionsView({
                 <Badge
                   key={app.label}
                   variant="outline"
-                  className="rounded-full border-border/10 bg-[#121212] px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/20 hover:text-foreground"
+                  className="rounded-full border-border/10 bg-card px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/20 hover:text-foreground"
                 >
                   <span className="mr-2.5 opacity-60">{app.icon}</span>
                   {app.label}
