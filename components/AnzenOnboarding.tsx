@@ -82,7 +82,7 @@ export function AnzenOnboarding({
       }}
       // First run is not dismissable: there is nothing behind this to use yet,
       // and a half-onboarded user is a worse state than an unstarted one.
-      dismissible={Boolean(onDismiss)}
+      disablePointerDismissal={!onDismiss}
     >
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/55 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-sm" />
