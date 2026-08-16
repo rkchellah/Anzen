@@ -100,7 +100,10 @@ export function AnzenSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Anzen"
-              className="h-10 gap-2.5"
+              // Collapsed, the rail is 3rem and the button 2rem; the shared
+              // p-2! would squeeze the 24px mark into a 16px box and push it
+              // off centre. Drop the padding and centre the mark instead.
+              className="h-10 gap-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
               onClick={() => onNavigate("chat")}
             >
               {/* Override the sidebar's [&_svg]:size-4 so the mark stays crisp. */}
@@ -116,7 +119,10 @@ export function AnzenSidebar({
       </SidebarHeader>
 
       <SidebarContent className="anzen-scroll px-2">
-        <SidebarGroup className="px-1 pt-3 pb-1">
+        {/* The px-1 indent is an expanded-only nicety: collapsed it would sit
+            on top of SidebarContent's px-2 and leave the 2rem icons 4px left
+            of centre in the 3rem rail. */}
+        <SidebarGroup className="px-1 pt-3 pb-1 group-data-[collapsible=icon]:px-0">
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
               <SidebarMenuItem>
@@ -228,7 +234,7 @@ export function AnzenSidebar({
       {/* px-3, not px-2: the nav above sits at SidebarContent's px-2 plus the
           group's px-1, so a px-2 footer put every row 4px to the left of the
           items it lines up under. */}
-      <SidebarFooter className="gap-1 px-3 pb-3">
+      <SidebarFooter className="gap-1 px-3 pb-3 group-data-[collapsible=icon]:px-2">
         <SidebarSeparator className="mx-0" />
 
         {/* Identity doubles as the way to change what Anzen calls you — the
@@ -239,14 +245,16 @@ export function AnzenSidebar({
               tooltip={onEditName ? `${displayName} — change name` : displayName}
               onClick={onEditName}
               disabled={!onEditName}
-              className="h-auto gap-2.5 py-2 disabled:opacity-100"
+              className="h-auto gap-2.5 py-2 disabled:opacity-100 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
             >
               <Avatar className="size-7 shrink-0 rounded-lg">
                 <AvatarFallback className="rounded-lg border border-sidebar-border bg-sidebar-accent text-[11px] font-semibold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="grid min-w-0 flex-1 text-left leading-tight">
+              {/* flex-1 would keep claiming width in the collapsed rail and
+                  shove the avatar off centre, so drop the block entirely. */}
+              <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate text-sm font-medium">{displayName}</span>
                 {secondaryLine && (
                   <span className="truncate text-xs font-normal text-muted-foreground">
@@ -255,7 +263,7 @@ export function AnzenSidebar({
                 )}
               </span>
               {onEditName && (
-                <Pencil className="ml-auto shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/menu-button:opacity-100" />
+                <Pencil className="ml-auto shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/menu-button:opacity-100 group-data-[collapsible=icon]:hidden" />
               )}
             </SidebarMenuButton>
           </SidebarMenuItem>
