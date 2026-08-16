@@ -69,9 +69,7 @@ export function NotionIcon({ size = 24 }: { size?: number }) {
 export function LinearIcon({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="#5E6AD2" aria-hidden>
-      <line x1="2" y1="22" x2="22" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="7" cy="17" r="2" fill="currentColor" />
-      <circle cx="17" cy="7" r="2" fill="currentColor" />
+      <path d="M2.886 4.18A11.982 11.982 0 0 1 11.99 0C18.624 0 24 5.377 24 12.01c0 3.65-1.629 6.921-4.2 9.115L2.886 4.18ZM1.376 6.007a11.938 11.938 0 0 0-1.05 2.9L15.1 23.68a11.952 11.952 0 0 0 2.9-1.05L1.376 6.006ZM.004 10.9L13.1 23.997c-1.2.017-2.402-.15-3.556-.5L.503 14.455a12.05 12.05 0 0 1-.5-3.554ZM.985 16.66l6.353 6.354a12.008 12.008 0 0 1-6.353-6.353Z" />
     </svg>
   );
 }

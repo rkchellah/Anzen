@@ -17,14 +17,20 @@ import {
   repairMalformedToolCall,
 } from "@/lib/ai-chat";
 import { getChatModel, resolveRequestedModel } from "@/lib/ai-provider";
+import { getUserProfile } from "@/lib/profile-store";
 
 /** Guards against an oversized history pinning the model context (and our bill). */
 const MAX_MESSAGES_PER_REQUEST = 200;
 
-const SYSTEM_PROMPT = (name: string, email: string) =>
+const SYSTEM_PROMPT = (name: string, email: string, preferredName: string) =>
   `You are Anzen, an AI agent that acts on behalf of the user using Auth0 Token Vault. You help users manage their GitHub issues, emails, and Slack messages — securely, without ever storing their credentials.
 
 Current user: ${name} (${email})
+${
+  preferredName
+    ? `The user asked to be called "${preferredName}". Address them by that name when you address them by name at all. Do not use any other name for them, and do not greet them by name in every message — once at the start of a conversation, or when it reads naturally, is enough.`
+    : `You do not know what the user prefers to be called. Do not guess a name for them.`
+}
 
 Use your tools when the user asks about their accounts. Be concise and helpful. Prefer calling read tools yourself instead of asking the user for IDs or repo names you can look up.
 
@@ -126,13 +132,18 @@ export async function POST(req: Request) {
 
   const useGroqWorkarounds = aiConfig.provider === "groq";
 
+  // Read server-side rather than trusting a name in the request body — the
+  // prompt should not be steerable by whatever the client felt like sending.
+  const profile = await getUserProfile(userId);
+
   let result;
   try {
     result = streamText({
       model: getChatModel(aiConfig),
       system: SYSTEM_PROMPT(
-        session.user.name ?? "Unknown",
-        session.user.email ?? "unknown"
+        profile.fullName || session.user.name || "Unknown",
+        session.user.email ?? "unknown",
+        profile.preferredName
       ),
       messages: modelMessages,
       tools: {

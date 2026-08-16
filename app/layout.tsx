@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Auth0Provider } from "@auth0/nextjs-auth0/client";
 import { AnzenThemeInitScript } from "@/components/AnzenThemeInitScript";
 import { AnzenThemeProvider } from "@/components/AnzenThemeProvider";
@@ -7,17 +7,27 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-/** Inter carries the whole UI; Space Mono is for code and precision metadata. */
-const inter = Inter({
+/**
+ * Geist = Anzen UI (shadcn font-sans). Geist Mono = code / metadata (font-mono).
+ *
+ * Chosen over Inter because the interface leans on two things Inter handles
+ * poorly: the display line ("Monitor. Decide. Act.") set at 800 with -0.045em
+ * tracking, and dense 10–11px uppercase labels. Geist was drawn for exactly
+ * that — tighter default sidebearings, a flatter, more mechanical skeleton, and
+ * a mono companion that shares its metrics, so `anzen-ordinal` numerals and
+ * tool names line up with the sans around them instead of drifting.
+ *
+ * Both are variable fonts, so the 100–900 range costs one file each.
+ */
+const geistSans = Geist({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-geist-sans",
   display: "swap",
 });
 
-const spaceMono = Space_Mono({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-space-mono",
+  variable: "--font-geist-mono",
   display: "swap",
 });
 
@@ -40,7 +50,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn(inter.variable, spaceMono.variable, "font-sans")}
+      className={cn(geistSans.variable, geistMono.variable, "font-sans")}
       suppressHydrationWarning
     >
       <head>

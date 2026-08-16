@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowUp, Info, Loader2, Mic, Paperclip, Square, X } from "lucide-react"
+import { ArrowUp, Info, Loader2, Mic, Paperclip, Square } from "lucide-react"
 import { omit } from "remeda"
 
 import { cn } from "@/lib/utils"
@@ -21,7 +21,6 @@ interface MessageInputBaseProps
   isGenerating: boolean
   enableInterrupt?: boolean
   transcribeAudio?: (blob: Blob) => Promise<string>
-  minimalist?: boolean
 }
 
 interface MessageInputWithoutAttachmentProps extends MessageInputBaseProps {
@@ -47,7 +46,6 @@ export function MessageInput({
   isGenerating,
   enableInterrupt = true,
   transcribeAudio,
-  minimalist = false,
   ...props
 }: MessageInputProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -176,7 +174,8 @@ export function MessageInput({
   useAutosizeTextArea({
     ref: textAreaRef,
     maxHeight: 240,
-    borderWidth: 1,
+    // The textarea is borderless now — the shell around it draws the border.
+    borderWidth: 0,
     dependencies: [props.value, showFileList],
   })
 
@@ -199,107 +198,109 @@ export function MessageInput({
         onStopRecording={stopRecording}
       />
 
-      <div className="relative flex w-full items-center space-x-2">
-        <div className="relative flex-1">
-          <textarea
-            aria-label="Write your prompt here"
-            placeholder={placeholder}
-            ref={textAreaRef}
-            onPaste={onPaste}
-            onKeyDown={onKeyDown}
-            className={cn(
-              // Mirrors the shadcn Input/Textarea field styling.
-              "border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/40 z-10 w-full grow resize-none rounded-xl border p-4 pr-24 text-sm leading-relaxed transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
-              showFileList && "pb-16",
-              className?.includes("border-none") && "border-none",
-              className?.includes("bg-transparent") && "bg-transparent shadow-none",
-              className
-            )}
-            {...(props.allowAttachments
-              ? omit(props, ["allowAttachments", "files", "setFiles"])
-              : omit(props, ["allowAttachments"]))}
-          />
-
-          {props.allowAttachments && (
-            <div className="absolute inset-x-3 bottom-0 z-20 overflow-x-auto py-3">
-              <div className="flex space-x-3">
-                <AnimatePresence mode="popLayout">
-                  {props.files?.map((file) => {
-                    return (
-                      <FilePreview
-                        key={file.name + String(file.lastModified)}
-                        file={file}
-                        onRemove={() => {
-                          props.setFiles((files) => {
-                            if (!files) return null
-
-                            const filtered = Array.from(files).filter(
-                              (f) => f !== file
-                            )
-                            if (filtered.length === 0) return null
-                            return filtered
-                          })
-                        }}
-                      />
-                    )
-                  })}
-                </AnimatePresence>
-              </div>
-            </div>
+      {/* One rounded shell owns the border, shadow and focus ring; the textarea
+          and the toolbar below it are transparent passengers. */}
+      <div className="anzen-composer-shell relative flex w-full flex-col overflow-hidden">
+        <textarea
+          aria-label="Write your prompt here"
+          placeholder={placeholder}
+          ref={textAreaRef}
+          onPaste={onPaste}
+          onKeyDown={onKeyDown}
+          className={cn(
+            "anzen-scroll w-full resize-none border-0 bg-transparent px-4 pt-3 pb-0 text-[15px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed disabled:opacity-50",
+            className
           )}
-        </div>
-      </div>
+          {...(props.allowAttachments
+            ? omit(props, ["allowAttachments", "files", "setFiles"])
+            : omit(props, ["allowAttachments"]))}
+        />
 
-      {!minimalist && (
-        <div className="absolute right-3.5 top-3.5 z-20 flex gap-2">
+        {showFileList && props.allowAttachments && (
+          <div className="anzen-scroll overflow-x-auto px-3 pt-1 pb-1">
+            <div className="flex space-x-3">
+              <AnimatePresence mode="popLayout">
+                {props.files?.map((file) => {
+                  return (
+                    <FilePreview
+                      key={file.name + String(file.lastModified)}
+                      file={file}
+                      onRemove={() => {
+                        props.setFiles((files) => {
+                          if (!files) return null
+
+                          const filtered = Array.from(files).filter(
+                            (f) => f !== file
+                          )
+                          if (filtered.length === 0) return null
+                          return filtered
+                        })
+                      }}
+                    />
+                  )
+                })}
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1 px-2 pt-0.5 pb-2">
           {props.allowAttachments && (
             <Button
               type="button"
               size="icon"
               variant="ghost"
+              className="size-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Attach a file"
               onClick={async () => {
                 const files = await showFileUploadDialog()
                 addFiles(files)
               }}
             >
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="size-4" />
             </Button>
           )}
           {isSpeechSupported && (
             <Button
               type="button"
               variant="ghost"
-              className={cn("text-muted-foreground", isListening && "text-primary")}
+              className={cn(
+                "size-8 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground",
+                isListening && "bg-primary/10 text-primary"
+              )}
               aria-label="Voice input"
               size="icon"
               onClick={toggleListening}
             >
-              <Mic className="h-4 w-4" />
+              <Mic className="size-4" />
             </Button>
           )}
-          {isGenerating && stop ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="destructive"
-              aria-label="Stop generating"
-              onClick={stop}
-            >
-              <Square className="h-2.5 w-2.5" fill="currentColor" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              aria-label="Send message"
-              disabled={props.value === "" || isGenerating}
-            >
-              <ArrowUp className="h-4 w-4" />
-            </Button>
-          )}
+
+          <div className="ml-auto flex items-center gap-2">
+            {isGenerating && stop ? (
+              <Button
+                type="button"
+                size="icon"
+                className="size-8 rounded-full"
+                aria-label="Stop generating"
+                onClick={stop}
+              >
+                <Square className="size-3 animate-pulse" fill="currentColor" />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="icon"
+                className="size-8 rounded-full shadow-[var(--anzen-elev-1)] transition-opacity disabled:opacity-40"
+                aria-label="Send message"
+                disabled={props.value === "" || isGenerating}
+              >
+                <ArrowUp className="size-4" />
+              </Button>
+            )}
+          </div>
         </div>
-      )}
+      </div>
 
       {props.allowAttachments && <FileUploadOverlay isDragging={isDragging} />}
 
@@ -324,7 +325,7 @@ function FileUploadOverlay({ isDragging }: FileUploadOverlayProps) {
     <AnimatePresence>
       {isDragging && (
         <motion.div
-          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center space-x-2 rounded-xl border border-dashed border-border bg-background text-sm text-muted-foreground"
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center space-x-2 rounded-[20px] border border-dashed border-primary/40 bg-background/95 text-sm text-muted-foreground"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -442,7 +443,7 @@ function RecordingControls({
   if (isRecording) {
     return (
       <div
-        className="absolute inset-[1px] z-50 overflow-hidden rounded-xl"
+        className="absolute inset-[1px] z-50 overflow-hidden rounded-[19px]"
         style={{ height: textAreaHeight - 2 }}
       >
         <AudioVisualizer
@@ -457,7 +458,7 @@ function RecordingControls({
   if (isTranscribing) {
     return (
       <div
-        className="absolute inset-[1px] z-50 overflow-hidden rounded-xl"
+        className="absolute inset-[1px] z-50 overflow-hidden rounded-[19px]"
         style={{ height: textAreaHeight - 2 }}
       >
         <TranscribingOverlay />

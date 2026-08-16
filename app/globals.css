@@ -4,44 +4,41 @@
 
 @custom-variant dark (&:is(.dark *));
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
+/* No unlayered `* { margin: 0; padding: 0 }` reset here on purpose. Tailwind's
+   preflight already applies exactly that in `@layer base`, and an unlayered
+   copy outrances every layered rule in the file — it silently ate the
+   `margin: 0 auto` and padding on the layout primitives below. */
 
 :root {
-  --font-dm-sans: "DM Sans", sans-serif;
-  --font-space-mono: "Space Mono", monospace;
   --anzen-bg: #080808;
-  --anzen-surface: #111620;
-  --anzen-surface-2: #181e2c;
-  --anzen-border: rgba(255, 255, 255, 0.07);
+  --anzen-surface: #121212;
+  --anzen-surface-2: #1a1a1a;
+  --anzen-border: rgba(255, 255, 255, 0.08);
   --anzen-text: #f0f0ee;
   --anzen-text-light: rgba(240, 240, 238, 0.85);
-  --anzen-muted: rgba(240, 240, 238, 0.4);
-  --anzen-caption: rgba(240, 240, 238, 0.38);
+  --anzen-muted: rgba(240, 240, 238, 0.55);
+  --anzen-caption: rgba(240, 240, 238, 0.45);
   --anzen-subtle: rgba(240, 240, 238, 0.16);
   --anzen-accent: #a3ff12;
   --anzen-accent-bg: rgba(163, 255, 18, 0.1);
   --anzen-accent-text: #a3ff12;
   --background: #080808;
   --foreground: #f0f0ee;
-  --card: #111620;
+  --card: #121212;
   --card-foreground: #f0f0ee;
-  --popover: #111620;
+  --popover: #121212;
   --popover-foreground: #f0f0ee;
   --primary: #a3ff12;
   --primary-foreground: #000000;
-  --secondary: #181e2c;
+  --secondary: #1a1a1a;
   --secondary-foreground: #f0f0ee;
-  --muted: #181e2c;
-  --muted-foreground: rgba(240, 240, 238, 0.4);
+  --muted: #1a1a1a;
+  --muted-foreground: rgba(240, 240, 238, 0.55);
   --accent: rgba(163, 255, 18, 0.1);
   --accent-foreground: #a3ff12;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: rgba(255, 255, 255, 0.07);
-  --input: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.08);
   --ring: #a3ff12;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -49,14 +46,28 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: #111620;
+  --sidebar: #0c0c0c;
   --sidebar-foreground: #f0f0ee;
   --sidebar-primary: #a3ff12;
   --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #181e2c;
+  --sidebar-accent: #1a1a1a;
   --sidebar-accent-foreground: #f0f0ee;
-  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: #a3ff12;
+
+  /* Elevation + focus — one shadow scale so every surface in the app reads as
+     part of the same stack instead of each card inventing its own shadow. */
+  --anzen-elev-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --anzen-elev-2: 0 6px 20px -8px rgba(0, 0, 0, 0.55);
+  --anzen-elev-3: 0 24px 60px -28px rgba(0, 0, 0, 0.75);
+  --anzen-ring: color-mix(in oklab, var(--anzen-accent) 45%, transparent);
+  --anzen-hairline: rgba(255, 255, 255, 0.045);
+  --anzen-scrollbar: rgba(255, 255, 255, 0.14);
+  --anzen-scrollbar-hover: rgba(255, 255, 255, 0.26);
+
+  /* Layout rhythm — chat reads in a narrow column, pages get a wider one. */
+  --anzen-read-w: 46rem;
+  --anzen-page-w: 62rem;
 }
 
 html[data-anzen-theme="light"] {
@@ -98,6 +109,13 @@ html[data-anzen-theme="light"] {
   --sidebar-accent-foreground: #0a0a0a;
   --sidebar-border: rgba(0, 0, 0, 0.12);
   --sidebar-ring: #5cd400;
+
+  --anzen-elev-1: 0 1px 2px rgba(16, 24, 16, 0.06);
+  --anzen-elev-2: 0 6px 20px -10px rgba(16, 24, 16, 0.18);
+  --anzen-elev-3: 0 24px 60px -30px rgba(16, 24, 16, 0.3);
+  --anzen-hairline: rgba(0, 0, 0, 0.05);
+  --anzen-scrollbar: rgba(0, 0, 0, 0.18);
+  --anzen-scrollbar-hover: rgba(0, 0, 0, 0.32);
 }
 
 html[data-anzen-theme="dark"] {
@@ -105,15 +123,21 @@ html[data-anzen-theme="dark"] {
 }
 
 body {
-  font-family: var(--font-inter), var(--font-dm-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background-color: var(--anzen-bg);
-  color: var(--anzen-text);
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 @theme {
-  --font-sans: var(--font-inter);
-  --font-mono: var(--font-space-mono);
-  --font-headline: var(--font-jakarta);
+  /* Anzen typography → shadcn font roles (Geist + Geist Mono).
+     The fallbacks are metric-near grotesques, so a slow font fetch reflows the
+     display line by a hair instead of dropping to a serif. */
+  --font-sans:
+    var(--font-geist-sans), "Inter", "Segoe UI Variable Display", "Segoe UI",
+    ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "SFMono-Regular", "Cascadia Mono",
+    "Consolas", monospace;
+  --font-heading: var(--font-sans);
 }
 
 
@@ -295,8 +319,11 @@ html {
 
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: var(--font-sans);
+  /* The font roles are deliberately NOT redeclared here. `@theme inline` inlines
+     the value into the utility, so `--font-sans: var(--font-sans)` compiled to
+     `font-family: var(--font-sans)` pointing at itself — an invalid,
+     self-referential declaration. Every element silently fell back to the
+     browser default serif. They live in the plain `@theme` block above. */
 
   /* Anzen-only tones that have no shadcn equivalent — these back the
      `text-caption`, `bg-surface-2`, `border-subtle` and `text-text-light`
@@ -351,11 +378,23 @@ html {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    @apply font-sans antialiased;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading tracking-tight text-foreground;
+  }
+  code,
+  kbd,
+  pre,
+  samp {
+    @apply font-mono;
   }
 }
 
@@ -734,5 +773,336 @@ html {
   font-size: 12px;
   color: var(--anzen-caption);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ANZEN APP SHELL — shared chrome for every signed-in surface (chat, apps,
+   activity, privacy). The marketing/get-started page is deliberately excluded.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Declared in the `components` layer so ordinary Tailwind utilities still win
+   on the same element — `.anzen-surface-card border-primary/40` has to be able
+   to repaint the border for selected states. */
+@layer components {
+
+::selection {
+  background: color-mix(in oklab, var(--anzen-accent) 30%, transparent);
+  color: var(--anzen-text);
+}
+
+/* Thin, self-effacing scrollbars — the default Windows bar is the single
+   loudest thing in an otherwise quiet UI. */
+.anzen-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--anzen-scrollbar) transparent;
+}
+
+.anzen-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.anzen-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.anzen-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--anzen-scrollbar);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.anzen-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--anzen-scrollbar-hover);
+}
+
+/* Sticky app header: hairline + blur, never a hard slab. */
+.anzen-appbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  height: 56px;
+  flex-shrink: 0;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in oklab, var(--background) 78%, transparent);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .anzen-appbar {
+    backdrop-filter: blur(14px) saturate(140%);
+  }
+}
+
+/* Full-bleed chrome: the title hugs the left gutter and the controls the right,
+   the way an app toolbar should. Constraining it to a content width would leave
+   it floating out of line with the narrower chat column beneath. */
+.anzen-appbar-inner {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+@media (min-width: 768px) {
+  .anzen-appbar-inner {
+    padding: 0 28px;
+  }
+}
+
+/* Reading columns */
+.anzen-read-col {
+  margin: 0 auto;
+  width: 100%;
+  max-width: var(--anzen-read-w);
+}
+
+.anzen-page-col {
+  margin: 0 auto;
+  width: 100%;
+  max-width: var(--anzen-page-w);
+  padding: 40px 16px 64px;
+}
+
+@media (min-width: 768px) {
+  .anzen-page-col {
+    padding: 56px 28px 80px;
+  }
+}
+
+/* Surface: the one card treatment used across pages. */
+.anzen-surface-card {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: var(--anzen-elev-1);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.18s ease;
+}
+
+/* Hover is a border change, nothing more. No lift, no glow. */
+.anzen-surface-card-hover:hover {
+  border-color: color-mix(in oklab, var(--anzen-accent) 32%, var(--border));
+}
+
+.anzen-section-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--anzen-caption);
+}
+
+/* Composer: floats above the transcript with a fade so text dissolves rather
+   than colliding with the input. */
+.anzen-composer-fade {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 100%;
+  height: 32px;
+  background: linear-gradient(to top, var(--background), transparent);
+}
+
+.anzen-composer-shell {
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  box-shadow: var(--anzen-elev-2);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.anzen-composer-shell:focus-within {
+  border-color: color-mix(in oklab, var(--anzen-accent) 40%, var(--border));
+  box-shadow:
+    var(--anzen-elev-2),
+    0 0 0 3px color-mix(in oklab, var(--anzen-accent) 16%, transparent);
+}
+
+/* ── Editorial language ──────────────────────────────────────────────────────
+   The get-started page sets the house style: a status line, tight left-aligned
+   display type, a flat accent pill, and low-contrast tiles. Every other page
+   builds its header out of these same parts so the product reads as one thing
+   rather than a landing page bolted onto a shadcn admin panel. */
+
+/* One content column for every marketing/auth surface. Because the header uses
+   the same width and gutters, the eyebrow and title land on the same pixel
+   column when you move between home, connect, privacy and terms. */
+.anzen-shell {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.anzen-status-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.anzen-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--anzen-accent);
+  box-shadow: 0 0 6px var(--anzen-accent);
+}
+
+.anzen-status-text {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--anzen-muted);
+}
+
+.anzen-display {
+  font-size: clamp(2.25rem, 10vw, 3.625rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  margin: 0 0 20px;
+  color: var(--anzen-text);
+}
+
+/* Interior pages get the same cut, one step down — a page title, not a hero. */
+.anzen-display-sm {
+  font-size: clamp(1.75rem, 5.5vw, 2.375rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+  margin: 0 0 14px;
+  color: var(--anzen-text);
+}
+
+.anzen-lede {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--anzen-muted);
+  margin: 0;
+  max-width: 46ch;
+}
+
+.anzen-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 20px;
+  border-radius: 9px;
+  background: var(--anzen-accent);
+  color: #000;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.anzen-cta:hover {
+  opacity: 0.88;
+}
+
+.anzen-cta-sm {
+  padding: 7px 14px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}
+
+.anzen-cta-quiet {
+  background: transparent;
+  color: var(--anzen-text);
+  border: 1px solid var(--anzen-border);
+}
+
+.anzen-cta-quiet:hover {
+  opacity: 1;
+  border-color: color-mix(in oklab, var(--anzen-accent) 38%, var(--anzen-border));
+  color: var(--anzen-accent-text);
+}
+
+/* The three MONITOR / DECIDE / ACT cards — flat, 10px, no lift. */
+.anzen-tile {
+  background: var(--anzen-surface);
+  border: 1px solid var(--anzen-border);
+  border-radius: 10px;
+  padding: 16px 14px;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.anzen-tile-hover:hover {
+  border-color: color-mix(in oklab, var(--anzen-accent) 32%, var(--anzen-border));
+}
+
+.anzen-tile-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--anzen-muted);
+  margin: 0 0 8px;
+}
+
+.anzen-tile-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--anzen-muted);
+  margin: 0;
+}
+
+/* Index numerals next to legal sections — mono, quiet, never a filled badge. */
+.anzen-ordinal {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--anzen-subtle);
+  letter-spacing: 0.04em;
+}
+
+.anzen-rule {
+  border: 0;
+  border-top: 1px solid var(--anzen-border);
+  margin: 0;
+}
+
+/* Typing dots. The previous `animate-typing-dot-bounce` class had no keyframe
+   behind it anywhere in the project, so the indicator sat frozen. */
+@keyframes anzen-typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.animate-typing-dot-bounce {
+  animation: anzen-typing-dot 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-typing-dot-bounce,
+  .anzen-surface-card {
+    animation: none;
+    transition: none;
+  }
+}
+
+}
+/* end @layer components */
 
 

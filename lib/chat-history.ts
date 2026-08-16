@@ -69,6 +69,10 @@ export function saveChats(chats: StoredChat[]): void {
   }
 }
 
+export function removeChat(chats: StoredChat[], id: string): StoredChat[] {
+  return chats.filter((chat) => chat.id !== id);
+}
+
 /** Insert or replace `chat`, keeping the list newest-first. */
 export function upsertChat(chats: StoredChat[], chat: StoredChat): StoredChat[] {
   const rest = chats.filter((existing) => existing.id !== chat.id);

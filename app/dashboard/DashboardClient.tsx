@@ -1,14 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  RefreshCw,
-  Shield,
-  ShieldQuestion,
-  XCircle,
-} from "lucide-react";
+import { AlertTriangle, RefreshCw, ShieldQuestion } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { findPendingManualApprovals, hasPendingManualApprovals } from "@/agent/pending-approvals";
@@ -17,6 +10,7 @@ import {
   deriveChatTitle,
   loadChats,
   newChatId,
+  removeChat,
   saveChats,
   upsertChat,
   type StoredChat,
@@ -29,12 +23,14 @@ import { AnzenConnectionsView } from "@/components/AnzenConnectionsView";
 import { AnzenSidebar, type DashboardPage } from "@/components/AnzenSidebar";
 import { AnzenModelPicker, type AnzenModelOption } from "@/components/AnzenModelPicker";
 import { AnzenToolApprovals } from "@/components/AnzenToolApprovals";
+import { AnzenOnboarding } from "@/components/AnzenOnboarding";
+import { emptyProfile, isProfileComplete, type UserProfile } from "@/lib/profile";
+import { GitHubIcon, GmailIcon, SlackIcon } from "@/components/provider-icons";
+import { connectionKeyForToolName } from "@/lib/tool-errors";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import { resolveDisplayName } from "@/lib/display-name";
 import { cn } from "@/lib/utils";
 
@@ -53,18 +49,31 @@ type AuditEntry = {
 
 const MODEL_STORAGE_KEY = "anzen.model.v1";
 
-const PAGE_COPY: Record<Exclude<DashboardPage, "chat">, { title: string; subtitle: string }> = {
+const HEADER_TITLE: Record<DashboardPage, string> = {
+  chat: "Chat",
+  connections: "Apps",
+  activity: "Activity",
+  privacy: "Privacy",
+};
+
+const PAGE_COPY: Record<
+  Exclude<DashboardPage, "chat">,
+  { title: string; subtitle: string; status: string }
+> = {
   connections: {
-    title: "Connections",
-    subtitle: "Accounts Anzen can read. Writes still need your confirmation.",
+    title: "Apps",
+    subtitle: "Install apps Anzen can use. Writes still need your confirmation.",
+    status: "agent / apps",
   },
   activity: {
     title: "Activity",
     subtitle: "Write actions you confirmed.",
+    status: "agent / activity",
   },
   privacy: {
     title: "Privacy",
     subtitle: "How Anzen handles your data.",
+    status: "agent / privacy",
   },
 };
 
@@ -76,21 +85,58 @@ function PageIntro({
   trailing?: React.ReactNode;
 }) {
   const copy = PAGE_COPY[page];
+  // Same skeleton as the marketing pages — status line, tight display title,
+  // lede — one step smaller so it sits under the 56px app bar rather than
+  // competing with it.
   return (
-    <div className="flex flex-col items-center gap-4 text-center">
-      <div className="flex flex-col items-center">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{copy.title}</h1>
-        <p className="text-muted-foreground/60 mt-3 max-w-md text-sm leading-relaxed">{copy.subtitle}</p>
+    <div className="flex flex-col gap-5 border-b border-border pb-8 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex min-w-0 flex-col">
+        <div className="anzen-status-line mb-4">
+          <span className="anzen-status-dot" />
+          <span className="anzen-status-text">{copy.status}</span>
+        </div>
+        <h1 className="m-0 text-2xl leading-[1.05] font-extrabold tracking-[-0.04em] text-foreground">
+          {copy.title}
+        </h1>
+        <p className="anzen-lede mt-2.5 text-sm">{copy.subtitle}</p>
       </div>
-      {trailing && <div className="mt-2">{trailing}</div>}
+      {trailing && <div className="shrink-0">{trailing}</div>}
+    </div>
+  );
+}
+
+// The label is the source, not a restatement of the prompt — it sits in the
+// empty state's left gutter so the three rows scan as GitHub / Gmail / Slack.
+/**
+ * An audit row's icon is the service the action touched — the real GitHub,
+ * Gmail or Slack mark — because that is the one thing about the row a glance
+ * should tell you. A generic tick/cross in a coloured square said only what the
+ * word beside it already said.
+ */
+function ToolMark({ toolName }: { toolName: string }) {
+  const key = connectionKeyForToolName(toolName);
+  return (
+    <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40">
+      {key === "github" ? (
+        <GitHubIcon size={17} />
+      ) : key === "gmail" ? (
+        <GmailIcon size={17} />
+      ) : key === "slack" ? (
+        <SlackIcon size={17} />
+      ) : (
+        // Unmapped tool — its own initial rather than a stand-in logo.
+        <span className="font-mono text-[12px] text-muted-foreground">
+          {toolName.charAt(0).toUpperCase()}
+        </span>
+      )}
     </div>
   );
 }
 
 const SUGGESTIONS = [
-  { label: "Assigned issues", prompt: "What GitHub issues are assigned to me?" },
-  { label: "Unread email", prompt: "Summarize my unread emails" },
-  { label: "Slack channels", prompt: "List my Slack channels" },
+  { label: "GitHub", prompt: "What issues are assigned to me?" },
+  { label: "Gmail", prompt: "Summarize my unread emails" },
+  { label: "Slack", prompt: "List my channels" },
 ];
 
 export default function DashboardClient({
@@ -117,10 +163,13 @@ export default function DashboardClient({
   const [inputValue, setInputValue] = useState("");
   const [approvalGateError, setApprovalGateError] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<DashboardPage>("chat");
-  // Held only so persistence can merge against previously stored chats; the
-  // 60px rail has no chat list to render, so the value itself is never read.
-  const [, setChats] = useState<StoredChat[]>([]);
+  const [chats, setChats] = useState<StoredChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile>(emptyProfile());
+  // `null` = not loaded yet, so the dialog can't flash before we know whether
+  // this user has already been through it.
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [editingName, setEditingName] = useState(false);
   const [models, setModels] = useState<AnzenModelOption[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const { isDark: d, toggleDarkMode } = useAnzenTheme();
@@ -250,29 +299,36 @@ export default function DashboardClient({
     }
   }, [activePage, fetchAuditLogs]);
 
-  // Chat history lives in the browser (lib/chat-history). Restore the most
-  // recent conversation so a reload doesn't silently drop the thread.
+  // The dashboard always opens on a new, empty chat. Prior conversations stay
+  // in browser storage (lib/chat-history) and are read here only so the next
+  // save merges against them instead of overwriting the list.
   useEffect(() => {
-    const stored = loadChats();
-    setChats(stored);
+    setChats(loadChats());
+  }, []);
 
-    const latest = stored[0];
-    if (!latest || latest.messages.length === 0) return;
+  useEffect(() => {
+    const controller = new AbortController();
 
-    // A confirmation gate saved mid-flight can't be answered after a reload —
-    // its run is gone server-side — so restore the thread up to that point.
-    const upToApproval = latest.messages.findIndex((message) =>
-      hasPendingManualApprovals([message])
-    );
-    const restorable =
-      upToApproval === -1
-        ? latest.messages
-        : latest.messages.slice(0, upToApproval);
-    if (restorable.length === 0) return;
+    async function loadProfile() {
+      try {
+        const data = await requestJson<{ profile?: UserProfile }>("/api/profile", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (data.profile) setProfile(data.profile);
+      } catch (error) {
+        if (isAbortError(error)) return;
+        // Treated as "not onboarded yet": the dialog is recoverable, a wrong
+        // name in the agent's prompt is not.
+        console.error("[profile]", error);
+      } finally {
+        if (!controller.signal.aborted) setProfileLoaded(true);
+      }
+    }
 
-    setActiveChatId(latest.id);
-    setMessages(restorable);
-  }, [setMessages]);
+    void loadProfile();
+    return () => controller.abort();
+  }, []);
 
   // Persisting on every render would re-serialize the whole thread on each
   // streamed token. Coalesce into one write once output settles.
@@ -283,6 +339,18 @@ export default function DashboardClient({
 
     const timer = window.setTimeout(() => {
       setChats((previous) => {
+        // Opening a past thread re-runs this effect. Without this guard it
+        // would rewrite the chat with a fresh `updatedAt` and jump it to the
+        // top of the sidebar for having been read.
+        const stored = previous.find((chat) => chat.id === id);
+        if (
+          stored &&
+          stored.messages.length === messages.length &&
+          stored.messages.at(-1)?.id === messages.at(-1)?.id
+        ) {
+          return previous;
+        }
+
         const next = upsertChat(previous, {
           id,
           title: deriveChatTitle(messages),
@@ -348,6 +416,31 @@ export default function DashboardClient({
     setMessages([]);
     setInputValue("");
     setApprovalGateError(null);
+  };
+
+  const handleSelectChat = (id: string) => {
+    const chat = chats.find((entry) => entry.id === id);
+    if (!chat) return;
+    setActivePage("chat");
+    setActiveChatId(id);
+    setMessages(chat.messages);
+    setInputValue("");
+    setApprovalGateError(null);
+  };
+
+  const handleDeleteChat = (id: string) => {
+    setChats((previous) => {
+      const next = removeChat(previous, id);
+      saveChats(next);
+      return next;
+    });
+    // Deleting the thread you are reading leaves you on an empty new one
+    // rather than on a transcript that no longer exists anywhere.
+    if (id === activeChatId) {
+      setActiveChatId(null);
+      setMessages([]);
+      setApprovalGateError(null);
+    }
   };
 
   /** Shared guard: a queued write must be resolved before the thread moves on. */
@@ -437,57 +530,106 @@ export default function DashboardClient({
 
   const connectedCount = Object.values(connStatus).filter(Boolean).length;
   const identity = resolveDisplayName(userName, userEmail);
+  // What the user told us beats what the identity provider guessed.
+  const preferredName = profile.preferredName || identity.first || "";
+  const fullName = profile.fullName || identity.full;
+  const needsOnboarding = profileLoaded && !isProfileComplete(profile);
+
+  const modelPicker = (
+    <AnzenModelPicker
+      models={models}
+      value={selectedModelId}
+      onChange={handleSelectModel}
+      disabled={isLoading}
+    />
+  );
 
   return (
-    <SidebarProvider suppressHydrationWarning className="h-screen overflow-hidden" style={{ "--sidebar-width": "60px" } as React.CSSProperties}>
+    // Starts collapsed to the icon rail: the app is a chat, and a first-time
+    // visitor should meet the composer, not a column of navigation. The user's
+    // own choice is remembered in the `sidebar_state` cookie from then on.
+    <SidebarProvider
+      suppressHydrationWarning
+      defaultOpen={false}
+      className="h-screen overflow-hidden"
+    >
       <AnzenSidebar
         activePage={activePage}
         onNavigate={setActivePage}
         onNewChat={handleNewChat}
         isDark={d}
         onToggleDarkMode={toggleDarkMode}
-        userName={identity.full}
-        userEmail={userEmail}
+        preferredName={preferredName}
+        fullName={fullName}
+        onEditName={() => setEditingName(true)}
+        chats={chats}
+        activeChatId={activeChatId}
+        onSelectChat={handleSelectChat}
+        onDeleteChat={handleDeleteChat}
       />
 
       <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-        {/* Top Header */}
-        <header className="flex h-14 shrink-0 items-center justify-center border-b border-border/5 px-6">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-foreground/80 tracking-tight">{userEmail}</span>
-            <button
-              type="button"
-              onClick={() => setActivePage("connections")}
-              className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase tracking-widest transition-opacity hover:opacity-80"
-            >
-              {statusLoading
-                ? "checking…"
-                : `${connectedCount} of 3 connected`}
-            </button>
-            <Avatar className="size-5 ml-1">
-              <AvatarFallback className="text-[8px] bg-muted/40 text-muted-foreground">
-                {identity.initials}
-              </AvatarFallback>
-            </Avatar>
+        <header className="anzen-appbar">
+          <div className="anzen-appbar-inner">
+            <SidebarTrigger className="-ml-1.5 size-8 rounded-lg text-muted-foreground hover:text-foreground" />
+            <Separator orientation="vertical" className="h-4" />
+            <div className="min-w-0 flex-1">
+              {/* On chat, name the thread rather than repeating the word "Chat" —
+                  the title is already derived for the history store. The account
+                  email used to sit underneath; it is already in the sidebar
+                  footer, and restating it here made the bar a two-line block
+                  that said nothing about where you are. */}
+              <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+                {activePage === "chat" && messages.length > 0
+                  ? deriveChatTitle(messages)
+                  : HEADER_TITLE[activePage]}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Connection count doubles as the shortcut into Apps. */}
+              <button
+                type="button"
+                onClick={() => setActivePage("connections")}
+                className="hidden items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground sm:inline-flex"
+              >
+                <span
+                  className={cn(
+                    "size-1.5 shrink-0 rounded-full",
+                    statusLoading
+                      ? "bg-muted-foreground/40"
+                      : connectedCount > 0
+                        ? "bg-primary shadow-[0_0_6px_var(--anzen-accent)]"
+                        : "bg-muted-foreground/40"
+                  )}
+                />
+                {statusLoading ? "Checking…" : `${connectedCount} of 3 apps`}
+              </button>
+              {activePage === "chat" ? modelPicker : null}
+            </div>
           </div>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col">
           {!tokenVaultScopesEnabled && (
-            <Alert variant="destructive" className="mx-4 mt-4 w-auto md:mx-8">
-              <AlertTriangle />
-              <AlertTitle>Connections disabled</AlertTitle>
-              <AlertDescription>
-                Set <code className="font-mono">AUTH0_TOKEN_VAULT_SCOPES=true</code> to enable
-                account connections.
-              </AlertDescription>
-            </Alert>
+            <div className="anzen-page-col !py-4">
+              <Alert variant="destructive" className="rounded-2xl">
+                <AlertTriangle />
+                <AlertTitle>Connections disabled</AlertTitle>
+                <AlertDescription>
+                  Set <code className="font-mono">AUTH0_TOKEN_VAULT_SCOPES=true</code> to enable
+                  account connections.
+                </AlertDescription>
+              </Alert>
+            </div>
           )}
 
-          {/* CHAT */}
+          {/* CHAT — the transcript centres itself in a narrow reading column
+              (`.anzen-read-col`), so this wrapper only owns the gutters. */}
           {activePage === "chat" && (
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <div className="flex min-h-0 w-full flex-1 flex-col px-4 md:px-8">
               <AnzenChatPanel
+                className="h-full"
+                userName={preferredName || undefined}
                 messages={messages}
                 input={inputValue}
                 onInputChange={(value) => {
@@ -498,11 +640,6 @@ export default function DashboardClient({
                 onSuggestion={handleSuggestion}
                 isGenerating={isLoading}
                 suggestions={SUGGESTIONS}
-                inputDisabled={pendingApprovals.length > 0}
-                placeholder={pendingApprovals.length > 0 ? "Confirm or cancel the action above first…" : "Plan, Build, / for skills, @ for context"}
-                userName={identity.full}
-                userEmail={userEmail}
-                emptyState={null}
                 toolApprovals={
                   <AnzenToolApprovals
                     messages={messages}
@@ -517,18 +654,10 @@ export default function DashboardClient({
                     }
                   />
                 }
-                modelSelector={
-                  <AnzenModelPicker
-                    models={models}
-                    value={selectedModelId}
-                    onChange={handleSelectModel}
-                    disabled={isLoading}
-                  />
-                }
                 composerNotice={
                   <>
                     {chatError && (
-                      <Alert variant="destructive" className="mb-3">
+                      <Alert variant="destructive">
                         <AlertTriangle />
                         <AlertTitle>Anzen couldn&apos;t answer</AlertTitle>
                         <AlertDescription className="flex flex-col items-start gap-2">
@@ -543,7 +672,7 @@ export default function DashboardClient({
                       </Alert>
                     )}
                     {statusError && (
-                      <Alert variant="destructive" className="mb-3">
+                      <Alert variant="destructive">
                         <AlertDescription className="flex flex-wrap items-center gap-2">
                           <span>{statusError}</span>
                           <Button size="sm" variant="outline" onClick={() => void fetchConnectionStatus()}>
@@ -553,7 +682,7 @@ export default function DashboardClient({
                       </Alert>
                     )}
                     {pendingApprovals.length > 0 && (
-                      <Alert className="mb-3">
+                      <Alert>
                         <ShieldQuestion />
                         <AlertTitle>
                           {pendingApprovals.length === 1
@@ -567,7 +696,7 @@ export default function DashboardClient({
                       </Alert>
                     )}
                     {approvalGateError && (
-                      <Alert variant="destructive" className="mb-3">
+                      <Alert variant="destructive">
                         <AlertDescription>{approvalGateError}</AlertDescription>
                       </Alert>
                     )}
@@ -597,8 +726,8 @@ export default function DashboardClient({
 
           {/* ACTIVITY */}
           {activePage === "activity" && (
-            <div className="flex-1 overflow-y-auto bg-background">
-              <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
+            <div className="anzen-scroll flex-1 overflow-y-auto">
+              <div className="anzen-page-col">
                 <PageIntro
                   page="activity"
                   trailing={
@@ -607,36 +736,51 @@ export default function DashboardClient({
                       size="sm"
                       onClick={fetchAuditLogs}
                       disabled={auditLoading}
-                      className="h-9 rounded-full border-border/10 bg-card px-5 text-[11px] font-bold uppercase tracking-wider hover:bg-muted/50"
+                      className="h-9 rounded-full border-border bg-card px-4 text-xs font-medium hover:bg-muted"
                     >
-                      <RefreshCw className={cn("size-3.5 mr-2", auditLoading && "animate-spin")} />
+                      <RefreshCw className={cn("mr-2 size-3.5", auditLoading && "animate-spin")} />
                       {auditLoading ? "Loading…" : "Refresh"}
                     </Button>
                   }
                 />
 
-                <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-3">
-                  <Badge variant="outline" className="rounded-full border-border/10 bg-card px-3.5 py-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-                    {auditLoading && auditEntries.length === 0
-                      ? "Loading audit history…"
-                      : `${auditEntries.length} total actions`}
-                  </Badge>
-                  {auditEntries.length > 0 && (
+                {/* Counts read as one sentence of fact. Three coloured capsules
+                    made three small claims compete for the same glance. */}
+                <div className="mt-6 mb-8 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                  {auditLoading && auditEntries.length === 0 ? (
+                    <span>Loading audit history…</span>
+                  ) : (
                     <>
-                      <Badge className="rounded-full bg-primary/10 px-3.5 py-1 text-[10px] font-bold text-primary uppercase tracking-widest border-none">
-                        {auditEntries.filter((e) => e.outcome === "success").length} succeeded
-                      </Badge>
+                      <span>
+                        <span className="tabular-nums font-medium text-foreground">
+                          {auditEntries.length}
+                        </span>{" "}
+                        {auditEntries.length === 1 ? "action" : "actions"}
+                      </span>
+                      {auditEntries.length > 0 && (
+                        <span className="flex items-center gap-1.5">
+                          <span className="size-1.5 shrink-0 rounded-full bg-primary" />
+                          <span className="tabular-nums font-medium text-foreground">
+                            {auditEntries.filter((e) => e.outcome === "success").length}
+                          </span>{" "}
+                          succeeded
+                        </span>
+                      )}
                       {auditEntries.some((e) => e.outcome === "failure") && (
-                        <Badge variant="destructive" className="rounded-full bg-destructive/10 px-3.5 py-1 text-[10px] font-bold text-destructive uppercase tracking-widest border-none">
-                          {auditEntries.filter((e) => e.outcome === "failure").length} failed
-                        </Badge>
+                        <span className="flex items-center gap-1.5">
+                          <span className="size-1.5 shrink-0 rounded-full bg-destructive" />
+                          <span className="tabular-nums font-medium text-foreground">
+                            {auditEntries.filter((e) => e.outcome === "failure").length}
+                          </span>{" "}
+                          failed
+                        </span>
                       )}
                     </>
                   )}
                 </div>
 
                 {auditError && (
-                  <Alert variant="destructive" className="mb-8 rounded-2xl">
+                  <Alert variant="destructive" className="mb-8 rounded-2xl border-destructive/20 bg-destructive/5">
                     <AlertDescription className="flex flex-wrap items-center gap-2">
                       <span>{auditError}</span>
                       <Button size="sm" variant="outline" onClick={() => void fetchAuditLogs()}>
@@ -651,14 +795,14 @@ export default function DashboardClient({
                     <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   </div>
                 ) : auditEntries.length === 0 ? (
-                  <div className="rounded-3xl border border-border/20 bg-card/50 p-12 text-center">
-                    <p className="text-sm font-semibold tracking-tight">No recent audit activity recorded yet.</p>
-                    <p className="text-muted-foreground/60 mt-2 text-sm leading-relaxed max-w-xs mx-auto">
-                      Actions requiring your confirmation are logged here automatically.
+                  <div className="anzen-surface-card p-6">
+                    <p className="text-sm font-medium">No recent activity yet.</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                      Actions requiring your confirmation are logged here.
                     </p>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-2.5">
                     {auditEntries.map((entry) => {
                       const ok = entry.outcome === "success";
                       const time = new Date(entry.timestamp).toLocaleString([], {
@@ -668,37 +812,36 @@ export default function DashboardClient({
                         minute: "2-digit",
                       });
                       return (
-                        <Card key={entry.id} className="overflow-hidden rounded-2xl border-border/50 bg-card shadow-sm transition-all hover:border-primary/20">
-                          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex min-w-0 flex-1 items-start gap-4">
-                              <div className={cn(
-                                "flex size-8 shrink-0 items-center justify-center rounded-lg border",
-                                ok ? "border-primary/20 bg-primary/5 text-primary" : "border-destructive/20 bg-destructive/5 text-destructive"
-                              )}>
-                                {ok ? <CheckCircle2 className="size-4" /> : <XCircle className="size-4" />}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold tracking-tight leading-tight">{entry.message}</p>
-                                <div className="text-muted-foreground/50 mt-2 flex flex-wrap items-center gap-2.5 text-[10px] font-bold uppercase tracking-wider">
-                                  <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 border border-border/5">
-                                    {entry.toolName}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{time}</span>
-                                </div>
-                              </div>
-                            </div>
+                        <div
+                          key={entry.id}
+                          className="anzen-surface-card anzen-surface-card-hover flex items-start gap-3.5 p-4"
+                        >
+                          <ToolMark toolName={entry.toolName} />
 
-                            <Badge
-                              className={cn(
-                                "shrink-0 self-start sm:self-auto rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest border-none",
-                                ok ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
-                              )}
-                            >
-                              {ok ? "Succeeded" : "Failed"}
-                            </Badge>
-                          </CardContent>
-                        </Card>
+                          <div className="min-w-0 flex-1">
+                            <p className="anzen-break-anywhere text-sm leading-snug font-medium tracking-tight">
+                              {entry.message}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="font-mono text-[11px]">{entry.toolName}</span>
+                              <span className="text-muted-foreground/40">•</span>
+                              <span className="tabular-nums">{time}</span>
+                            </div>
+                          </div>
+
+                          {/* Outcome is a dot, not a word — the message already
+                              says what happened, and "Failed" printed beside a
+                              failure message states it twice. */}
+                          <span
+                            className={cn(
+                              "mt-1.5 size-2 shrink-0 rounded-full",
+                              ok
+                                ? "bg-primary shadow-[0_0_6px_var(--anzen-accent)]"
+                                : "bg-destructive"
+                            )}
+                          />
+                          <span className="sr-only">{ok ? "Succeeded" : "Failed"}</span>
+                        </div>
                       );
                     })}
                   </div>
@@ -709,39 +852,38 @@ export default function DashboardClient({
 
           {/* PRIVACY */}
           {activePage === "privacy" && (
-            <div className="flex-1 overflow-y-auto bg-background">
-              <div className="mx-auto w-full max-w-3xl px-4 pt-12 pb-16 md:px-8">
+            <div className="anzen-scroll flex-1 overflow-y-auto">
+              <div className="anzen-page-col">
                 <PageIntro page="privacy" />
-                <div className="mt-12 flex flex-col gap-6">
+                <div className="mt-8 grid gap-3 sm:grid-cols-2">
                   {PRIVACY_SECTIONS.map((section) => (
-                    <Card key={section.id} className="overflow-hidden rounded-2xl border-border/50 bg-card shadow-sm">
-                      <CardHeader className="border-b border-border/5 bg-muted/30 p-5">
-                        <CardTitle className="flex items-center gap-3 text-base font-bold tracking-tight">
-                          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <Shield className="size-4" />
-                          </div>
-                          {section.title}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="text-muted-foreground/80 p-6 text-sm leading-relaxed">
+                    <article
+                      key={section.id}
+                      className="anzen-surface-card anzen-surface-card-hover overflow-hidden"
+                    >
+                      <div className="border-b border-border px-5 py-3.5">
+                        <h2 className="text-sm font-semibold tracking-tight">{section.title}</h2>
+                      </div>
+                      <div className="px-5 py-4 text-sm leading-relaxed text-muted-foreground">
                         {section.body}
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </article>
                   ))}
                 </div>
 
-                <div className="mt-16 border-t border-border/5 pt-10 text-center">
-                  <p className="text-muted-foreground/50 text-[11px] font-bold uppercase tracking-[0.1em]">
-                    Read full legal details
-                  </p>
-                  <div className="mt-4 flex items-center justify-center gap-6">
-                    <a href="/privacy" className="text-muted-foreground text-sm font-medium hover:text-primary underline-offset-4 hover:underline transition-colors">
-                      Privacy Policy
-                    </a>
-                    <a href="/terms" className="text-muted-foreground text-sm font-medium hover:text-primary underline-offset-4 hover:underline transition-colors">
-                      Terms of Service
-                    </a>
-                  </div>
+                <div className="mt-10 flex items-center gap-5 border-t border-border pt-6">
+                  <a
+                    href="/privacy"
+                    className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                  >
+                    Privacy Policy
+                  </a>
+                  <a
+                    href="/terms"
+                    className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                  >
+                    Terms of Service
+                  </a>
                 </div>
               </div>
             </div>

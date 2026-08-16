@@ -4,12 +4,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { buildConnectUrl, CONNECTIONS } from "@/lib/auth-connections";
 import { AI_PROVIDER_SHORT_LABEL } from "@/lib/ai-display";
+import { CtaArrow, PageHero } from "@/components/PageHero";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { GitHubIcon, GmailIcon, SlackIcon } from "@/components/provider-icons";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 const PROVIDER_META: Record<
   keyof typeof CONNECTIONS,
@@ -32,61 +30,69 @@ const PROVIDER_META: Record<
   },
 };
 
+const PROVIDER_KEYS = Object.keys(CONNECTIONS) as Array<keyof typeof CONNECTIONS>;
+
 export function ConnectPageClient() {
   return (
     <div suppressHydrationWarning className="anzen-page flex min-h-screen flex-col">
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-24 pb-10 text-center md:px-8 md:pt-28 md:pb-14">
-        <h1 className="text-3xl font-semibold tracking-tight">Connect your accounts</h1>
-        <p className="text-muted-foreground mx-auto mt-3 max-w-prose">
-          Anzen uses Auth0 Token Vault — it never stores your tokens. Content you ask about is
-          processed by {AI_PROVIDER_SHORT_LABEL}.
-        </p>
-        <p className="text-muted-foreground mx-auto mt-2 max-w-prose text-sm">
+      <main className="anzen-site-x anzen-page-y anzen-shell flex flex-1 flex-col">
+        <PageHero
+          status="setup / accounts"
+          title="Connect your accounts"
+          lede={
+            <>
+              Anzen uses Auth0 Token Vault — it never stores your tokens. Content you ask about is
+              processed by {AI_PROVIDER_SHORT_LABEL}.
+            </>
+          }
+        />
+
+        <div className="mt-10 flex max-w-[620px] flex-col gap-2.5">
+          {PROVIDER_KEYS.map((key) => (
+            <div
+              key={key}
+              className="anzen-tile anzen-tile-hover flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3.5">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--anzen-border)] bg-[var(--anzen-surface-2)]">
+                  {PROVIDER_META[key].icon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-semibold tracking-tight text-[var(--anzen-text)]">
+                    {CONNECTIONS[key].label}
+                  </p>
+                  <p className="anzen-tile-body mt-0.5">{PROVIDER_META[key].description}</p>
+                </div>
+              </div>
+
+              <p className="anzen-tile-label m-0 shrink-0 sm:w-14">{PROVIDER_META[key].type}</p>
+
+              <a href={buildConnectUrl(key, "/connect")} className="anzen-cta anzen-cta-sm shrink-0">
+                Connect
+                <CtaArrow />
+              </a>
+            </div>
+          ))}
+        </div>
+
+        <p className="anzen-tile-body mt-6 max-w-[620px]">
           By connecting you agree to our{" "}
-          <Link href="/terms" className="hover:text-foreground underline underline-offset-2">
+          <Link href="/terms" className="text-[var(--anzen-text)] no-underline hover:underline">
             Terms
           </Link>{" "}
           and{" "}
-          <Link href="/privacy" className="hover:text-foreground underline underline-offset-2">
+          <Link href="/privacy" className="text-[var(--anzen-text)] no-underline hover:underline">
             Privacy Policy
           </Link>
           .
         </p>
 
-        <div className="mt-10 flex flex-col gap-3 text-left">
-          {(Object.keys(CONNECTIONS) as Array<keyof typeof CONNECTIONS>).map((key) => (
-            <Card key={key}>
-              <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-                <div className="flex min-w-0 flex-1 items-center gap-4">
-                  <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg border">
-                    {PROVIDER_META[key].icon}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium">{CONNECTIONS[key].label}</p>
-                    <p className="text-muted-foreground mt-0.5 text-sm">
-                      {PROVIDER_META[key].description}
-                    </p>
-                  </div>
-                </div>
-
-                <Badge variant="outline" className="shrink-0">
-                  {PROVIDER_META[key].type}
-                </Badge>
-
-                <Button render={<a href={buildConnectUrl(key, "/connect")} />} className="shrink-0">
-                  Connect
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         <div className="mt-10">
-          <Button render={<Link href="/dashboard" />} variant="outline">
+          <Link href="/dashboard" className="anzen-cta anzen-cta-sm anzen-cta-quiet">
             Back to dashboard
-          </Button>
+          </Link>
         </div>
       </main>
 

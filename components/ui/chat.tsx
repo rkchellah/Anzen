@@ -16,7 +16,10 @@ import { type Message } from "@/components/ui/chat-message"
 import { CopyButton } from "@/components/ui/copy-button"
 import { MessageInput } from "@/components/ui/message-input"
 import { MessageList } from "@/components/ui/message-list"
-import { PromptSuggestions } from "@/components/ui/prompt-suggestions"
+import {
+  PromptSuggestions,
+  type PromptSuggestion,
+} from "@/components/ui/prompt-suggestions"
 
 interface ChatPropsBase {
   handleSubmit: (
@@ -35,6 +38,8 @@ interface ChatPropsBase {
   ) => void
   setMessages?: (messages: any[]) => void
   transcribeAudio?: (blob: Blob) => Promise<string>
+  /** Greeted in the empty state when known. */
+  userName?: string
 }
 
 interface ChatPropsWithoutSuggestions extends ChatPropsBase {
@@ -44,7 +49,7 @@ interface ChatPropsWithoutSuggestions extends ChatPropsBase {
 
 interface ChatPropsWithSuggestions extends ChatPropsBase {
   append: (message: { role: "user"; content: string }) => void
-  suggestions: string[]
+  suggestions: PromptSuggestion[]
 }
 
 type ChatProps = ChatPropsWithoutSuggestions | ChatPropsWithSuggestions
@@ -62,6 +67,7 @@ export function Chat({
   onRateResponse,
   setMessages,
   transcribeAudio,
+  userName,
 }: ChatProps) {
   const lastMessage = messages.at(-1)
   const isEmpty = messages.length === 0
@@ -192,12 +198,12 @@ export function Chat({
   )
 
   return (
-    <ChatContainer className={className}>
+    <ChatContainer className={cn("gap-0", className)}>
       {isEmpty && append && suggestions ? (
         <PromptSuggestions
-          label="Try these prompts"
           append={append}
           suggestions={suggestions}
+          name={userName}
         />
       ) : null}
 
@@ -212,19 +218,28 @@ export function Chat({
       ) : null}
 
       <ChatForm
-        className="mt-auto"
+        className="relative mt-auto shrink-0 pt-3 pb-5"
         isPending={isGenerating || isTyping}
         handleSubmit={handleSubmit}
       >
-        {() => (
-          <MessageInput
-            value={input}
-            onChange={handleInputChange}
-            allowAttachments={false}
-            stop={handleStop}
-            isGenerating={isGenerating}
-            transcribeAudio={transcribeAudio}
-          />
+        {({ files, setFiles }) => (
+          <>
+            {/* Transcript dissolves into the composer instead of butting against it. */}
+            <div className="anzen-composer-fade" aria-hidden />
+            <div className="anzen-read-col">
+              <MessageInput
+                value={input}
+                onChange={handleInputChange}
+                allowAttachments
+                files={files}
+                setFiles={setFiles}
+                stop={handleStop}
+                isGenerating={isGenerating}
+                transcribeAudio={transcribeAudio}
+                placeholder="Message Anzen…"
+              />
+            </div>
+          </>
         )}
       </ChatForm>
     </ChatContainer>
@@ -235,10 +250,8 @@ Chat.displayName = "Chat"
 export function ChatMessages({
   messages,
   children,
-  className,
 }: React.PropsWithChildren<{
   messages: Message[]
-  className?: string
 }>) {
   const {
     containerRef,
@@ -250,25 +263,31 @@ export function ChatMessages({
 
   return (
     <div
-      className={cn("flex flex-col overflow-y-auto pb-4 flex-1 w-full min-h-0", className)}
+      // `safe end` keeps a short thread sitting just above the composer instead
+      // of stranding it at the top of a tall scroller — and `safe` means a long
+      // thread still starts from the top rather than clipping its own head.
+      className="anzen-scroll grid grid-cols-1 [align-content:safe_end] overflow-y-auto px-1 pt-6 pb-6"
       ref={containerRef}
       onScroll={handleScroll}
       onTouchStart={handleTouchStart}
     >
-      <div className="w-full flex-1">
+      {/* No `max-w-full` here — as a utility it outranks the reading column's
+          max-width and stretches the transcript across the whole viewport. */}
+      <div className="anzen-read-col [grid-column:1/1] [grid-row:1/1]">
         {children}
       </div>
 
       {!shouldAutoScroll && (
-        <div className="pointer-events-none flex flex-1 items-end justify-end [grid-column:1/1] [grid-row:1/1]">
-          <div className="sticky bottom-0 left-0 flex w-full justify-end">
+        <div className="pointer-events-none flex flex-1 items-end justify-center [grid-column:1/1] [grid-row:1/1]">
+          <div className="sticky bottom-2 flex w-full justify-center">
             <Button
               onClick={scrollToBottom}
-              className="pointer-events-auto h-8 w-8 rounded-full ease-in-out animate-in fade-in-0 slide-in-from-bottom-1"
+              aria-label="Scroll to latest message"
+              className="pointer-events-auto size-9 rounded-full border border-border bg-card text-foreground shadow-[var(--anzen-elev-2)] ease-in-out animate-in fade-in-0 slide-in-from-bottom-1 hover:bg-muted"
               size="icon"
               variant="ghost"
             >
-              <ArrowDown className="h-4 w-4" />
+              <ArrowDown className="size-4" />
             </Button>
           </div>
         </div>

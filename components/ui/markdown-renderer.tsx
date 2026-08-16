@@ -11,7 +11,7 @@ interface MarkdownRendererProps {
 
 export function MarkdownRenderer({ children }: MarkdownRendererProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3.5 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
       <Markdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
         {children}
       </Markdown>
@@ -92,12 +92,12 @@ const CodeBlock = ({
       : childrenTakeAllStringContents(children)
 
   const preClass = cn(
-    "overflow-x-scroll rounded-md border bg-background/50 p-4 font-mono text-sm [scrollbar-width:none]",
+    "anzen-scroll overflow-x-auto rounded-xl border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed",
     className
   )
 
   return (
-    <div className="group/code relative mb-4">
+    <div className="group/code relative">
       <Suspense
         fallback={
           <pre className={preClass} {...restProps}>
@@ -138,13 +138,20 @@ function childrenTakeAllStringContents(element: any): string {
 }
 
 const COMPONENTS = {
-  h1: withClass("h1", "text-2xl font-bold tracking-[-0.04em] mt-6 mb-2"),
-  h2: withClass("h2", "font-bold text-xl tracking-[-0.04em] mt-5 mb-2"),
-  h3: withClass("h3", "font-bold text-lg tracking-[-0.03em] mt-4 mb-1"),
-  h4: withClass("h4", "font-bold text-base tracking-[-0.03em] mt-4 mb-1"),
+  h1: withClass("h1", "mt-6 text-xl font-semibold tracking-tight first:mt-0"),
+  h2: withClass("h2", "mt-6 text-lg font-semibold tracking-tight first:mt-0"),
+  h3: withClass("h3", "mt-5 text-base font-semibold tracking-tight first:mt-0"),
+  h4: withClass("h4", "mt-4 text-sm font-semibold tracking-tight first:mt-0"),
+  h5: withClass("h5", "mt-4 text-sm font-medium first:mt-0"),
   strong: withClass("strong", "font-semibold text-foreground"),
-  a: withClass("a", "text-primary hover:underline underline-offset-4 decoration-primary/30 transition-colors"),
-  blockquote: withClass("blockquote", "border-l-2 border-border/50 pl-4 italic text-muted-foreground"),
+  a: withClass(
+    "a",
+    "font-medium text-primary underline decoration-primary/40 underline-offset-[3px] transition-colors hover:decoration-primary"
+  ),
+  blockquote: withClass(
+    "blockquote",
+    "border-l-2 border-primary/60 pl-4 text-muted-foreground italic"
+  ),
   code: ({ children, className, node, ...rest }: any) => {
     const match = /language-(\w+)/.exec(className || "")
     return match ? (
@@ -154,7 +161,7 @@ const COMPONENTS = {
     ) : (
       <code
         className={cn(
-          "font-mono text-[12px] [:not(pre)>&]:rounded-md [:not(pre)>&]:bg-muted/50 [:not(pre)>&]:px-1.5 [:not(pre)>&]:py-0.5"
+          "font-mono [:not(pre)>&]:rounded-md [:not(pre)>&]:border [:not(pre)>&]:border-border [:not(pre)>&]:bg-muted/60 [:not(pre)>&]:px-1.5 [:not(pre)>&]:py-0.5 [:not(pre)>&]:text-[0.875em]"
         )}
         {...rest}
       >
@@ -163,24 +170,25 @@ const COMPONENTS = {
     )
   },
   pre: ({ children }: any) => children,
-  ol: withClass("ol", "list-decimal space-y-2.5 pl-6 my-4"),
-  ul: withClass("ul", "list-disc space-y-2.5 pl-6 my-4"),
-  li: withClass("li", "text-[14px] leading-relaxed"),
-  table: withClass(
-    "table",
-    "w-full border-collapse overflow-y-auto rounded-lg border border-border/50 my-4"
+  ol: withClass("ol", "list-decimal space-y-1.5 pl-5 marker:text-muted-foreground"),
+  ul: withClass("ul", "list-disc space-y-1.5 pl-5 marker:text-muted-foreground"),
+  li: withClass("li", "pl-1 leading-[1.7]"),
+  table: ({ node, ...props }: any) => (
+    <div className="anzen-scroll my-1 w-full overflow-x-auto rounded-xl border border-border">
+      <table className="w-full border-collapse text-sm" {...props} />
+    </div>
   ),
   th: withClass(
     "th",
-    "border border-border/50 bg-muted/30 px-4 py-2 text-left text-[12px] font-bold uppercase tracking-wider text-muted-foreground [&[align=center]]:text-center [&[align=right]]:text-right"
+    "border-b border-border bg-muted/50 px-3 py-2 text-left font-semibold [&[align=center]]:text-center [&[align=right]]:text-right"
   ),
   td: withClass(
     "td",
-    "border border-border/50 px-4 py-2 text-[13px] [&[align=center]]:text-center [&[align=right]]:text-right"
+    "border-b border-border px-3 py-2 text-left align-top [&[align=center]]:text-center [&[align=right]]:text-right"
   ),
-  tr: withClass("tr", "m-0 border-t border-border/50 p-0 even:bg-muted/10"),
-  p: withClass("p", "text-[14px] leading-relaxed mb-4 last:mb-0"),
-  hr: withClass("hr", "border-border/50 my-8"),
+  tr: withClass("tr", "m-0 p-0 last:[&>td]:border-b-0"),
+  p: withClass("p", "leading-[1.7] whitespace-pre-wrap"),
+  hr: withClass("hr", "my-5 border-border"),
 }
 
 function withClass(Tag: keyof React.JSX.IntrinsicElements, classes: string) {

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CtaArrow, PageHero } from "@/components/PageHero";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { anzenPageStyle } from "@/components/anzen-theme";
@@ -59,17 +60,7 @@ function HomePageContent() {
     >
       <SiteHeader />
 
-      <main
-        className="anzen-site-x anzen-page-y"
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          maxWidth: 1080,
-          margin: "0 auto",
-          width: "100%",
-        }}
-      >
+      <main className="anzen-site-x anzen-page-y anzen-shell flex flex-1 flex-col">
         {setupRequired && (
           <div
             className="anzen-break-anywhere"
@@ -129,115 +120,45 @@ function HomePageContent() {
           </div>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 24 }}>
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: t.accent,
-              display: "inline-block",
-              boxShadow: `0 0 6px ${t.accent}`,
-            }}
-          />
-          <span style={{ fontSize: 11, color: t.muted, letterSpacing: "0.04em", fontWeight: 500 }}>agent / ready</span>
-        </div>
+        <PageHero
+          size="hero"
+          status="agent / ready"
+          title={
+            <>
+              Monitor.
+              <br />
+              Decide.
+              <br />
+              Act.
+            </>
+          }
+          lede="Your AI Chief of Staff. Connects to GitHub, Gmail, and Slack — and acts on your behalf, securely."
+          actions={
+            <a href="/auth/login" className="anzen-cta">
+              Get started
+              <CtaArrow />
+            </a>
+          }
+        />
 
-        <h1
-          className="anzen-hero-title"
-          style={{
-            fontWeight: 800,
-            letterSpacing: "-0.045em",
-            lineHeight: 0.98,
-            margin: "0 0 20px",
-            color: t.text,
-          }}
-        >
-          Monitor.
-          <br />
-          Decide.
-          <br />
-          Act.
-        </h1>
-
-        <p style={{ fontSize: 15, color: t.muted, lineHeight: 1.7, margin: "0 0 36px", maxWidth: 380 }}>
-          Your AI Chief of Staff. Connects to GitHub, Gmail, and Slack — and acts on your behalf, securely.
-        </p>
-
-        <div style={{ marginBottom: 48 }}>
-          <a
-            href="/auth/login"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              padding: "10px 20px",
-              borderRadius: 9,
-              background: t.accent,
-              color: "#000",
-              fontSize: 13.5,
-              fontWeight: 700,
-              letterSpacing: "-0.01em",
-              textDecoration: "none",
-              transition: "opacity 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-          >
-            Get started
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </a>
-        </div>
-
-        <div className="anzen-grid-3" style={{ maxWidth: 620 }}>
+        <div className="anzen-grid-3 mt-12" style={{ maxWidth: 620 }}>
           {[
             {
-              label: "MONITOR",
+              label: "Monitor",
               body: "Watch your GitHub issues, unread emails, and Slack messages in one place.",
             },
             {
-              label: "DECIDE",
+              label: "Decide",
               body: "Review and approve before the agent takes any sensitive action on your behalf.",
             },
             {
-              label: "ACT",
+              label: "Act",
               body: "Close issues, send emails, post messages — with your permission, every time.",
             },
           ].map((f) => (
-            <div
-              key={f.label}
-              style={{
-                background: t.surface,
-                border: `1px solid ${t.border}`,
-                borderRadius: 10,
-                padding: "16px 14px",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  color: t.muted,
-                  margin: "0 0 8px",
-                  textTransform: "uppercase" as const,
-                }}
-              >
-                {f.label}
-              </p>
-              <p style={{ fontSize: 13, color: t.muted, lineHeight: 1.6, margin: 0 }}>{f.body}</p>
+            <div key={f.label} className="anzen-tile">
+              <p className="anzen-tile-label">{f.label}</p>
+              <p className="anzen-tile-body">{f.body}</p>
             </div>
           ))}
         </div>

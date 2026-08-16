@@ -23,7 +23,7 @@ export function MessageList({
   messageOptions,
 }: MessageListProps) {
   return (
-    <div className="space-y-4 overflow-visible">
+    <div className="space-y-7 overflow-visible sm:space-y-8">
       {messages.map((message, index) => {
         const additionalOptions =
           typeof messageOptions === "function"
@@ -31,12 +31,14 @@ export function MessageList({
             : messageOptions
 
         return (
-          <ChatMessage
-            key={index}
-            showTimeStamp={showTimeStamps}
-            {...message}
-            {...additionalOptions}
-          />
+          // `group/turn` scopes the hover reveal of the timestamp to one turn.
+          <div key={index} className="group/turn">
+            <ChatMessage
+              showTimeStamp={showTimeStamps}
+              {...message}
+              {...additionalOptions}
+            />
+          </div>
         )
       })}
       {isTyping && <TypingIndicator />}

@@ -45,10 +45,10 @@ export function AnzenToolApprovals({
         blocks.push(
           <Card
             key={part.toolCallId ?? `${toolName}-error`}
-            className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-destructive/20 bg-destructive/5 shadow-lg"
+            className="w-full overflow-hidden rounded-2xl border-destructive/20 bg-card shadow-[var(--anzen-elev-2)]"
           >
             <CardHeader className="pb-3">
-              <CardTitle className="text-destructive flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+              <CardTitle className="text-destructive flex items-center gap-2 text-sm font-semibold">
                 <AlertTriangle className="size-4" />
                 Action Failed
               </CardTitle>
@@ -58,7 +58,7 @@ export function AnzenToolApprovals({
               {reconnectKey && (
                 <Button 
                   render={<a href={buildConnectUrl(reconnectKey, "/dashboard")} />}
-                  className="h-8 rounded-full bg-destructive text-[11px] font-bold text-white hover:opacity-90"
+                  className="h-8 rounded-lg bg-destructive text-xs font-medium text-white hover:opacity-90"
                 >
                   Reconnect {CONNECTIONS[reconnectKey].label}
                 </Button>
@@ -66,7 +66,7 @@ export function AnzenToolApprovals({
               <Button 
                 variant="outline" 
                 onClick={onOpenConnections}
-                className="h-8 rounded-full border-destructive/20 bg-transparent text-[11px] font-bold text-destructive hover:bg-destructive/10"
+                className="h-8 rounded-lg border-destructive/20 bg-transparent text-xs font-medium text-destructive hover:bg-destructive/10"
               >
                 Open Connections
               </Button>
@@ -87,10 +87,10 @@ export function AnzenToolApprovals({
           blocks.push(
             <Card
               key={part.toolCallId ?? approvalId}
-              className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-destructive/20 bg-destructive/5 shadow-lg"
+              className="w-full overflow-hidden rounded-2xl border-destructive/20 bg-card shadow-[var(--anzen-elev-2)]"
             >
               <CardHeader className="pb-3">
-                <CardTitle className="text-destructive flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+                <CardTitle className="text-destructive flex items-center gap-2 text-sm font-semibold">
                   <Ban className="size-4" />
                   Action Blocked
                 </CardTitle>
@@ -105,7 +105,7 @@ export function AnzenToolApprovals({
               <CardFooter className="pt-2">
                 <Button 
                   onClick={onOpenConnections}
-                  className="h-8 rounded-full bg-destructive text-[11px] font-bold text-white hover:opacity-90"
+                  className="h-8 rounded-lg bg-destructive text-xs font-medium text-white hover:opacity-90"
                 >
                   Open Connections
                 </Button>
@@ -118,10 +118,10 @@ export function AnzenToolApprovals({
         blocks.push(
           <Card
             key={part.toolCallId ?? approvalId}
-            className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-primary/20 bg-primary/5 shadow-lg"
+            className="w-full overflow-hidden rounded-2xl border-primary/20 bg-card shadow-[var(--anzen-elev-2)]"
           >
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm font-bold text-primary uppercase tracking-wider">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-primary">
                 <ShieldQuestion className="size-4" />
                 Confirm Action
               </CardTitle>
@@ -130,14 +130,14 @@ export function AnzenToolApprovals({
             <CardFooter className="flex flex-wrap gap-2 pt-2">
               <Button 
                 onClick={() => onApprove(approvalId, true)}
-                className="h-8 rounded-full bg-primary text-[11px] font-bold text-black hover:opacity-90"
+                className="h-8 rounded-lg bg-primary text-xs font-medium text-primary-foreground hover:opacity-90"
               >
                 Confirm
               </Button>
               <Button
                 variant="outline"
                 onClick={() => onApprove(approvalId, false, "User cancelled")}
-                className="h-8 rounded-full border-primary/20 bg-transparent text-[11px] font-bold text-primary hover:bg-primary/10"
+                className="h-8 rounded-lg border-primary/20 bg-transparent text-xs font-medium text-primary hover:bg-primary/10"
               >
                 Cancel
               </Button>
@@ -151,9 +151,9 @@ export function AnzenToolApprovals({
         blocks.push(
           <div
             key={part.toolCallId ?? part.approval.id}
-            className="mx-auto flex w-full max-w-lg items-center gap-2 rounded-full border border-border/10 bg-card px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60"
+            className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground"
           >
-            <div className={cn("size-1.5 rounded-full", part.approval.approved ? "bg-primary animate-pulse" : "bg-destructive")} />
+            <div className={cn("size-1.5 rounded-full", part.approval.approved ? "bg-primary" : "bg-destructive")} />
             {part.approval.approved ? "Running Action…" : "Action Cancelled"}
           </div>
         );
@@ -166,10 +166,10 @@ export function AnzenToolApprovals({
         blocks.push(
           <Card
             key={part.toolCallId ?? `${toolName}-denied`}
-            className="mx-auto w-full max-w-lg overflow-hidden rounded-2xl border-destructive/20 bg-destructive/5 shadow-lg"
+            className="w-full overflow-hidden rounded-2xl border-destructive/20 bg-card shadow-[var(--anzen-elev-2)]"
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-destructive flex items-center gap-2 text-sm font-bold uppercase tracking-wider">
+              <CardTitle className="text-destructive flex items-center gap-2 text-sm font-semibold">
                 <Ban className="size-4" />
                 Action Blocked
               </CardTitle>

@@ -19,6 +19,7 @@
     "@auth0/nextjs-auth0": "^4.16.0",
     "@base-ui/react": "^1.6.0",
     "@octokit/rest": "^22.0.1",
+    "@radix-ui/react-collapsible": "^1.1.20",
     "@slack/web-api": "^7.14.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",

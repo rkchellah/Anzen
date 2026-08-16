@@ -1,16 +1,14 @@
 "use client";
 
-import { Check, ChevronDown, Cpu } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
+import { Select as SelectPrimitive } from "@base-ui/react/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+} from "@/components/ui/select";
 
 export type AnzenModelOption = {
   id: string;
@@ -20,8 +18,12 @@ export type AnzenModelOption = {
 };
 
 /**
- * Shows which model answers the current chat, and lets the user switch when the
- * server exposes more than one. With a single model it degrades to a label.
+ * Model picker for the app bar.
+ *
+ * The trigger renders its own content rather than `<SelectValue/>`: Base UI's
+ * Value prints the raw `value` when given no children, so the bar was showing
+ * the internal `deepseek:deepseek-v4` key, clipped mid-word by the trigger's
+ * max-width. What belongs there is the model's name.
  */
 export function AnzenModelPicker({
   models,
@@ -38,57 +40,79 @@ export function AnzenModelPicker({
 
   const active = models.find((model) => model.id === value) ?? models[0];
 
+  // Nothing to choose between — state, not a control.
   if (models.length === 1) {
     return (
-      <Badge variant="outline" className="text-muted-foreground gap-1.5 font-normal">
-        <Cpu className="size-3.5" />
-        Model - {active.label}
-      </Badge>
+      <span className="hidden items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground sm:inline-flex">
+        <span className="anzen-ordinal">{active.providerLabel}</span>
+        <span className="font-medium text-foreground/85">{active.label}</span>
+      </span>
     );
   }
 
-  return (
-    <div className="flex items-center gap-1.5">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              className="h-7 gap-1.5 rounded-full bg-transparent px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground data-[popup-open]:text-foreground"
-            />
-          }
-        >
-          <span className="truncate">{active.label}</span>
-          <ChevronDown className="size-3 opacity-60" />
-        </DropdownMenuTrigger>
+  // Provider groups in first-seen order, so the list reads DeepSeek → Groq
+  // rather than as one flat run of near-identical names.
+  const groups = models.reduce<Array<{ provider: string; items: AnzenModelOption[] }>>(
+    (acc, model) => {
+      const group = acc.find((entry) => entry.provider === model.providerLabel);
+      if (group) group.items.push(model);
+      else acc.push({ provider: model.providerLabel, items: [model] });
+      return acc;
+    },
+    []
+  );
 
-        <DropdownMenuContent align="start" side="top" className="min-w-64">
-          <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-            Select Model
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {models.map((model) => {
-            const selected = model.id === active.id;
-            return (
-              <DropdownMenuItem
+  return (
+    <Select
+      value={active.id}
+      onValueChange={(next) => {
+        if (typeof next === "string") onChange(next);
+      }}
+      disabled={disabled}
+    >
+      {/* Base UI's Trigger used directly: the shared SelectTrigger appends its
+          own chevron and value-slot rules, which fight this layout. */}
+      <SelectPrimitive.Trigger
+        aria-label="Model"
+        className="flex h-8 items-center gap-2 rounded-lg border border-border bg-card px-2.5 text-xs whitespace-nowrap text-muted-foreground transition-colors outline-none select-none hover:border-primary/30 focus-visible:border-primary/40 disabled:opacity-50"
+      >
+        <span className="anzen-ordinal hidden shrink-0 md:inline">
+          {active.providerLabel}
+        </span>
+        <span className="max-w-[10rem] truncate font-medium text-foreground/85">
+          {active.label}
+        </span>
+        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+      </SelectPrimitive.Trigger>
+
+      <SelectContent
+        align="end"
+        alignItemWithTrigger={false}
+        sideOffset={6}
+        className="w-[15rem] rounded-xl border border-border bg-popover p-0 shadow-[var(--anzen-elev-3)] ring-0"
+      >
+        {groups.map((group) => (
+          <SelectGroup key={group.provider} className="p-1.5">
+            <SelectLabel className="anzen-tile-label mb-1 px-2 pt-1">
+              {group.provider}
+            </SelectLabel>
+            {group.items.map((model) => (
+              <SelectItem
                 key={model.id}
-                onClick={() => onChange(model.id)}
-                className="gap-3"
+                value={model.id}
+                className="cursor-pointer items-start rounded-lg py-2 pr-9 pl-2.5"
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{model.label}</span>
-                  <span className="text-muted-foreground block truncate text-xs">
-                    {model.providerLabel} · {model.modelId}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[13px] leading-tight font-medium text-foreground">
+                    {model.label}
                   </span>
+                  <span className="anzen-ordinal truncate">{model.modelId}</span>
                 </span>
-                {selected && <Check className="text-primary size-4 shrink-0" />}
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

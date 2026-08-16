@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { PageHero } from "@/components/PageHero";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader, type InitialAuthState } from "@/components/SiteHeader";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 
 export type LegalSection = {
   id: string;
@@ -33,68 +31,63 @@ export function LegalPageShell({
     <div suppressHydrationWarning className="anzen-page flex flex-col">
       <SiteHeader initialAuth={initialAuth} />
 
-      <main className="w-full flex-1">
-        <div className="bg-card w-full border-b">
-          <div className="anzen-site-x mx-auto flex w-full max-w-3xl flex-col items-center pt-24 pb-10 text-center md:pt-28">
-            <div className="mb-6 flex items-center gap-2">
-              <Badge>Legal</Badge>
-              <span className="text-muted-foreground text-sm">{kind}</span>
-            </div>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{title}</h1>
-            <p className="text-muted-foreground mt-3 max-w-prose">{subtitle}</p>
-          </div>
-        </div>
+      {/* A legal document is an article, so it gets one centred reading column
+          rather than the 1080px product shell — in which a 720px block of text
+          sits hard left with half the page empty beside it. */}
+      <main className="anzen-site-x anzen-page-y mx-auto flex w-full max-w-[46rem] flex-1 flex-col">
+        <PageHero status={`legal / ${kind.toLowerCase()}`} title={title} lede={subtitle} />
 
-        <div className="anzen-site-x mx-auto w-full max-w-3xl pt-8 pb-16">
-          <Card size="sm" className="mb-8">
-            <CardContent>
-              <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wide uppercase">
-                On this page
-              </p>
-              <Separator className="mb-3" />
-              <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0">
-                {sections.map((s) => (
-                  <li key={s.id}>
-                    <a
-                      href={`#${s.id}`}
-                      className="text-muted-foreground hover:text-foreground text-sm no-underline transition-colors"
-                    >
-                      {s.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <div className="flex flex-col gap-4">
+        <div className="mt-10">
+          {/* Contents: a quiet index line, not a boxed widget. */}
+          <p className="anzen-tile-label m-0">On this page</p>
+          <hr className="anzen-rule mt-3 mb-3" />
+          <ul className="m-0 flex list-none flex-wrap gap-x-5 gap-y-2 p-0">
             {sections.map((section, index) => (
-              <Card key={section.id} id={section.id} className="scroll-mt-24">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3">
-                    <Badge variant="outline" className="tabular-nums">
-                      {String(index + 1).padStart(2, "0")}
-                    </Badge>
+              <li key={section.id} className="flex items-center gap-1.5">
+                <span className="anzen-ordinal">{String(index + 1).padStart(2, "0")}</span>
+                <a
+                  href={`#${section.id}`}
+                  className="text-[13px] text-[var(--anzen-muted)] no-underline transition-colors hover:text-[var(--anzen-text)]"
+                >
+                  {section.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-8 flex flex-col gap-2.5">
+            {sections.map((section, index) => (
+              <section
+                key={section.id}
+                id={section.id}
+                className="anzen-tile anzen-tile-hover scroll-mt-24"
+              >
+                <div className="mb-2.5 flex items-baseline gap-2.5">
+                  <span className="anzen-ordinal">{String(index + 1).padStart(2, "0")}</span>
+                  <h2 className="m-0 text-[13.5px] font-semibold tracking-tight text-[var(--anzen-text)]">
                     {section.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-muted-foreground leading-relaxed">
+                  </h2>
+                </div>
+                <div className="text-[13px] leading-[1.7] text-[var(--anzen-muted)]">
                   {section.body}
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             ))}
           </div>
 
           {relatedLink && (
-            <p className="text-muted-foreground mt-8 text-center text-sm">
-              See also{" "}
-              <Link
-                href={relatedLink.href}
-                className="text-primary font-medium no-underline hover:underline"
-              >
-                {relatedLink.label}
-              </Link>
-            </p>
+            <>
+              <hr className="anzen-rule mt-10" />
+              <p className="anzen-tile-body mt-5">
+                See also{" "}
+                <Link
+                  href={relatedLink.href}
+                  className="font-medium text-[var(--anzen-accent-text)] no-underline hover:underline"
+                >
+                  {relatedLink.label}
+                </Link>
+              </p>
+            </>
           )}
         </div>
       </main>

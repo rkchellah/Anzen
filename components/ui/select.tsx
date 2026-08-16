@@ -122,7 +122,9 @@ function SelectItem({
       )}
       {...props}
     >
-      <SelectPrimitive.ItemText className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">
+      {/* No `whitespace-nowrap`: items whose content is a name plus a line of
+          description need to wrap. A single-line item has nothing to wrap. */}
+      <SelectPrimitive.ItemText className="flex min-w-0 flex-1 shrink-0 gap-2">
         {children}
       </SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator
