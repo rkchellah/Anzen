@@ -50,8 +50,8 @@ export function AnzenModelPicker({
     );
   }
 
-  // Provider groups in first-seen order, so the list reads DeepSeek → Groq
-  // rather than as one flat run of near-identical names.
+  // Provider groups in first-seen order, so multiple providers stay separated
+  // rather than reading as one flat run of near-identical names.
   const groups = models.reduce<Array<{ provider: string; items: AnzenModelOption[] }>>(
     (acc, model) => {
       const group = acc.find((entry) => entry.provider === model.providerLabel);

@@ -11,11 +11,7 @@ import {
 import { getGithubTools } from "@/agent/tools/github";
 import { getGmailTools } from "@/agent/tools/gmail";
 import { getSlackTools } from "@/agent/tools/slack";
-import {
-  chatStreamErrorMessage,
-  prepareReadOnlyFollowUpStep,
-  repairMalformedToolCall,
-} from "@/lib/ai-chat";
+import { chatStreamErrorMessage } from "@/lib/ai-chat";
 import { getChatModel, resolveRequestedModel } from "@/lib/ai-provider";
 import { getUserProfile } from "@/lib/profile-store";
 
@@ -110,7 +106,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("[chat] No AI provider configured:", error);
     return apiError(
-      "No AI model is configured on the server. Set GROQ_API_KEY or DEEPSEEK_API_KEY.",
+      "No AI model is configured on the server. Set DEEPSEEK_API_KEY.",
       503
     );
   }
@@ -129,8 +125,6 @@ export async function POST(req: Request) {
   if (modelMessages.length === 0) {
     return badRequest("No readable messages in the request.");
   }
-
-  const useGroqWorkarounds = aiConfig.provider === "groq";
 
   // Read server-side rather than trusting a name in the request body — the
   // prompt should not be steerable by whatever the client felt like sending.
@@ -158,12 +152,6 @@ export async function POST(req: Request) {
         hasToolCall("postMessage"),
         stepCountIs(6),
       ],
-      ...(useGroqWorkarounds
-        ? {
-            experimental_repairToolCall: repairMalformedToolCall,
-            prepareStep: prepareReadOnlyFollowUpStep,
-          }
-        : {}),
       onError: ({ error }) => {
         chatStreamErrorMessage(error, aiConfig.provider);
       },

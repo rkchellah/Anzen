@@ -59,15 +59,14 @@ Intentionally. Auth0 Token Vault handles credential storage and short-lived toke
 
 ## AI Models
 
-Anzen supports two providers — the active one is selected based on which API key is configured:
+Anzen runs on DeepSeek's OpenAI-compatible chat completions API:
 
-| Provider | Model | Notes |
-|---|---|---|
-| **DeepSeek** | `deepseek-v4-flash` (default) | Fast tool-calling; thinking mode disabled for chat |
-| **DeepSeek** | `deepseek-reasoner` | Extended reasoning for complex tasks |
-| **Groq** | `llama-3.3-70b-versatile` | High-throughput fallback |
+| Model | Notes |
+|---|---|
+| `deepseek-v4-flash` (default) | Fast tool-calling; thinking mode disabled for chat |
+| `deepseek-v4-pro` | Extended reasoning for complex tasks |
 
-The model picker in the chat composer lets users switch between any configured model mid-session. Set `DEEPSEEK_API_KEY` and/or `GROQ_API_KEY` — whichever keys are present become available options.
+The model picker in the chat composer lets users switch models mid-session. Set `DEEPSEEK_API_KEY`; override the default with `DEEPSEEK_MODEL` and the picker list with `DEEPSEEK_MODELS`.
 
 ---
 
@@ -121,15 +120,15 @@ AUTH0_TOKEN_VAULT_SCOPES=true
 APP_BASE_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# AI — set one or both; both present = both available in the model picker
+# AI
 DEEPSEEK_API_KEY=
-GROQ_API_KEY=
 
-# Optional: override the default model or expose extra models
-# AI_PROVIDER=deepseek        # force a specific provider
-# DEEPSEEK_MODEL=deepseek-reasoner
-# DEEPSEEK_MODELS=deepseek-v4-flash,deepseek-reasoner
-# GROQ_MODELS=llama-3.3-70b-versatile
+# Optional: override the default model or the picker list
+# DEEPSEEK_MODEL=deepseek-v4-pro
+# DEEPSEEK_MODELS=deepseek-v4-flash,deepseek-v4-pro
+
+# Optional: voice input (Groq Whisper). Mic input is disabled when unset.
+GROQ_API_KEY=
 ```
 
 You'll need an Auth0 account with Token Vault enabled. GitHub, Gmail, and Slack OAuth apps must be configured as Social Connections in your Auth0 dashboard.
@@ -142,7 +141,7 @@ You'll need an Auth0 account with Token Vault enabled. GitHub, Gmail, and Slack 
 |---|---|
 | **Framework** | Next.js 15 + TypeScript |
 | **Agent / streaming** | Vercel AI SDK (`streamText`, tool calling, `UIMessage`) |
-| **AI providers** | DeepSeek (V4 Flash, Reasoner) · Groq (LLaMA 3.3 70B) |
+| **AI provider** | DeepSeek (V4 Flash, V4 Pro) · Groq Whisper for voice input only |
 | **Auth + credentials** | Auth0 v4 (`nextjs-auth0`) + Token Vault |
 | **Provider APIs** | Octokit (GitHub) · googleapis (Gmail) · @slack/web-api (Slack) |
 | **UI** | Tailwind CSS · shadcn/ui · Radix Base UI |
@@ -186,7 +185,7 @@ Anzen/
 │   └── ui/                         — shadcn + custom UI primitives
 ├── lib/
 │   ├── ai-provider.ts              — Provider resolution, model listing, DeepSeek fetch wrapper
-│   ├── ai-chat.ts                  — Stream error handling, Groq tool-call repair
+│   ├── ai-chat.ts                  — Chat stream error messages
 │   ├── auth0.ts                    — Auth0 client + Token Vault token fetcher
 │   ├── auth0-scopes.ts             — Login scopes + audience gating
 │   ├── auth-connections.ts         — Connect URLs per provider

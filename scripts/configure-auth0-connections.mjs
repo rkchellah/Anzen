@@ -17,6 +17,12 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 const CONNECTION_NAMES = ["google-oauth2", "sign-in-with-slack"];
+
+/** Kept in sync with lib/auth-connections.ts. */
+const REQUIRED_GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
+];
 const checkOnly = process.argv.includes("--check");
 
 function loadEnvLocal() {
@@ -97,6 +103,7 @@ async function mgmt(token, path, init = {}) {
 
 function summarize(conn) {
   const enabled = (conn.enabled_clients ?? []).includes(appClientId);
+  const options = conn.options ?? {};
   return {
     id: conn.id,
     name: conn.name,
@@ -105,6 +112,12 @@ function summarize(conn) {
     connected_accounts: conn.connected_accounts?.active ?? null,
     app_enabled: enabled,
     enabled_clients: conn.enabled_clients ?? [],
+    // Empty client_id means the connection is on Auth0's shared developer
+    // keys: Auth0-branded consent screen, Auth0's rate limits, and no way to
+    // grant the Gmail scopes Token Vault needs.
+    own_credentials: Boolean(options.client_id?.trim?.()),
+    oauth_client_id: options.client_id ?? null,
+    scopes: options.scope ?? [],
   };
 }
 
@@ -135,6 +148,29 @@ async function main() {
     console.log(`  connected_accounts.active: ${summary.connected_accounts}`);
     console.log(`  authentication.active:     ${summary.authentication}`);
     console.log(`  enabled for your app:      ${summary.app_enabled}`);
+    console.log(
+      `  own OAuth credentials:     ${summary.own_credentials}` +
+        (summary.own_credentials ? ` (${summary.oauth_client_id})` : "")
+    );
+    const scopes = Array.isArray(summary.scopes)
+      ? summary.scopes
+      : String(summary.scopes || "").split(/[\s,]+/).filter(Boolean);
+    console.log(`  scopes:                    ${scopes.join(", ") || "(none)"}`);
+
+    if (!summary.own_credentials) {
+      console.log(
+        "  ⚠  Running on Auth0 developer keys. The consent screen shows Auth0's\n" +
+          "     branding, only Auth0's own test users can sign in, and Token\n" +
+          "     Vault cannot issue provider tokens. Create your own OAuth\n" +
+          "     client, then paste the id/secret into Authentication → Social → " +
+          `${summary.name === "google-oauth2" ? "Google" : "Slack"}.`
+      );
+    } else if (summary.name === "google-oauth2") {
+      const missing = REQUIRED_GOOGLE_SCOPES.filter((s) => !scopes.includes(s));
+      if (missing.length > 0) {
+        console.log(`  ⚠  Missing Gmail scopes: ${missing.join(", ")}`);
+      }
+    }
 
     if (checkOnly) continue;
 

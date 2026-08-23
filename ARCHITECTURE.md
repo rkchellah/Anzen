@@ -205,8 +205,8 @@ flowchart TB
 | `AUTH0_TOKEN_VAULT_SCOPES=true` | Adds connected_accounts scopes + audience to login |
 | `APP_BASE_URL` | `http://localhost:3000` — callbacks, logout redirect |
 | `DEEPSEEK_API_KEY` | Enables DeepSeek models (V4 Flash default, Reasoner optional) |
-| `GROQ_API_KEY` | Enables Groq models (LLaMA 3.3 70B) |
-| `AI_PROVIDER` | Optional — force `deepseek` or `groq` when both keys are set |
+| `GROQ_API_KEY` | Optional — Groq Whisper for voice transcription only |
+| `DEEPSEEK_MODELS` | Optional — comma-separated model ids for the picker |
 | `DEEPSEEK_MODEL` | Override DeepSeek model id (default: `deepseek-v4-flash`) |
 
 Diagnostic endpoint: `GET /api/auth/setup` (env + scope report).
@@ -237,8 +237,8 @@ lib/auth-connections.ts  Connect URLs per provider
 lib/auth-routes.ts       Absolute logout URLs
 lib/my-account-api.ts    My Account API list/delete connected accounts
 app/api/auth/disconnect/route.ts  Token Vault disconnect
-app/api/chat/route.ts    AI agent (DeepSeek / Groq) + tool registration
-app/api/models/route.ts  Available model list (DeepSeek / Groq picker)
+app/api/chat/route.ts    AI agent (DeepSeek) + tool registration
+app/api/models/route.ts  Available model list (DeepSeek picker)
 app/api/status/route.ts  Connection probe
 agent/tools/*.ts         Provider API calls (no credential storage)
 lib/ai-provider.ts       Provider resolution, model listing, DeepSeek fetch wrapper

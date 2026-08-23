@@ -1,7 +1,7 @@
 /**
  * Shared outbound-HTTP helpers.
  *
- * Every call Anzen makes to a third party (Auth0 My Account, Groq Whisper) goes
+ * Every call Anzen makes to a third party (Auth0 My Account, DeepSeek, Groq Whisper) goes
  * through here so a hung socket can't pin a serverless invocation open until the
  * platform kills it, and so transient 5xx/network blips get one cheap retry
  * instead of surfacing to the user as a hard failure.

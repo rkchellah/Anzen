@@ -7,7 +7,7 @@
 
 ## Project in one sentence
 
-**Anzen** is a Next.js 16 AI Chief of Staff that uses **Auth0 Token Vault** (never stores provider credentials) + **Groq** (LLaMA 3.3 70B) + **Vercel AI SDK v6** to read/act on **GitHub, Gmail, and Slack** on the user's behalf.
+**Anzen** is a Next.js 16 AI Chief of Staff that uses **Auth0 Token Vault** (never stores provider credentials) + **DeepSeek** (V4 Flash) + **Vercel AI SDK v6** to read/act on **GitHub, Gmail, and Slack** on the user's behalf.
 
 - **Dev URL:** `http://localhost:3000`
 - **Docs:** `ARCHITECTURE.md` (Auth0 flows), `BUGLOG.md` (bugs/lessons), `GOAL.md` (production hardening roadmap)
@@ -21,7 +21,7 @@
 |--------|------|
 | Frontend | Next.js 16, React 19, inline styles (no shadcn in dashboard) |
 | Auth | `@auth0/nextjs-auth0` v4, `proxy.ts` middleware |
-| Agent | `ai` v6, `@ai-sdk/groq`, `@ai-sdk/react` `useChat` |
+| Agent | `ai` v6, `@ai-sdk/openai` (DeepSeek), `@ai-sdk/react` `useChat` |
 | APIs | Octokit, googleapis (Gmail), `@slack/web-api` |
 | Hosting target | Vercel |
 
@@ -54,7 +54,8 @@ AUTH0_CLIENT_SECRET=
 AUTH0_AUDIENCE=https://anzen.api
 AUTH0_TOKEN_VAULT_SCOPES=true   # required for connect/disconnect scopes
 APP_BASE_URL=http://localhost:3000
-GROQ_API_KEY=
+DEEPSEEK_API_KEY=
+GROQ_API_KEY=   # optional, voice transcription only
 ```
 
 After enabling `AUTH0_TOKEN_VAULT_SCOPES=true`, user must **sign out and sign in again**.
@@ -133,7 +134,7 @@ Mock/fake data in tools was **removed** — failures log + throw via `rethrowToo
 - [x] **Phase 5 complete** — chat rate limit (20/min when Redis set) + `.gitleaks.toml`
 - [x] **Phase 6 complete** — real audit trail + History tab from `/api/audit`
 - [x] **Phase 7 helper** — `scripts/verify-data-isolation.mjs` (manual sign-off by owner)
-- [x] **Phase 8 complete** — `/privacy`, `/terms`, Groq disclosure, connect/landing links
+- [x] **Phase 8 complete** — `/privacy`, `/terms`, AI-processing disclosure, connect/landing links
 - [ ] **Phase 9** — public distribution (manual only — owner)
 
 ---
@@ -199,7 +200,7 @@ lib/auth0-scopes.ts           Login scopes + AUTH0_TOKEN_VAULT_SCOPES gating
 lib/auth-connections.ts       Connect URLs; PROVIDER_CONNECTION_ALIASES
 lib/my-account-api.ts         List/delete connected accounts (disconnect)
 lib/auth-routes.ts            buildLogoutUrl (absolute URLs)
-app/api/chat/route.ts         Groq streamText + tools
+app/api/chat/route.ts         DeepSeek streamText + tools
 app/api/status/route.ts       Connection probe (My Account API first)
 app/api/auth/disconnect/route.ts
 app/dashboard/DashboardClient.tsx   Chat, Connections, History, Phase 1 confirm UI
