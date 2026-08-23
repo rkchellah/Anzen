@@ -128,3 +128,24 @@ export function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message) return error.message;
   return fallback;
 }
+
+/**
+ * `useChat` reports a failed response by putting the raw body in
+ * `error.message`, so a 4xx from /api/chat arrives as `{"error":"…"}`.
+ * Unwrap the envelope instead of showing JSON to the user.
+ */
+export function chatErrorMessage(error: unknown, fallback: string): string {
+  const raw = errorMessage(error, "").trim();
+  if (!raw) return fallback;
+  if (!raw.startsWith("{")) return raw;
+
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown };
+    return typeof parsed.error === "string" && parsed.error.trim()
+      ? parsed.error
+      : fallback;
+  } catch {
+    // Body looked like JSON but wasn't — don't put it on screen.
+    return fallback;
+  }
+}

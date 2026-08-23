@@ -5,7 +5,12 @@ import { AlertTriangle, RefreshCw, ShieldQuestion } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { findPendingManualApprovals, hasPendingManualApprovals } from "@/agent/pending-approvals";
-import { errorMessage, isAbortError, requestJson } from "@/lib/client-api";
+import {
+  chatErrorMessage,
+  errorMessage,
+  isAbortError,
+  requestJson,
+} from "@/lib/client-api";
 import {
   deriveChatTitle,
   loadChats,
@@ -183,8 +188,17 @@ export default function DashboardClient({
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
+        // Omit `model` entirely until one is selected — sending `null` before
+        // /api/models resolves fails the route's string check, and the server
+        // already falls back to its default when the field is absent.
         prepareSendMessagesRequest: ({ messages, body }) => ({
-          body: { messages, model: selectedModelRef.current, ...body },
+          body: {
+            messages,
+            ...(selectedModelRef.current
+              ? { model: selectedModelRef.current }
+              : {}),
+            ...body,
+          },
         }),
       }),
     []
@@ -662,8 +676,10 @@ export default function DashboardClient({
                         <AlertTitle>Anzen couldn&apos;t answer</AlertTitle>
                         <AlertDescription className="flex flex-col items-start gap-2">
                           <span>
-                            {chatError.message ||
-                              "Something went wrong while generating a response."}
+                            {chatErrorMessage(
+                              chatError,
+                              "Something went wrong while generating a response."
+                            )}
                           </span>
                           <Button size="sm" variant="outline" onClick={() => clearError()}>
                             Dismiss
