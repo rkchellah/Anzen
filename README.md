@@ -8,7 +8,7 @@
 
 Most AI agents that connect to your tools store your OAuth tokens somewhere: a database, an env file, a session. That means your GitHub token, your Gmail access, your Slack credentials — all sitting inside an app trusting not to leak them.
 
-Anzen holds none of it. You connect GitHub, Gmail, and Slack through **Auth0 Token Vault**. The tokens live there, sealed. When the agent needs to make an API call, it requests a short-lived access token, uses it once, and discards it. Anzen never sees the underlying credential — not in memory, not in logs, not ever.
+Anzen holds none of it. You connect GitHub, Gmail, and Slack through **Auth0 Token Vault**. The tokens live there, sealed. When the agent needs to make an API call, it requests a short-lived access token, uses it once, and discards it. Anzen never stores long-lived credentials. The short-lived token it receives exists only in memory for the duration of one request.
 
 ---
 
@@ -34,7 +34,7 @@ That's it. No commands, no special syntax. The agent figures out which tools to 
 
 ## What the agent can do
 
-Nine tools across three providers:
+Eight tools across three providers (four read, four write):
 
 | Tool | Provider | Type |
 |---|---|---|
@@ -44,7 +44,7 @@ Nine tools across three providers:
 | `commentOnIssue` | GitHub | **Write** — requires confirmation |
 | `listUnreadEmails` | Gmail | Read |
 | `sendEmail` | Gmail | **Write** — requires confirmation |
-| `listSlackChannels` | Slack | Read |
+| `listChannels` | Slack | Read |
 | `postMessage` | Slack | **Write** — requires confirmation |
 
 Each tool requests a fresh token from Token Vault for its provider, makes the API call, and returns the result. No token survives past the request.
@@ -53,7 +53,13 @@ Each tool requests a fresh token from Token Vault for its provider, makes the AP
 
 ## Why there's no backend
 
-Intentionally. Auth0 Token Vault handles credential storage and short-lived token issuance. The Next.js API routes (`/api/chat`, `/api/status`, etc.) are thin: they verify your Auth0 session, exchange it for a live third-party access token via Token Vault, call the provider's API, and stream the result back. There is no database, no credential store, no token cache anywhere in Anzen's infrastructure.
+Intentionally. Auth0 Token Vault handles credential storage and short-lived token issuance. The Next.js API routes (`/api/chat`, `/api/status`, etc.) are thin: they verify your Auth0 session, exchange it for a live third-party access token via Token Vault, call the provider's API, and stream the result back. Anzen keeps no credential store and no token cache of its own. It does keep a small amount of per-user state, keyed by Auth0 user id:
+
+- **Access mode** per provider (read-only or read & write)
+- **Profile** (full name and preferred name)
+- **Audit log** of write actions, including their full parameters (e.g. email body), capped at 200 entries per user
+
+This lives in Upstash Redis when `KV_REST_API_URL` and `KV_REST_API_TOKEN` are set, and otherwise in local `.data/*.json` files (development only — the file store cannot persist on read-only hosts such as Vercel). Redis also holds the chat rate-limit counters. Chat history stays in the browser.
 
 ---
 
@@ -75,7 +81,7 @@ The model picker in the chat composer lets users switch models mid-session. Set 
 1. User logs in with Google via Auth0
 2. User connects GitHub, Gmail, and Slack in the Connections tab — tokens stored in Auth0 Token Vault, never in Anzen
 3. User sends a message; the agent decides which tools to call
-4. Each tool calls `getTokenForProvider(provider)` — exchanges the Auth0 session for a live third-party access token
+4. Each tool calls `exchangeTokenForProvider(...)` — exchanges the Auth0 session for a live third-party access token
 5. The token is used once and discarded
 6. Write tools pause and surface a Confirm / Cancel card in the UI before executing
 
@@ -85,8 +91,16 @@ The model picker in the chat composer lets users switch models mid-session. Set 
 
 Each connection can be individually set in the Connections tab:
 
-- 🟢 **Read-only** — the agent can read but never write (default)
+- 🟢 **Read-only** — the agent can read but never write
 - 🟡 **Read & write** — write actions are allowed but still require explicit confirmation per action
+
+**Default:** every provider (GitHub, Gmail, Slack) starts as read-only; the user opts in to writes per provider.
+
+**Fallback:** if the permission lookup fails (Redis read error), or Redis is not configured in production, every provider is treated as read-only. Saving a setting in production without Redis fails rather than pretending to succeed. In local development without Redis, settings are kept in `.data/permissions.json`.
+
+### Known limitations
+
+- The server trusts approval state returned by the browser. Approve/deny decisions travel back in the chat `messages` array, and there is no server-side record of issued approvals keyed by tool call id.
 
 ---
 
@@ -139,7 +153,7 @@ You'll need an Auth0 account with Token Vault enabled. GitHub, Gmail, and Slack 
 
 | Layer | Technology |
 |---|---|
-| **Framework** | Next.js 15 + TypeScript |
+| **Framework** | Next.js 16 (16.1.6) + TypeScript |
 | **Agent / streaming** | Vercel AI SDK (`streamText`, tool calling, `UIMessage`) |
 | **AI provider** | DeepSeek (V4 Flash, V4 Pro) · Groq Whisper for voice input only |
 | **Auth + credentials** | Auth0 v4 (`nextjs-auth0`) + Token Vault |
@@ -191,7 +205,7 @@ Anzen/
 │   ├── auth-connections.ts         — Connect URLs per provider
 │   ├── chat-history.ts             — Browser-local chat history (no server storage)
 │   ├── permissions.ts              — Per-provider access modes
-│   ├── rate-limit.ts               — In-memory per-user rate limiter
+│   ├── rate-limit.ts               — Per-user chat rate limiter (Upstash Redis; rejects in production if unavailable)
 │   └── privacy-content.tsx         — Privacy policy content
 ├── hooks/
 │   ├── use-audio-recording.ts      — Voice input recording + transcription
