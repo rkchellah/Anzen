@@ -1,9 +1,11 @@
 # Anzen — Bug Log & Lessons Learned
 
-**Last updated:** 2026-07-05  
+**Last updated:** 2026-10-12  
 **Architecture reference:** [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 This file replaces the old build checklist. It records what broke, what we learned, and what is still open.
+
+> **Model provider history:** chat ran on Groq (Llama 3.3 70B) until mid-2026 and on DeepSeek since. Entries below that mention Groq describe the earlier provider; Groq is still used for voice transcription only.
 
 ---
 
@@ -212,6 +214,7 @@ Consolidated from hackathon build notes, Auth0 dashboard work, and post-submissi
 **File:** `lib/permissions.ts`, `lib/permissions-store.ts`, `lib/tool-permissions.ts`, `app/api/permissions/route.ts`, `agent/tools/github.ts`, `agent/tools/gmail.ts`, `agent/tools/slack.ts`, `app/api/chat/route.ts`, `app/dashboard/DashboardClient.tsx`, `.env.example`  
 **Found:** No per-provider control over write actions; any connected provider allowed all write tools once the model invoked them (subject only to Phase 1 confirmation).  
 **Fix:** Per-user `read` / `read_write` setting per provider (GitHub, Gmail, Slack). Stored in Upstash Redis when `KV_REST_API_URL` + `KV_REST_API_TOKEN` are set, else local `.data/permissions.json`. `assertWriteAllowed` blocks write tools server-side before provider API calls. Connections page shows Read only / Read & write toggles; chat UI blocks write confirmation when read-only. Default remains read & write.  
+**Superseded:** default is now read (see Phase 9).  
 **Severity:** high  
 **Status:** Resolved
 
@@ -387,6 +390,24 @@ Consolidated from hackathon build notes, Auth0 dashboard work, and post-submissi
 **Fix:** Use correct app name or generic “your Anzen application.”  
 **Severity:** low  
 **Status:** open
+
+---
+
+## Phase 9 — October 2026 accuracy and fail-closed changes
+
+**File:** `lib/permissions.ts`, `lib/permissions-store.ts`, `lib/tool-permissions.ts`, `lib/rate-limit.ts`, `agent/action-descriptions.ts`, `components/AnzenToolApprovals.tsx`, `lib/privacy-content.tsx`, `app/connect/ConnectPageClient.tsx`, `README.md`, `ARCHITECTURE.md`  
+**Found:** Write access defaulted to read & write, and a Redis read failure fell back to that default. In production without Redis the rate limiter allowed every request, and a throwing `limiter.limit()` was unhandled. The confirmation card showed a truncated one-line summary only (email body omitted). Docs had the wrong tool count, a wrong Slack tool name, Next.js 15 instead of 16, and an overstated credential claim; the privacy text did not mention Groq voice transcription or that audit entries store full write parameters.  
+**Fix:**
+- `defaultUserPermissions()` returns `read` for GitHub, Gmail and Slack.
+- `getUserPermissions()` returns the read-only defaults on a Redis read error, and in production without Redis (file store ignored, error logged once). `setProviderAccessMode()` throws in production without Redis so the toggle reverts instead of showing a setting that never applies. Development without Redis still uses `.data/permissions.json`.
+- `assertWriteAllowed()` allows writes only when the mode is exactly `read_write`.
+- `checkChatRateLimit()` wraps limiter setup and `limiter.limit()` in try/catch. In production, a missing Redis or a limiter error returns `{ allowed: false, retryAfterSeconds: 5 }`, which `/api/chat` turns into its existing 429. Development allows.
+- Confirmation card renders every write argument in full as plain text (`<pre>`, no markdown, links or images) under the one-line summary.
+- Privacy page and Connect page state that voice audio goes to Groq and that audit entries store full write parameters, including email bodies, capped at 200 per user.
+- README: credential claim reworded, eight tools (four read, four write), `listChannels` name, Next.js 16.1.6, real default and fallback, Known limitations (server trusts browser approval state). ARCHITECTURE: DeepSeek V4 Flash / V4 Pro in env table, Next.js 16.1.6, production no-Redis permissions behaviour.  
+**Not done:** server-side approval records keyed by tool call id.  
+**Severity:** high  
+**Status:** Resolved
 
 ---
 

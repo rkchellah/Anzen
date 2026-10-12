@@ -78,6 +78,11 @@ export function ConnectPageClient() {
         </div>
 
         <p className="anzen-tile-body mt-6 max-w-[620px]">
+          Voice input audio is sent to Groq for transcription. Audit entries store the full parameters of each
+          write action, including email bodies, capped at 200 entries per user.
+        </p>
+
+        <p className="anzen-tile-body mt-3 max-w-[620px]">
           By connecting you agree to our{" "}
           <Link href="/terms" className="text-[var(--anzen-text)] no-underline hover:underline">
             Terms

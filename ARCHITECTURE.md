@@ -13,6 +13,17 @@ Anzen only ever holds:
 1. An **Auth0 session** (encrypted cookie via `@auth0/nextjs-auth0`)
 2. **Ephemeral provider access tokens** inside a single API request (tool execution)
 
+Separately from credentials, Anzen stores per-user app state keyed by Auth0 user id:
+
+| Key | Contents |
+|-----|----------|
+| `permissions:<userId>` | Access mode per provider (`read` / `read_write`). Default and error fallback is `read` for every provider. |
+| `profile:<userId>` | Full name and preferred name |
+| `audit:<userId>` | Write-action audit log with full parameters, newest 200 entries |
+| `anzen:chat:*` | Upstash sliding-window chat rate-limit counters (20 requests/min per user) |
+
+The store is Upstash Redis when `KV_REST_API_URL` and `KV_REST_API_TOKEN` are set. Without them, permissions, profile and audit fall back to `.data/*.json` (development only), and the rate limiter is disabled in development but rejects chat requests in production. In production without Redis, permissions ignore the file store: every provider reads as `read` and saving a setting fails.
+
 ---
 
 ## Actors and APIs
@@ -204,10 +215,11 @@ flowchart TB
 | `AUTH0_AUDIENCE` | `https://anzen.api` — requested at login when Token Vault scopes enabled |
 | `AUTH0_TOKEN_VAULT_SCOPES=true` | Adds connected_accounts scopes + audience to login |
 | `APP_BASE_URL` | `http://localhost:3000` — callbacks, logout redirect |
-| `DEEPSEEK_API_KEY` | Enables DeepSeek models (V4 Flash default, Reasoner optional) |
+| `DEEPSEEK_API_KEY` | Enables DeepSeek models (V4 Flash default, V4 Pro optional) |
 | `GROQ_API_KEY` | Optional — Groq Whisper for voice transcription only |
 | `DEEPSEEK_MODELS` | Optional — comma-separated model ids for the picker |
 | `DEEPSEEK_MODEL` | Override DeepSeek model id (default: `deepseek-v4-flash`) |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Upstash Redis for permissions, profile, audit log and rate limiting. Required in production. |
 
 Diagnostic endpoint: `GET /api/auth/setup` (env + scope report).
 
@@ -230,7 +242,7 @@ Details and war stories: see **BUGLOG.md** (resolved entries).
 ## Key source files
 
 ```
-proxy.ts                 Auth0 middleware (Next.js 16); auth routes; logout URL fix
+proxy.ts                 Auth0 middleware (Next.js 16.1.6); auth routes; logout URL fix
 lib/auth0.ts             Auth0Client + getAccessTokenForConnection
 lib/auth0-scopes.ts      Login scopes + audience gating
 lib/auth-connections.ts  Connect URLs per provider
