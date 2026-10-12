@@ -5,6 +5,7 @@ import type { UIMessage } from "ai";
 import { AlertTriangle, Ban, ShieldQuestion } from "lucide-react";
 import {
   describeWriteAction,
+  describeWriteArguments,
   getToolNameFromPart,
   getToolParts,
   isToolErrorPart,
@@ -19,6 +20,9 @@ import type { ProviderAccessMode } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type ConnectionKey = "github" | "gmail" | "slack";
+
+/** Values longer than this get a character count beside their label. */
+const LONG_VALUE_CHARS = 200;
 
 type AnzenToolApprovalsProps = {
   messages: UIMessage[];
@@ -126,7 +130,18 @@ export function AnzenToolApprovals({
                 Confirm Action
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm font-medium leading-relaxed">{summary}</CardContent>
+            <CardContent className="space-y-3 text-sm leading-relaxed">
+              <p className="font-medium">{summary}</p>
+              {describeWriteArguments(toolName, part.input).map(({ label, value }) => (
+                <div key={label} className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {label}
+                    {value.length > LONG_VALUE_CHARS && ` (${value.length.toLocaleString()} characters)`}
+                  </p>
+                  <pre className="whitespace-pre-wrap break-words max-h-64 overflow-auto">{value}</pre>
+                </div>
+              ))}
+            </CardContent>
             <CardFooter className="flex flex-wrap gap-2 pt-2">
               <Button 
                 onClick={() => onApprove(approvalId, true)}

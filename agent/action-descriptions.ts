@@ -58,6 +58,55 @@ export function describeWriteAction(toolName: string, input: unknown): string {
   }
 }
 
+export type WriteArgument = { label: string; value: string };
+
+function argText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value === undefined || value === null) return "";
+  return String(value);
+}
+
+/**
+ * Every argument the write will send, untruncated, so the confirmation gate
+ * shows exactly what runs — the one-line summary alone hides bodies.
+ */
+export function describeWriteArguments(toolName: string, input: unknown): WriteArgument[] {
+  if (!input || typeof input !== "object") return [];
+
+  const args = input as Record<string, unknown>;
+  const pick = (fields: Array<[label: string, key: string]>) =>
+    fields.map(([label, key]) => ({ label, value: argText(args[key]) }));
+
+  switch (toolName) {
+    case "sendEmail":
+      return pick([
+        ["To", "to"],
+        ["Subject", "subject"],
+        ["Body", "body"],
+      ]);
+    case "commentOnIssue":
+      return pick([
+        ["Owner", "owner"],
+        ["Repository", "repo"],
+        ["Issue", "issueNumber"],
+        ["Comment", "comment"],
+      ]);
+    case "postMessage":
+      return pick([
+        ["Channel", "channel"],
+        ["Message", "message"],
+      ]);
+    case "closeIssue":
+      return pick([
+        ["Owner", "owner"],
+        ["Repository", "repo"],
+        ["Issue", "issueNumber"],
+      ]);
+    default:
+      return [];
+  }
+}
+
 export type ToolApprovalPart = {
   type: string;
   state?: string;

@@ -16,11 +16,12 @@ export const CONNECTION_KEYS: readonly ConnectionKey[] = [
 
 export type UserPermissions = Record<ConnectionKey, ProviderAccessMode>;
 
+/** Every provider starts read-only; the user opts in to writes per provider. */
 export function defaultUserPermissions(): UserPermissions {
   return {
-    github: "read_write",
-    gmail: "read_write",
-    slack: "read_write",
+    github: "read",
+    gmail: "read",
+    slack: "read",
   };
 }
 

@@ -19,10 +19,29 @@ function redisKey(userId: string): string {
   return `permissions:${userId}`;
 }
 
+let warnedNoRedisInProduction = false;
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+/**
+ * The file store can't persist on read-only hosts (e.g. Vercel), so production
+ * without Redis ignores it entirely. Say so once.
+ */
+function warnNoRedisInProduction(): void {
+  if (warnedNoRedisInProduction) return;
+  warnedNoRedisInProduction = true;
+  console.error(
+    "[permissions-store] Redis is not configured in production; every provider is read-only until KV_REST_API_URL and KV_REST_API_TOKEN are set."
+  );
+}
+
 /**
  * Coerce whatever came out of storage into a complete, valid permission set.
  * Unknown keys and invalid modes fall back to the default rather than throwing —
- * a corrupt record must not lock a user out of their own settings page.
+ * a corrupt record must not lock a user out of their own settings page. The
+ * default is read-only, so a corrupt record can never grant writes.
  */
 function normalizePermissions(
   partial: Partial<UserPermissions> | null | undefined
@@ -82,13 +101,19 @@ export async function getUserPermissions(
       const stored = await redis.get<Partial<UserPermissions>>(redisKey(userId));
       return normalizePermissions(stored ?? undefined);
     } catch (error) {
-      // Read-only settings lookup: degrade to defaults rather than failing the
-      // tool call that asked for them.
+      // Intentionally fail closed: the defaults are read-only, so a storage
+      // outage blocks writes instead of silently granting them.
       console.error("[permissions-store] Redis read failed:", error);
       return defaultUserPermissions();
     }
   }
 
+  if (isProduction()) {
+    warnNoRedisInProduction();
+    return defaultUserPermissions();
+  }
+
+  // Development only. An unreadable file store also resolves to the read-only defaults.
   const file = await readFileStore();
   return normalizePermissions(file[userId]);
 }
@@ -112,6 +137,13 @@ export async function setProviderAccessMode(
     // caller turns it into a 500 and the UI reverts the toggle.
     await redis.set(redisKey(userId), updated);
     return updated;
+  }
+
+  if (isProduction()) {
+    // Reads ignore the file store in production, so saving there would show a
+    // toggle that never takes effect. Fail so the UI reverts it.
+    warnNoRedisInProduction();
+    throw new Error("Permissions storage is not configured");
   }
 
   const file = await readFileStore();
