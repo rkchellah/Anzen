@@ -31,8 +31,15 @@ export function chatStreamErrorMessage(
     return "The assistant hit a tool-calling error from the model provider. Please try again or rephrase your request.";
   }
 
-  if (lower.includes("api key") || lower.includes("authentication")) {
-    return "The AI provider rejected the request (API key issue). Check DEEPSEEK_API_KEY in your environment.";
+  if (
+    lower.includes("api key") ||
+    lower.includes("authentication") ||
+    lower.includes("insufficient balance") ||
+    lower.includes("balance") ||
+    lower.includes("credit")
+  ) {
+    const keyName = provider === "groq" ? "GROQ_API_KEY" : "DEEPSEEK_API_KEY";
+    return `The AI provider rejected the request (balance or API key issue). Check ${keyName} or add credits.`;
   }
 
   return "Something went wrong while generating a response. Please try again.";

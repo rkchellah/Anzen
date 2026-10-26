@@ -106,7 +106,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("[chat] No AI provider configured:", error);
     return apiError(
-      "No AI model is configured on the server. Set DEEPSEEK_API_KEY.",
+      "No AI model is configured on the server. Set DEEPSEEK_API_KEY or GROQ_API_KEY.",
       503
     );
   }
